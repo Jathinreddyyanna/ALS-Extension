@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model ThreatReport {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  url           String
+  domain        String
+  category      threat_category
+  description   String?         @db.VarChar(500)
+  signals       Json?
+  ipHash        String          @map("ip_hash")
+  userAgent     String?         @map("user_agent")
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  deletedAt     DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  created_hour  DateTime?       @default(dbgenerated("(date_trunc('hour'::text, (created_at AT TIME ZONE 'UTC'::text)) AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  domain_scores DomainScore     @relation(fields: [domain], references: [domain], onDelete: Cascade)
+
+  @@index([category], map: "idx_threat_reports_category")
+  @@index([createdAt(sort: Desc)], map: "idx_threat_reports_created_at")
+  @@index([domain], map: "idx_threat_reports_domain")
+  @@map("threat_reports")
+}
+
+model DetectionEvent {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventType     event_type    @map("event_type")
+  domain        String
+  url           String
+  riskScore     Int           @map("risk_score")
+  riskLevel     risk_level    @map("risk_level")
+  signals       Json?
+  aiExplanation String?       @map("ai_explanation")
+  verdict       file_verdict?
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  file_scan_id  String?       @db.Uuid
+  domain_scores DomainScore   @relation(fields: [domain], references: [domain], onDelete: Cascade)
+  file_scans    FileScan?     @relation(fields: [file_scan_id], references: [id], onUpdate: NoAction, map: "fk_detection_events_file_scan")
+
+  @@index([createdAt(sort: Desc)], map: "idx_detection_events_created_at")
+  @@index([domain], map: "idx_detection_events_domain")
+  @@index([eventType], map: "idx_detection_events_event_type")
+  @@index([riskLevel], map: "idx_detection_events_risk_level")
+  @@map("detection_events")
+}
+
+model DomainScore {
+  domain           String           @id
+  riskScore        Int              @default(0) @map("risk_score")
+  reportCount      Int              @default(0) @map("report_count")
+  categories       String[]         @default([])
+  category_counts  Json             @default("{}")
+  is_confirmed     Boolean          @default(false)
+  first_seen       DateTime         @default(now()) @db.Timestamptz(6)
+  last_report_at   DateTime         @default(now()) @db.Timestamptz(6)
+  lastUpdated      DateTime         @default(now()) @updatedAt @map("last_updated") @db.Timestamptz(6)
+  detection_events DetectionEvent[]
+  threat_reports   ThreatReport[]
+
+  @@index([last_report_at(sort: Desc)], map: "idx_domain_scores_last_report")
+  @@index([riskScore(sort: Desc)], map: "idx_domain_scores_risk")
+  @@index([domain(ops: raw("gin_trgm_ops"))], map: "idx_domain_scores_trgm", type: Gin)
+  @@map("domain_scores")
+}
+
+model FileScan {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  filename           String
+  extension          String
+  mimeType           String           @map("mime_type")
+  sizeBytes          BigInt           @map("size_bytes")
+  sourceUrl          String           @map("source_url")
+  chrome_download_id Int?
+  verdict            file_verdict
+  confidence         Float
+  aiExplanation      String           @map("ai_explanation")
+  indicators         String[]         @default([])
+  recommended_action String?
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  detection_events   DetectionEvent[]
+
+  @@index([createdAt(sort: Desc)], map: "idx_file_scans_created_at")
+  @@index([extension], map: "idx_file_scans_extension")
+  @@index([verdict], map: "idx_file_scans_verdict")
+  @@map("file_scans")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model app_stats {
+  id                     Int      @id @default(1)
+  total_reports          BigInt   @default(0)
+  total_detection_events BigInt   @default(0)
+  total_file_scans       BigInt   @default(0)
+  malicious_files        BigInt   @default(0)
+  high_risk_domains      Int      @default(0)
+  last_updated           DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model rate_limit_log {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ip_hash    String
+  endpoint   String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([ip_hash, endpoint, created_at(sort: Desc)], map: "idx_rate_limit_ip_endpoint")
+}
+
+enum event_type {
+  url_threat
+  redirect_chain
+  popup_abuse
+  download_intercept
+  file_scan
+  ad_block
+}
+
+enum file_verdict {
+  SAFE
+  SUSPICIOUS
+  MALICIOUS
+}
+
+enum risk_level {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum threat_category {
+  phishing
+  scam
+  malware
+  redirect
+  popup_abuse
+  other
+}
