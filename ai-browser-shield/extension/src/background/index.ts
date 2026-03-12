@@ -2,8 +2,78 @@ import { scoreUrl } from '../detection/urlScorer'
 import { trackRedirect, resetTab } from '../detection/redirectTracker'
 import { checkDownload } from '../detection/downloadChecker'
 import { saveThreatEvent, setDomainScore } from './storage'
-import { scanUrl, scanFile } from '../api/client'
-import type { ThreatEvent } from '../types'
+import { scanFile } from '../api/client'
+import { analyzeUrlWithGemini } from '../api/gemini'
+import type { ThreatEvent, RiskLevel, UrlScanResult } from '../types'
+
+const TRUSTED_DOMAINS = new Set([
+  'youtube.com', 'youtu.be',
+  'google.com', 'accounts.google.com',
+  'github.com',
+  'amazon.com', 'apple.com', 'microsoft.com', 'paypal.com', 'netflix.com',
+  'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'linkedin.com',
+])
+
+function isTrustedDomain(hostname: string): boolean {
+  for (const d of TRUSTED_DOMAINS) {
+    if (hostname === d || hostname.endsWith(`.${d}`)) return true
+  }
+  return false
+}
+
+async function getApiBaseUrl(): Promise<string | null> {
+  return new Promise(resolve => {
+    chrome.storage.sync.get('apiBaseUrl', (r) => {
+      const v = (r.apiBaseUrl || '').trim()
+      resolve(v || null)
+    })
+  })
+}
+
+function normalizeRiskLevel(level: string): RiskLevel {
+  const v = String(level || '').toUpperCase()
+  if (v === 'CRITICAL') return 'CRITICAL'
+  if (v === 'HIGH') return 'HIGH'
+  if (v === 'MEDIUM') return 'MEDIUM'
+  return 'LOW'
+}
+
+async function scanUrlViaFastApi(url: string, score: number, riskLevel: RiskLevel, indicators: string[]): Promise<UrlScanResult | null> {
+  const apiBaseUrl = await getApiBaseUrl()
+  if (!apiBaseUrl) return null
+
+  try {
+    const res = await fetch(`${apiBaseUrl}/scan/url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url,
+        score,
+        risk_level: riskLevel,
+        indicators,
+      }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+
+    const rl = normalizeRiskLevel(data?.risk_level || data?.riskLevel)
+    const rs = typeof data?.score === 'number' ? data.score : (typeof data?.riskScore === 'number' ? data.riskScore : score)
+    const rec = data?.recommended_action || data?.recommendedAction || (rl === 'HIGH' || rl === 'CRITICAL' ? 'block' : 'warn')
+    const keyIndicators = data?.key_indicators || data?.keyIndicators || data?.threats || []
+
+    return {
+      explanation: data?.explanation || 'Analysis complete.',
+      riskLevel: rl,
+      recommendedAction: rec,
+      confidence: typeof data?.confidence === 'number' ? data.confidence : 0.6,
+      keyIndicators,
+      riskScore: rs,
+      cached: !!data?.cached,
+    }
+  } catch {
+    return null
+  }
+}
 
 // ── URL Analysis ──────────────────────────────────────────────────────────────
 async function analyzeUrl(tabId: number, url: string) {
@@ -11,21 +81,55 @@ async function analyzeUrl(tabId: number, url: string) {
   let hostname = ''
   try { hostname = new URL(url).hostname } catch { return }
 
-  const { score, signals, riskLevel } = scoreUrl(url)
+  // Hard allowlist to prevent false positives on trusted domains
+  if (isTrustedDomain(hostname)) {
+    chrome.action.setBadgeText({ text: '', tabId })
+    await setDomainScore(hostname, 0)
+    return
+  }
+
+  const local = scoreUrl(url)
+  const indicators = Object.entries(local.signals)
+    .filter(([, v]) => v > 0)
+    .map(([k]) => k)
+
+  // Mode 1: FastAPI backend if configured
+  const fastApiResult = await scanUrlViaFastApi(url, local.score, local.riskLevel, indicators)
+
+  // Mode 2: Direct Gemini if no backend or backend failed
+  const gemini = fastApiResult ? null : await analyzeUrlWithGemini(url, local.score, local.riskLevel, indicators)
+
+  let result: UrlScanResult | null = fastApiResult
+  if (!result && gemini) {
+    const verdict = gemini.verdict
+    const mappedLevel: RiskLevel =
+      verdict === 'MALICIOUS' ? (local.score >= 80 ? 'CRITICAL' : 'HIGH') :
+      verdict === 'SUSPICIOUS' ? 'MEDIUM' :
+      'LOW'
+    result = {
+      explanation: gemini.explanation,
+      riskLevel: mappedLevel,
+      recommendedAction: mappedLevel === 'HIGH' || mappedLevel === 'CRITICAL' ? 'block' : 'warn',
+      confidence: gemini.confidence,
+      keyIndicators: gemini.threats,
+      riskScore: local.score,
+      cached: false,
+    }
+  }
+
+  const riskLevel = result?.riskLevel || local.riskLevel
+  const riskScore = result?.riskScore ?? local.score
+  const explanation = result?.explanation || getFallbackExplanation(riskScore)
+  const recommendedAction = result?.recommendedAction || (riskLevel === 'HIGH' || riskLevel === 'CRITICAL' ? 'block' : 'warn')
 
   const colors: Record<string, string> = { LOW: '#166534', MEDIUM: '#B45309', HIGH: '#DC2626', CRITICAL: '#7F1D1D' }
   chrome.action.setBadgeBackgroundColor({ color: colors[riskLevel], tabId })
-  chrome.action.setBadgeText({ text: riskLevel === 'LOW' ? '' : score.toString(), tabId })
+  chrome.action.setBadgeText({ text: riskLevel === 'LOW' ? '' : riskScore.toString(), tabId })
 
-  if (score < 30) return
-
-  let aiExplanation = ''
-  if (score >= 60) {
-    const result = await scanUrl(url, signals)
-    aiExplanation = result?.explanation || getFallbackExplanation(score)
+  if (riskLevel === 'HIGH' || riskLevel === 'CRITICAL') {
     chrome.tabs.sendMessage(tabId, {
       type: 'SHOW_OVERLAY',
-      payload: { url, score, riskLevel, explanation: aiExplanation, recommendedAction: result?.recommendedAction || 'warn' }
+      payload: { url, score: riskScore, riskLevel, explanation, recommendedAction }
     }).catch(() => {})
   }
 
@@ -34,12 +138,12 @@ async function analyzeUrl(tabId: number, url: string) {
     eventType: 'url_threat',
     domain: hostname,
     url,
-    riskScore: score,
+    riskScore,
     riskLevel,
-    aiExplanation,
+    aiExplanation: explanation,
     timestamp: Date.now()
   })
-  await setDomainScore(hostname, score)
+  await setDomainScore(hostname, riskScore)
 }
 
 function getFallbackExplanation(score: number): string {

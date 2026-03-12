@@ -28,6 +28,14 @@ export interface UrlScanResult {
   riskLevel: RiskLevel
   recommendedAction: 'allow' | 'warn' | 'block'
   confidence: number
+  keyIndicators?: string[]
+  riskScore?: number
+  db?: {
+    reportCount: number
+    categories: string[]
+    domainRiskScore: number
+    lastSeen: string | null
+  }
   cached: boolean
 }
 

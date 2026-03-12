@@ -1,9 +1,8 @@
-import type { SignalMap, RiskLevel } from '../types'
-
 const SUSPICIOUS_TLDS = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click', '.loan', '.work', '.party', '.review', '.accountant']
 const PHISHING_KEYWORDS = ['login', 'signin', 'verify', 'secure', 'account', 'update', 'banking', 'paypal', 'amazon', 'apple', 'microsoft', 'google', 'netflix', 'password', 'credential', 'suspend', 'confirm', 'wallet', 'crypto']
 
 function shannonEntropy(str: string): number {
+  if (!str) return 0
   const freq: Record<string, number> = {}
   for (const c of str) freq[c] = (freq[c] || 0) + 1
   return -Object.values(freq).reduce((sum, f) => {
@@ -21,16 +20,7 @@ function levenshtein(a: string, b: string): number {
   return dp[m][n]
 }
 
-const TRUSTED_DOMAINS = [
-  'google.com', 'accounts.google.com', 'youtube.com', 'youtu.be',
-  'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'linkedin.com',
-  'amazon.com', 'apple.com', 'microsoft.com', 'paypal.com', 'netflix.com',
-  'github.com',
-]
-
-function isTrustedDomain(hostname: string): boolean {
-  return TRUSTED_DOMAINS.some(d => hostname === d || hostname.endsWith(`.${d}`))
-}
+const TRUSTED_DOMAINS = ['google', 'facebook', 'amazon', 'apple', 'microsoft', 'paypal', 'netflix', 'instagram', 'twitter', 'linkedin']
 
 function checkTyposquat(hostname: string): number {
   const clean = hostname.replace(/^www\./, '').split('.')[0]
@@ -58,19 +48,14 @@ function checkPort(port: string): number {
 
 export interface ScoreResult {
   score: number
-  signals: SignalMap
-  riskLevel: RiskLevel
+  signals: Record<string, number>
 }
 
 export function scoreUrl(rawUrl: string): ScoreResult {
   let u: URL
-  try { u = new URL(rawUrl) } catch { return { score: 0, signals: {} as SignalMap, riskLevel: 'LOW' } }
+  try { u = new URL(rawUrl) } catch { return { score: 0, signals: {} } }
 
-  if (isTrustedDomain(u.hostname)) {
-    return { score: 0, signals: {} as SignalMap, riskLevel: 'LOW' }
-  }
-
-  const signals: SignalMap = {
+  const signals = {
     typosquatScore:     checkTyposquat(u.hostname),
     suspiciousTLD:      checkTLD(u.hostname),
     ipAsHostname:       /^\d{1,3}(\.\d{1,3}){3}$/.test(u.hostname) ? 20 : 0,
@@ -82,7 +67,5 @@ export function scoreUrl(rawUrl: string): ScoreResult {
   }
 
   const score = Math.min(100, Object.values(signals).reduce((a, b) => a + b, 0))
-  const riskLevel: RiskLevel = score >= 80 ? 'CRITICAL' : score >= 60 ? 'HIGH' : score >= 30 ? 'MEDIUM' : 'LOW'
-
-  return { score, signals, riskLevel }
+  return { score, signals }
 }

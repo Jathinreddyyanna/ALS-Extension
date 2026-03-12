@@ -18,6 +18,11 @@
     "default_title": "AI Browser Shield"
   },
 
+  "options_ui": {
+    "page": "settings.html",
+    "open_in_tab": true
+  },
+
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -27,6 +32,7 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
+      "type": "module",
       "run_at": "document_end"
     }
   ],
@@ -42,7 +48,10 @@
     "activeTab"
   ],
 
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": [
+    "<all_urls>",
+    "https://generativelanguage.googleapis.com/*"
+  ],
 
   "declarative_net_request": {
     "rule_resources": [

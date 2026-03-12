@@ -1,4 +1,4 @@
-// Runs after vite build — copies static files Chrome needs into dist/
+﻿// Runs after vite build — copies static files Chrome needs into dist/
 import { copyFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -39,12 +39,25 @@ if (existsSync(popupSrc)) {
   console.log('  ✓ /dist/popup.html (moved from src/popup/index.html)')
 }
 
+// Fix settings.html path — vite outputs to dist/src/settings/index.html
+// Chrome needs it at dist/settings.html
+const settingsSrc  = resolve(dist, 'src/settings/index.html')
+const settingsDest = resolve(dist, 'settings.html')
+if (existsSync(settingsSrc)) {
+  let html = readFileSync(settingsSrc, 'utf-8')
+  html = html.replace(/\.\.\/\.\.\/assets\//g, 'assets/')
+  html = html.replace(/\.\.\/assets\//g, 'assets/')
+  writeFileSync(settingsDest, html)
+  console.log('  ✓ /dist/settings.html (moved from src/settings/index.html)')
+}
+
 console.log('\n✅ dist/ is ready to load in Chrome!\n')
 console.log('Structure:')
 console.log('  dist/manifest.json')
 console.log('  dist/background.js')
 console.log('  dist/content.js')
 console.log('  dist/popup.html')
+console.log('  dist/settings.html')
 console.log('  dist/popup.js')
 console.log('  dist/icon48.png')
 console.log('  dist/icon128.png')

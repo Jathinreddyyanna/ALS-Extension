@@ -11,6 +11,7 @@ export const ReportSchema = z.object({
 export const UrlScanSchema = z.object({
   url: z.string().url().max(2048),
   signals: z.record(z.number()).optional().default({}),
+  force: z.boolean().optional().default(false),
 })
 
 export const FileScanSchema = z.object({

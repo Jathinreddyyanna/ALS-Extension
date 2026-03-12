@@ -1,6 +1,6 @@
-import type { ThreatReport, UrlScanResult, FileScanResult, DomainScore, CommunityReport, SignalMap } from '../types'
+﻿import type { ThreatReport, UrlScanResult, FileScanResult, DomainScore, CommunityReport, SignalMap } from '../types'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
+const DEFAULT_BASE_URL = 'http://localhost:3001/api/v1'
 
 interface ApiError {
   status: number
@@ -8,9 +8,19 @@ interface ApiError {
   errors?: Record<string, string>
 }
 
+async function getBaseUrl(): Promise<string> {
+  return new Promise(resolve => {
+    chrome.storage.sync.get('apiBaseUrl', (r) => {
+      const v = (r.apiBaseUrl || '').trim()
+      resolve(v || DEFAULT_BASE_URL)
+    })
+  })
+}
+
 async function post<T>(path: string, body: unknown): Promise<{ data: T | null; error: ApiError | null }> {
   try {
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const baseUrl = await getBaseUrl()
+    const res = await fetch(`${baseUrl}${path}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -53,7 +63,8 @@ async function post<T>(path: string, body: unknown): Promise<{ data: T | null; e
 
 async function get<T>(path: string): Promise<{ data: T | null; error: ApiError | null }> {
   try {
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const baseUrl = await getBaseUrl()
+    const res = await fetch(`${baseUrl}${path}`, {
       headers: { 'X-Extension-Version': '1.0.0' },
     })
 

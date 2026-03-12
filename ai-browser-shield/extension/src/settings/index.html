@@ -1,0 +1,136 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Browser Shield — Settings</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #080C14;
+      color: #CBD5E1;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .card {
+      background: #0F172A;
+      border: 1px solid #1E293B;
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 520px;
+    }
+    .header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+    .logo { width: 44px; height: 44px; background: linear-gradient(135deg, #1E3A8A, #1D4ED8); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    h1 { font-size: 18px; font-weight: 800; color: #F1F5F9; }
+    .sub { font-size: 12px; color: #475569; margin-top: 2px; }
+
+    .section { margin-bottom: 24px; }
+    .label { font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      background: #080C14;
+      border: 1px solid #1E293B;
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #F1F5F9;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: monospace;
+    }
+    input:focus { border-color: #3B82F6; }
+    .hint { font-size: 11px; color: #334155; margin-top: 6px; line-height: 1.5; }
+    .hint a { color: #60A5FA; text-decoration: none; }
+
+    .save-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #1D4ED8, #2563EB);
+      color: #fff;
+      border: none;
+      padding: 13px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .save-btn:hover { opacity: 0.9; }
+    .status { text-align: center; margin-top: 12px; font-size: 12px; min-height: 18px; }
+    .status.ok { color: #22C55E; }
+    .status.err { color: #EF4444; }
+
+    .divider { border: none; border-top: 1px solid #1E293B; margin: 24px 0; }
+
+    .optional { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .badge { background: #1E293B; color: #64748B; font-size: 10px; padding: 2px 7px; border-radius: 5px; font-weight: 600; }
+
+    .clear-btn {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.2);
+      color: #FCA5A5;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="logo">🛡️</div>
+      <div>
+        <h1>AI Browser Shield</h1>
+        <div class="sub">Settings — Configure your AI protection</div>
+      </div>
+    </div>
+
+    <!-- Gemini API Key (required) -->
+    <div class="section">
+      <div class="label">Gemini API Key <span style="color:#EF4444">*</span> Required</div>
+      <input type="password" id="geminiKey" placeholder="AIza..." autocomplete="off" />
+      <div class="hint">
+        Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>
+        — free tier: 15 requests/min, no credit card needed.<br/>
+        This key is stored locally in your browser and never sent anywhere except Google's Gemini API.
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- Optional backend keys -->
+    <div class="section">
+      <div class="optional">
+        <div class="label" style="margin-bottom:0">Backend API URL</div>
+        <span class="badge">Optional</span>
+      </div>
+      <input type="text" id="apiBaseUrl" placeholder="http://localhost:3001/api/v1" />
+      <div class="hint">
+        Only needed for community reports and threat feed. Gemini works without this.
+        Leave blank to disable backend features.
+      </div>
+    </div>
+
+    <button class="save-btn" id="saveBtn">💾 Save Settings</button>
+    <div class="status" id="status"></div>
+
+    <hr class="divider" />
+
+    <!-- Clear cache -->
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-size:12px; font-weight:600; color:#475569;">Clear Analysis Cache</div>
+        <div style="font-size:11px; color:#334155; margin-top:2px;">Force re-analysis on next page visit</div>
+      </div>
+      <button class="clear-btn" id="clearBtn">🗑 Clear Cache</button>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
