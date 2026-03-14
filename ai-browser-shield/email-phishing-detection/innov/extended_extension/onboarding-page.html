@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Email Reader – Setup</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #020617;
+      --accent: #3b82f6;
+      --accent-soft: rgba(59,130,246,0.15);
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --border-subtle: #1f2937;
+      --danger: #ef4444;
+      --radius-lg: 16px;
+      --shadow-soft: 0 24px 60px rgba(15,23,42,0.65);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1f2937 0, #020617 55%, #000 100%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .card {
+      background: linear-gradient(135deg, #020617 0%, #020617 55%, #020617 100%);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-soft);
+      padding: 24px 24px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .glow {
+      position: absolute;
+      inset: -40%;
+      background:
+        radial-gradient(circle at 0 0, rgba(59,130,246,0.23), transparent 60%),
+        radial-gradient(circle at 100% 0, rgba(14,165,233,0.16), transparent 55%);
+      mix-blend-mode: screen;
+      opacity: 0.9;
+      pointer-events: none;
+    }
+
+    .card-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    .badge-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid rgba(148,163,184,0.4);
+      color: #94a3b8;
+      background: rgba(15,23,42,0.85);
+      backdrop-filter: blur(10px);
+    }
+
+    .badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34,197,94,0.25);
+    }
+
+    .mini-pill {
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.35);
+      color: #e5e7eb;
+    }
+
+    .title {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .title-mark {
+      width: 18px;
+      height: 18px;
+      border-radius: 7px;
+      background: radial-gradient(circle at 30% 0, #ffffff, #38bdf8);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 0 1px rgba(15,23,42,0.3);
+      flex-shrink: 0;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .step {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: 13px;
+      color: #d1d5db;
+    }
+
+    .step-index {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(148,163,184,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #e5e7eb;
+    }
+
+    .step-main {
+      flex: 1;
+    }
+
+    .step-label {
+      font-weight: 500;
+    }
+
+    .step-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .perm-box {
+      border-radius: 12px;
+      border: 1px solid rgba(59,130,246,0.45);
+      background: radial-gradient(circle at 0 0, rgba(59,130,246,0.12), transparent 60%);
+      padding: 10px 11px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .perm-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 10px;
+      background: rgba(15,23,42,0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+    }
+
+    .perm-text {
+      font-size: 12px;
+      color: #dbeafe;
+    }
+
+    .perm-text span {
+      color: #93c5fd;
+    }
+
+    .perm-note {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 3px;
+    }
+
+    .action-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .primary-btn {
+      flex: 1;
+      border: none;
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow:
+        0 12px 30px rgba(37,99,235,0.45),
+        0 0 0 1px rgba(15,23,42,0.7);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.08s ease;
+    }
+
+    .primary-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+      box-shadow:
+        0 18px 40px rgba(37,99,235,0.55),
+        0 0 0 1px rgba(15,23,42,0.8);
+    }
+
+    .primary-btn:active {
+      transform: translateY(0);
+      box-shadow:
+        0 8px 20px rgba(37,99,235,0.35),
+        0 0 0 1px rgba(15,23,42,0.9);
+    }
+
+    .primary-btn-icon {
+      font-size: 15px;
+    }
+
+    .secondary-link {
+      font-size: 11px;
+      color: #9ca3af;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .footer-row {
+      margin-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .status-pill {
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
+    .status-pill--error .status-dot {
+      background: var(--danger);
+    }
+
+    .status-pill--error {
+      border-color: rgba(248,113,113,0.5);
+      color: #fecaca;
+    }
+
+    .mini-legal {
+      font-size: 11px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="card">
+      <div class="glow"></div>
+      <div class="card-inner">
+        <div class="badge-row">
+          <div class="badge">
+            <span class="badge-dot"></span>
+            Email Reader
+          </div>
+          <div class="mini-pill">Step 1 of 1</div>
+        </div>
+
+        <h1 class="title">
+          <span class="title-mark">✉️</span>
+          Turn on Gmail access
+        </h1>
+        <p class="subtitle">
+          To read and summarize emails, the extension needs permission to access your Gmail tab.
+          You stay in control and can turn this off anytime.
+        </p>
+
+        <div class="steps">
+          <div class="step">
+            <div class="step-index">1</div>
+            <div class="step-main">
+              <div class="step-label">Click “Enable on Gmail”.</div>
+              <div class="step-hint">Chrome will open Gmail if it is not already open.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-index">2</div>
+            <div class="step-main">
+              <div class="step-label">Pin the extension (optional).</div>
+              <div class="step-hint">Use the puzzle icon in Chrome’s toolbar and pin “Email Reader”.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="perm-box" id="permissionBox">
+          <div class="perm-icon">🔐</div>
+          <div>
+            <div class="perm-text">
+              This extension only reads the email you have open in <span>mail.google.com</span>.
+            </div>
+            <div class="perm-note">
+              No data is stored or sent anywhere else without your action.
+            </div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button id="enableGmail" class="primary-btn">
+            <span class="primary-btn-icon">⚡</span>
+            <span>Enable on Gmail</span>
+          </button>
+          <div id="skipSetup" class="secondary-link">Skip for now</div>
+        </div>
+
+        <div class="footer-row">
+          <div id="status" class="status-pill">
+            <span class="status-dot"></span>
+            Ready to connect
+          </div>
+          <div class="mini-legal">
+            You can change this later in <strong>Extensions → Details → Site access</strong>.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="onboarding.js"></script>
+</body>
+</html>

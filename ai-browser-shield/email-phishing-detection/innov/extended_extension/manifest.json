@@ -1,0 +1,25 @@
+{
+  "name": "VAGABonds",
+  "version": "0.02",
+  "description": "VAGABonds - AI Scam Detection & Risk Analysis",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "https://web.whatsapp.com/*",
+    "https://web.telegram.org/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "VAGABonds"
+  },
+  "manifest_version": 3
+}

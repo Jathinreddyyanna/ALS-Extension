@@ -15,7 +15,10 @@ async function analyzeUrl(tabId: number, url: string) {
 
   const colors: Record<string, string> = { LOW: '#166534', MEDIUM: '#B45309', HIGH: '#DC2626', CRITICAL: '#7F1D1D' }
   chrome.action.setBadgeBackgroundColor({ color: colors[riskLevel], tabId })
-  chrome.action.setBadgeText({ text: riskLevel === 'LOW' ? '' : score.toString(), tabId })
+  chrome.action.setBadgeText({ text: riskLevel === 'LOW' ? 'OK' : score.toString(), tabId })
+
+  // Cache the current domain's score for the popup even when the site is low-risk.
+  await setDomainScore(hostname, score)
 
   if (score < 30) return
 
@@ -39,7 +42,6 @@ async function analyzeUrl(tabId: number, url: string) {
     aiExplanation,
     timestamp: Date.now()
   })
-  await setDomainScore(hostname, score)
 }
 
 function getFallbackExplanation(score: number): string {
@@ -170,7 +172,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Report button in overlay -> open popup to report tab
   // overlayInjector sends this directly to background (not via content/index.ts relay)
   if (message.type === 'OPEN_REPORT_FORM') {
-    chrome.tabs.create({ url: chrome.runtime.getURL('popup/index.html') + '?tab=report' })
+    chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') + '?tab=report' })
     return true
   }
 
