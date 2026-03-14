@@ -1,4 +1,11 @@
-const POPUP_THRESHOLD = 3
+const POPUP_THRESHOLD = 2
+
+function reportPopupActivity(count: number, url?: string, kind: 'window' | 'overlay' = 'window') {
+  chrome.runtime.sendMessage({
+    type: 'POPUP_ATTEMPT',
+    payload: { count, url, kind },
+  }).catch(() => {})
+}
 
 export function initPopupMonitor() {
   let popupCount = 0
@@ -6,8 +13,8 @@ export function initPopupMonitor() {
 
   window.open = function (...args) {
     popupCount++
+    reportPopupActivity(popupCount, args[0], 'window')
     if (popupCount > POPUP_THRESHOLD) {
-      chrome.runtime.sendMessage({ type: 'POPUP_ATTEMPT', payload: { count: popupCount, url: args[0] } })
       showPopupBlockedBanner(popupCount)
       return null
     }
@@ -24,6 +31,7 @@ export function initPopupMonitor() {
             if (!node.id?.startsWith('abs-')) {
               node.style.display = 'none'
               popupCount++
+              reportPopupActivity(popupCount, window.location.href, 'overlay')
               showPopupBlockedBanner(popupCount)
             }
           }
@@ -31,7 +39,7 @@ export function initPopupMonitor() {
       }
     }
   })
-  observer.observe(document.body, { childList: true, subtree: false })
+  observer.observe(document.body, { childList: true, subtree: true })
 }
 
 function showPopupBlockedBanner(count: number) {

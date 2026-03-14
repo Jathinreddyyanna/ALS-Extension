@@ -3,6 +3,7 @@ import type { SignalMap, RiskLevel } from '../types'
 const SUSPICIOUS_TLDS = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click', '.loan', '.work', '.party', '.review', '.accountant']
 const PHISHING_KEYWORDS = ['login', 'signin', 'verify', 'secure', 'account', 'update', 'banking', 'paypal', 'amazon', 'apple', 'microsoft', 'google', 'netflix', 'password', 'credential', 'suspend', 'confirm', 'wallet', 'crypto']
 const TRUSTED_DOMAINS = ['google', 'facebook', 'amazon', 'apple', 'microsoft', 'paypal', 'netflix', 'instagram', 'twitter', 'linkedin']
+const HIGH_RISK_SITE_KEYWORDS = ['dramacool', '123movies', 'putlocker', 'fmovies', 'soap2day', 'watchfree', 'streamhd', 'freemovie', 'moviebox', '9anime']
 
 function shannonEntropy(str: string): number {
   const freq: Record<string, number> = {}
@@ -64,13 +65,13 @@ function checkTyposquat(hostname: string): number {
 }
 
 function checkTLD(hostname: string): number {
-  return SUSPICIOUS_TLDS.some(tld => hostname.endsWith(tld)) ? 15 : 0
+  return SUSPICIOUS_TLDS.some((tld) => hostname.endsWith(tld)) ? 15 : 0
 }
 
 function checkKeywords(url: string, hostname: string): number {
   if (isTrustedHostname(hostname)) return 0
   const lower = url.toLowerCase()
-  const matches = PHISHING_KEYWORDS.filter(k => lower.includes(k)).length
+  const matches = PHISHING_KEYWORDS.filter((keyword) => lower.includes(keyword)).length
   return Math.min(20, matches * 5)
 }
 
@@ -88,9 +89,24 @@ function checkPort(port: string): number {
   return [80, 443, 8080, 8443].includes(p) ? 0 : 10
 }
 
+function checkMirrorSite(hostname: string): number {
+  const lower = hostname.toLowerCase()
+  const looksLikeMirror = HIGH_RISK_SITE_KEYWORDS.some((keyword) => lower.includes(keyword))
+  const hasNumberedMirror = /\d+\./.test(lower) || /\d/.test(lower.split('.')[0])
+  return looksLikeMirror ? (hasNumberedMirror ? 35 : 25) : 0
+}
+
+function checkWeirdDomainShape(hostname: string): number {
+  const { normalized, baseLabel } = getHostnameParts(hostname)
+  const parts = normalized.split('.')
+  const nestedCountryCode = parts.length >= 3 && parts[parts.length - 1].length === 2
+  const numberedLabel = /\d/.test(baseLabel)
+  return nestedCountryCode && numberedLabel ? 15 : 0
+}
+
 export interface ScoreResult {
   score: number
-  signals: SignalMap & { brandKeywordCombo?: number }
+  signals: SignalMap & { brandKeywordCombo?: number; mirrorSiteScore?: number; weirdDomainShape?: number }
   riskLevel: RiskLevel
 }
 
@@ -112,6 +128,8 @@ export function scoreUrl(rawUrl: string): ScoreResult {
     pathEntropy: shannonEntropy(u.pathname) > 4.5 ? 10 : 0,
     portAnomaly: checkPort(u.port),
     brandKeywordCombo: checkBrandKeywordCombo(u.hostname, u.href),
+    mirrorSiteScore: checkMirrorSite(u.hostname),
+    weirdDomainShape: checkWeirdDomainShape(u.hostname),
   }
 
   const score = Math.min(100, Object.values(signals).reduce((a, b) => a + (b || 0), 0))

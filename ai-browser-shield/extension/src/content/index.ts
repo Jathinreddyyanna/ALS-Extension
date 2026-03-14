@@ -1,11 +1,13 @@
 import { initPopupMonitor } from './popupMonitor'
 import { initHoverPreview } from './hoverPreview'
 import { injectOverlay, showWarningOverlay, showRedirectWarning, showDownloadWarning } from './overlayInjector'
+import { initPageInspector } from './pageInspector'
 
 // Init all content-script features
 initPopupMonitor()
 initHoverPreview()
 injectOverlay()
+initPageInspector()
 
 // Listen for messages from background SW
 // Note: overlayInjector sends OPEN_REPORT_FORM and CANCEL_DOWNLOAD *directly* to background

@@ -26,6 +26,9 @@ copy(resolve(root, 'public/icon128.png'), resolve(dist, 'icon128.png'))
 // rules/adblock.json → dist/rules/adblock.json
 copy(resolve(root, 'rules/adblock.json'), resolve(dist, 'rules/adblock.json'))
 
+// legacy Gmail email detector script → dist/emailContentScript.js
+copy(resolve(root, 'public/emailContentScript.js'), resolve(dist, 'emailContentScript.js'))
+
 // Fix popup.html path — vite outputs to dist/src/popup/index.html
 // Chrome needs it at dist/popup.html
 const popupSrc  = resolve(dist, 'src/popup/index.html')
@@ -49,3 +52,4 @@ console.log('  dist/popup.js')
 console.log('  dist/icon48.png')
 console.log('  dist/icon128.png')
 console.log('  dist/rules/adblock.json')
+console.log('  dist/emailContentScript.js')
