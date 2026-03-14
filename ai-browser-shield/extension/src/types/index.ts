@@ -1,7 +1,8 @@
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 export type Verdict = 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS'
 export type ThreatCategory = 'phishing' | 'scam' | 'malware' | 'redirect' | 'popup_abuse' | 'other'
-export type EventType = 'url_threat' | 'redirect_chain' | 'popup_abuse' | 'download_intercept' | 'file_scan' | 'ad_block'
+export type EventType = 'url_threat' | 'redirect_chain' | 'popup_abuse' | 'download_intercept' | 'file_scan' | 'ad_block' | 'email_phishing'
+export type EmailRiskLabel = 'safe' | 'suspicious' | 'dangerous' | 'processing' | 'error'
 
 export interface ThreatEvent {
   id: string
@@ -12,6 +13,27 @@ export interface ThreatEvent {
   riskLevel: RiskLevel
   aiExplanation?: string
   verdict?: Verdict
+  timestamp: number
+}
+
+export interface EmailScanInput {
+  subject: string
+  from: string
+  fromEmail?: string
+  to?: string
+  body: string
+  links: string[]
+  platform: 'gmail' | 'whatsapp' | 'telegram'
+}
+
+export interface EmailAnalysis {
+  riskLabel: EmailRiskLabel
+  finalScore: number
+  explanation: string
+  platform: string
+  detectedPatterns: string[]
+  subject: string
+  from: string
   timestamp: number
 }
 
@@ -79,6 +101,8 @@ export type MessageType =
   | 'URL_RESULT'
   | 'POPUP_ATTEMPT'
   | 'GET_PAGE_CONTEXT'
+  | 'EMAIL_CONTENT_UPDATE'
+  | 'EMAIL_ANALYSIS_RESULT'
   | 'REDIRECT_WARNING'
   | 'DOWNLOAD_WARNING'
   | 'FILE_SCAN_RESULT'

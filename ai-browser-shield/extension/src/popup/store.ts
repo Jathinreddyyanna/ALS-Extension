@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ThreatEvent, CommunityReport, PageContextSnapshot } from '../types'
+import type { ThreatEvent, CommunityReport, EmailAnalysis, PageContextSnapshot } from '../types'
 import { getRecentFeed, submitReport, getDomainScore, scanUrl } from '../api/client'
 import { scoreUrl } from '../detection/urlScorer'
 import { assessPageContext, hasSensitiveContent } from '../detection/pageScorer'
@@ -17,10 +17,11 @@ async function wipeHistory(): Promise<void> {
 interface StoreState {
   history: ThreatEvent[]
   feed: CommunityReport[]
+  emailAnalysis: EmailAnalysis | null
   currentScore: number | null
   currentDomain: string
   currentExplanation: string
-  activeTab: 'score' | 'history' | 'feed' | 'report'
+  activeTab: 'score' | 'history' | 'feed' | 'report' | 'mail'
   isLoading: boolean
   reportSuccess: boolean
   loadAll: () => Promise<void>
@@ -32,6 +33,7 @@ interface StoreState {
 export const useStore = create<StoreState>((set, get) => ({
   history: [],
   feed: [],
+  emailAnalysis: null,
   currentScore: null,
   currentDomain: '',
   currentExplanation: '',
@@ -93,11 +95,15 @@ export const useStore = create<StoreState>((set, get) => ({
         }
       }
     } catch {}
-    const [history, feed] = await Promise.all([readHistory(), getRecentFeed()])
+    const [history, feed, emailAnalysis] = await Promise.all([
+      readHistory(),
+      getRecentFeed(),
+      new Promise<EmailAnalysis | null>(resolve => chrome.storage.local.get('latestEmailAnalysis', r => resolve(r.latestEmailAnalysis || null)))
+    ])
     const currentExplanation =
       history.find(event => event.domain === domain && !!event.aiExplanation)?.aiExplanation ||
       liveExplanation
-    set({ history, feed, currentDomain: domain, currentScore, currentExplanation, isLoading: false })
+    set({ history, feed, emailAnalysis, currentDomain: domain, currentScore, currentExplanation, isLoading: false })
   },
 
   setTab: (tab) => set({ activeTab: tab }),

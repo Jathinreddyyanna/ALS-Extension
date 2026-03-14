@@ -2,10 +2,12 @@ import { initPopupMonitor } from './popupMonitor'
 import { initHoverPreview } from './hoverPreview'
 import { injectOverlay, showWarningOverlay, showRedirectWarning, showDownloadWarning } from './overlayInjector'
 import { extractPageContext } from './pageContext'
+import { initEmailMonitor } from './emailMonitor'
 
 // Init all content-script features
 initPopupMonitor()
 initHoverPreview()
+initEmailMonitor()
 injectOverlay()
 
 // Listen for messages from background SW
