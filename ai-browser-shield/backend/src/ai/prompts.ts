@@ -11,6 +11,24 @@ export function buildUrlScanPrompt(
     bodyPreview?: string
     formSignals?: string[]
     actionTexts?: string[]
+    popupSignals?: {
+      fixedOverlayCount?: number
+      iframeCount?: number
+      externalLinkCount?: number
+      newWindowHints?: number
+    }
+    pageSignals?: {
+      sensitiveFieldCount?: number
+      hiddenSensitiveFieldCount?: number
+      hiddenFormCount?: number
+      loginButtonCount?: number
+      externalFormActionCount?: number
+      insecureFormActionCount?: number
+      brandMismatchCount?: number
+      suspiciousScriptCount?: number
+      autoRedirectHintCount?: number
+      metaRefreshCount?: number
+    }
   }
 ): string {
   return `You are a cybersecurity expert analyzing URLs for phishing and malware. A browser extension has flagged this URL. Return ONLY valid JSON — no markdown, no code fences, no extra text.
@@ -27,6 +45,8 @@ Visible page snapshot:
   - Form signals: ${(pageContext?.formSignals || []).join(' | ') || 'N/A'}
   - Action texts: ${(pageContext?.actionTexts || []).join(' | ') || 'N/A'}
   - Body preview: ${pageContext?.bodyPreview || 'N/A'}
+  - Popup signals: ${pageContext?.popupSignals ? JSON.stringify(pageContext.popupSignals) : 'N/A'}
+  - Page signals: ${pageContext?.pageSignals ? JSON.stringify(pageContext.pageSignals) : 'N/A'}
 
 Signal meanings:
 - typosquatScore: Domain looks like a typo of a trusted brand (e.g. "gooogle.com")
@@ -37,9 +57,14 @@ Signal meanings:
 - encodedChars: Excessive URL encoding (used to obfuscate malicious links)
 - pathEntropy: Path looks randomly generated (malware link patterns)
 - portAnomaly: Using unusual/non-standard port number
+- longUrl: URL is unusually long for a normal site
+- manyDots: Hostname uses excessive dot-separated nesting
+- punycode: Hostname uses punycode / IDN encoding
+- atSymbol: URL uses @ to obscure the real destination
+- suspiciousLength: Main hostname label is unusually long
 - pageContextRisk: The visible page content itself looks suspicious, insecure, deceptive, or like a testing/demo target
 
-Use the page snapshot to spot phishing signals such as fake login flows, urgent account verification, wallet/seed phrase prompts, payment requests, credential collection, or signs that the page is an insecure/vulnerability-demo environment that should not be treated as a normal safe site.
+Use the page snapshot to spot phishing signals such as fake login flows, urgent account verification, wallet/seed phrase prompts, payment requests, credential collection, cross-domain form submissions, hidden forms, brand/domain mismatch, fake popups, or signs that the page is an insecure/vulnerability-demo environment that should not be treated as a normal safe site.
 
 Return this exact JSON (no deviations):
 {

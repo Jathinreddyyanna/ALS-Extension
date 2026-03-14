@@ -51,6 +51,24 @@ export async function analyzeUrl(
     bodyPreview?: string
     formSignals?: string[]
     actionTexts?: string[]
+    popupSignals?: {
+      fixedOverlayCount?: number
+      iframeCount?: number
+      externalLinkCount?: number
+      newWindowHints?: number
+    }
+    pageSignals?: {
+      sensitiveFieldCount?: number
+      hiddenSensitiveFieldCount?: number
+      hiddenFormCount?: number
+      loginButtonCount?: number
+      externalFormActionCount?: number
+      insecureFormActionCount?: number
+      brandMismatchCount?: number
+      suspiciousScriptCount?: number
+      autoRedirectHintCount?: number
+      metaRefreshCount?: number
+    }
   }
 ): Promise<UrlScanResult> {
   try {

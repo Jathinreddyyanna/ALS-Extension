@@ -2,9 +2,26 @@ import { scoreUrl } from '../detection/urlScorer'
 import { assessPageContext, getRiskLevel, hasSensitiveContent } from '../detection/pageScorer'
 import { trackRedirect, resetTab } from '../detection/redirectTracker'
 import { checkDownload } from '../detection/downloadChecker'
-import { saveThreatEvent, setDomainScore } from './storage'
+import { saveThreatEvent, setDomainScore, getDomainScore } from './storage'
 import { scanUrl, scanFile } from '../api/client'
-import type { EmailAnalysis, EmailScanInput, PageContextSnapshot } from '../types'
+import type { EmailAnalysis, EmailScanInput, PageContextSnapshot, RiskLevel } from '../types'
+
+async function promoteDomainRisk(url: string, score: number, tabId?: number) {
+  try {
+    const hostname = new URL(url).hostname
+    const current = await chrome.storage.local.get(`score:${hostname}`)
+    const existingScore = current[`score:${hostname}`]?.score || 0
+    const nextScore = Math.max(existingScore, score)
+    await setDomainScore(hostname, nextScore)
+
+    if (typeof tabId === 'number') {
+      const riskLevel = getRiskLevel(nextScore)
+      const colors: Record<string, string> = { LOW: '#166534', MEDIUM: '#B45309', HIGH: '#DC2626', CRITICAL: '#7F1D1D' }
+      chrome.action.setBadgeBackgroundColor({ color: colors[riskLevel], tabId })
+      chrome.action.setBadgeText({ text: riskLevel === 'LOW' ? 'OK' : nextScore.toString(), tabId })
+    }
+  } catch {}
+}
 
 // URL Analysis
 async function analyzeUrl(tabId: number, url: string) {
@@ -14,10 +31,22 @@ async function analyzeUrl(tabId: number, url: string) {
   try { parsedUrl = new URL(url) } catch { return }
   const hostname = parsedUrl.hostname
 
+  // Hard-safety rule: Gmail / core Google properties are always treated as LOW risk.
+  if (isGoogleOwnedHostname(hostname.toLowerCase())) {
+    const safeScore = 5
+    const safeLevel: RiskLevel = 'LOW'
+    const colors: Record<string, string> = { LOW: '#166534', MEDIUM: '#B45309', HIGH: '#DC2626', CRITICAL: '#7F1D1D' }
+    chrome.action.setBadgeBackgroundColor({ color: colors[safeLevel], tabId })
+    chrome.action.setBadgeText({ text: 'OK', tabId })
+    await setDomainScore(hostname, safeScore)
+    return
+  }
+
   const { score, signals } = scoreUrl(url)
   const pageContext = await getPageContext(tabId)
   const pageAssessment = assessPageContext(parsedUrl, pageContext)
-  const effectiveScore = Math.max(score, pageAssessment.score)
+  const storedScore = (await getDomainScore(hostname)) ?? 0
+  const effectiveScore = Math.max(score, pageAssessment.score, storedScore)
   const effectiveRiskLevel = getRiskLevel(effectiveScore)
   const aiSignals = pageAssessment.score > 0
     ? { ...signals, pageContextRisk: pageAssessment.score }
@@ -40,19 +69,28 @@ async function analyzeUrl(tabId: number, url: string) {
 
   let aiExplanation = pageAssessment.explanation || getFallbackExplanation(effectiveScore)
   let recommendedAction: 'allow' | 'warn' | 'block' = effectiveScore >= 80 ? 'block' : 'warn'
+  let aiRiskLevel: RiskLevel | null = null
 
   if (shouldUseAi) {
     const result = await scanUrl(url, aiSignals, pageContext)
     aiExplanation = result?.explanation || aiExplanation
     recommendedAction = result?.recommendedAction || recommendedAction
+    if (result?.riskLevel) {
+      aiRiskLevel = result.riskLevel as RiskLevel
+    }
   } else if (pageContext && hasSensitiveContent(pageContext)) {
     aiExplanation = 'This page asks for sensitive information or uses suspicious account-verification language. Double-check the site before entering anything.'
     recommendedAction = 'warn'
   }
 
+  const overlayRiskLevel: RiskLevel = aiRiskLevel || effectiveRiskLevel
+  if (overlayRiskLevel === 'LOW' && effectiveScore < 30) {
+    return
+  }
+
   chrome.tabs.sendMessage(tabId, {
     type: 'SHOW_OVERLAY',
-    payload: { url, score: effectiveScore, riskLevel: effectiveRiskLevel, explanation: aiExplanation, recommendedAction }
+    payload: { url, score: effectiveScore, riskLevel: overlayRiskLevel, explanation: aiExplanation, recommendedAction }
   }).catch(() => {})
 
   await saveThreatEvent({
@@ -240,16 +278,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'POPUP_ATTEMPT') {
+    const popupCount = Number(message.payload?.count || 1)
+    const rawPopupScore =
+      popupCount >= 6 ? 90 :
+      popupCount >= 3 ? 70 :
+      popupCount >= 1 ? 45 : 35
+    const currentUrl = sender.url || ''
+    const popupHost = (() => { try { return new URL(currentUrl).hostname.toLowerCase() } catch { return senderDomain } })()
+    const popupScore = popupHost && isGoogleOwnedHostname(popupHost)
+      ? Math.min(rawPopupScore, 30)
+      : rawPopupScore
+    const popupRiskLevel = getRiskLevel(popupScore)
+    if (sender.url) {
+      promoteDomainRisk(sender.url, popupScore, sender.tab?.id)
+    }
     saveThreatEvent({
       id: crypto.randomUUID(),
       eventType: 'popup_abuse',
       domain: senderDomain,
       url: sender.url || '',
-      riskScore: 55,
-      riskLevel: 'MEDIUM',
-      aiExplanation: `This site tried to open ${message.payload?.count || 'multiple'} popups. Excessive popups are a common scam tactic.`,
+      riskScore: popupScore,
+      riskLevel: popupRiskLevel,
+      aiExplanation: `This site triggered ${popupCount} popup or overlay events. Excessive popups are a common scam and ad-abuse tactic.`,
       timestamp: Date.now()
     })
+
+    // If popup abuse is significant (HIGH or CRITICAL), immediately show a warning overlay
+    // even if the initial URL heuristics were low.
+    if (sender.tab?.id && popupRiskLevel !== 'LOW' && sender.url) {
+      const recommendedAction: 'allow' | 'warn' | 'block' =
+        popupRiskLevel === 'CRITICAL' ? 'block' : 'warn'
+      chrome.tabs.sendMessage(sender.tab.id, {
+        type: 'SHOW_OVERLAY',
+        payload: {
+          url: sender.url,
+          score: popupScore,
+          riskLevel: popupRiskLevel,
+          explanation: `This site triggered ${popupCount} popup or overlay events in a short time. Excessive popups are a strong signal of scammy or unsafe behavior.`,
+          recommendedAction,
+        },
+      }).catch(() => {})
+    }
     sendResponse({ blocked: true })
     return true
   }
@@ -272,6 +341,16 @@ chrome.tabs.onRemoved.addListener((tabId) => resetTab(tabId))
 const EMAIL_BACKEND_URL = 'http://127.0.0.1:5000/predict'
 const emailPredictionCache = new Map<number, { hash: string; result: EmailAnalysis }>()
 const lastEmailRiskByKey = new Map<string, { label: EmailAnalysis['riskLabel']; result: EmailAnalysis; ts: number }>()
+const GOOGLE_TRUSTED_DOMAINS = [
+  'google.com',
+  'gmail.com',
+  'mail.google.com',
+  'classroom.google.com',
+  'notifications.google.com',
+  'accounts.google.com',
+  'googleusercontent.com',
+  'gstatic.com',
+]
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
@@ -286,6 +365,77 @@ function emailHash(data: EmailScanInput): string {
   })
 }
 
+function getHostname(value: string): string {
+  try {
+    return new URL(value).hostname.toLowerCase()
+  } catch {
+    return ''
+  }
+}
+
+function isGoogleOwnedHostname(hostname: string): boolean {
+  return GOOGLE_TRUSTED_DOMAINS.some(domain => hostname === domain || hostname.endsWith(`.${domain}`))
+}
+
+function extractSenderDomain(fromEmail?: string): string {
+  const raw = (fromEmail || '').trim().toLowerCase()
+  const atIndex = raw.lastIndexOf('@')
+  if (atIndex === -1) return ''
+  return raw.slice(atIndex + 1)
+}
+
+function hasHighRiskEmailIntent(data: EmailScanInput): boolean {
+  const text = `${data.subject}\n${data.body}`.toLowerCase()
+  const links = data.links || []
+  const shortenerRe = /(bit\.ly|tinyurl|forms\.gle|t\.me|wa\.me|rb\.gy|goo\.gl)/i
+  const urgencyRe = /\b(urgent|immediately|act now|final warning|suspended|expire|last chance|verify now)\b/i
+  const credentialRe = /\b(password|otp|pin|cvv|bank account|ssn|aadhaar|verify your account)\b/i
+  const paymentRe = /\b(fee|payment|upi|wire transfer|crypto|bitcoin|transfer now)\b/i
+  const ipUrlRe = /https?:\/\/\d{1,3}(?:\.\d{1,3}){3}/i
+
+  return (
+    urgencyRe.test(text) ||
+    credentialRe.test(text) ||
+    paymentRe.test(text) ||
+    shortenerRe.test(text) ||
+    ipUrlRe.test(text) ||
+    links.some(link => shortenerRe.test(link) || ipUrlRe.test(link))
+  )
+}
+
+function isTrustedGoogleClassroomEmail(data: EmailScanInput): boolean {
+  if (data.platform !== 'gmail') return false
+
+  const text = `${data.subject}\n${data.body}\n${data.from}\n${data.fromEmail || ''}`.toLowerCase()
+  const referencesClassroom = /\bgoogle classroom\b|\bclassroom\b/.test(text)
+  if (!referencesClassroom) return false
+
+  const senderDomain = extractSenderDomain(data.fromEmail)
+  const trustedSender = !!senderDomain && isGoogleOwnedHostname(senderDomain)
+  if (!trustedSender) return false
+
+  const links = data.links || []
+  const allLinksTrusted = links.every(link => {
+    const hostname = getHostname(link)
+    return hostname ? isGoogleOwnedHostname(hostname) : true
+  })
+
+  return allLinksTrusted && !hasHighRiskEmailIntent(data)
+}
+
+function normalizeTrustedEmailAnalysis(data: EmailScanInput, analysis: EmailAnalysis): EmailAnalysis {
+  if (!isTrustedGoogleClassroomEmail(data)) return analysis
+
+  const finalScore = Math.min(analysis.finalScore || 0, 0.12)
+  return {
+    ...analysis,
+    riskLabel: 'safe',
+    finalScore,
+    explanation: 'Trusted Google Classroom notification detected. Sender and linked domains match Google-owned services, and no phishing signals were found.',
+    detectedPatterns: analysis.detectedPatterns.filter(pattern => !/brand impersonation|urgency language/i.test(pattern)),
+  }
+}
+
 function emailRiskRank(label: EmailAnalysis['riskLabel']): number {
   if (label === 'dangerous') return 3
   if (label === 'suspicious') return 2
@@ -294,6 +444,13 @@ function emailRiskRank(label: EmailAnalysis['riskLabel']): number {
 }
 
 function stabilizeEmailPrediction(tabId: number, data: EmailScanInput, analysis: EmailAnalysis): EmailAnalysis {
+  if (isTrustedGoogleClassroomEmail(data)) {
+    const normalized = normalizeTrustedEmailAnalysis(data, analysis)
+    const key = `${tabId}:${(data.subject || '').toLowerCase().replace(/\s+/g, ' ').trim()}`
+    lastEmailRiskByKey.set(key, { label: normalized.riskLabel, result: normalized, ts: Date.now() })
+    return normalized
+  }
+
   const key = `${tabId}:${(data.subject || '').toLowerCase().replace(/\s+/g, ' ').trim()}`
   const prev = lastEmailRiskByKey.get(key)
   const now = Date.now()
@@ -381,11 +538,11 @@ async function analyzeEmailContent(data: EmailScanInput): Promise<EmailAnalysis>
     })
 
     if (!res.ok) {
-      return buildEmailFallback(data, `backend error ${res.status}`)
+      return normalizeTrustedEmailAnalysis(data, buildEmailFallback(data, `backend error ${res.status}`))
     }
 
     const result = await res.json()
-    return {
+    return normalizeTrustedEmailAnalysis(data, {
       riskLabel: result.final_risk_label || result.risk_label || 'safe',
       finalScore: typeof result.final_score === 'number' ? result.final_score : 0,
       explanation: result.explanation || 'No explanation available.',
@@ -394,8 +551,11 @@ async function analyzeEmailContent(data: EmailScanInput): Promise<EmailAnalysis>
       subject: data.subject,
       from: data.from || data.fromEmail || data.platform,
       timestamp: Date.now(),
-    }
+    })
   } catch (error) {
-    return buildEmailFallback(data, error instanceof Error ? error.message : 'backend unavailable')
+    return normalizeTrustedEmailAnalysis(
+      data,
+      buildEmailFallback(data, error instanceof Error ? error.message : 'backend unavailable')
+    )
   }
 }

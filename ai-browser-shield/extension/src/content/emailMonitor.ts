@@ -282,19 +282,13 @@ export function initEmailMonitor() {
   let sameCount = 0
   let lastSubject = ''
   let lastAppliedLabel: EmailRiskLabel | null = null
-  let reinforceTimer: number | null = null
 
-  function reinforceLabel(label: EmailRiskLabel) {
-    if (reinforceTimer) window.clearInterval(reinforceTimer)
-    let runs = 0
-    reinforceTimer = window.setInterval(() => {
-      applyHighlight(platform, label)
-      runs += 1
-      if (runs >= 8 && reinforceTimer) {
-        window.clearInterval(reinforceTimer)
-        reinforceTimer = null
-      }
-    }, 500)
+  function keepCurrentHighlight() {
+    const subjectEl = getSubjectElement(platform)
+    if (!subjectEl || !lastAppliedLabel) return
+    if (subjectEl.getAttribute('data-abs-email-risk') !== lastAppliedLabel) {
+      applyHighlight(platform, lastAppliedLabel)
+    }
   }
 
   const observer = new MutationObserver(() => {
@@ -306,7 +300,7 @@ export function initEmailMonitor() {
       lastAppliedLabel = 'processing'
       applyHighlight(platform, 'processing')
     } else if (currentText && lastAppliedLabel) {
-      applyHighlight(platform, lastAppliedLabel)
+      keepCurrentHighlight()
     }
   })
   observer.observe(document.body, { childList: true, subtree: true, characterData: true })
@@ -316,7 +310,6 @@ export function initEmailMonitor() {
     const analysis = message.payload as EmailAnalysis
     applyHighlight(platform, analysis.riskLabel)
     lastAppliedLabel = normalizeRiskLabel(analysis.riskLabel)
-    reinforceLabel(lastAppliedLabel)
     lastSubject = analysis.subject || lastSubject
     sendResponse({ ok: true })
     return true
@@ -329,8 +322,7 @@ export function initEmailMonitor() {
       lastAppliedLabel = 'processing'
       lastSubject = payload.subject
     } else if (lastAppliedLabel) {
-      // Re-apply the final state if the host app re-rendered the header node.
-      applyHighlight(platform, lastAppliedLabel)
+      keepCurrentHighlight()
     }
 
     if (!(payload.body.length > 20 || payload.subject.length > 6)) return

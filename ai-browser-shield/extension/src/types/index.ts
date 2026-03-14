@@ -59,6 +59,24 @@ export interface PageContextSnapshot {
   bodyPreview: string
   formSignals: string[]
   actionTexts: string[]
+  popupSignals: {
+    fixedOverlayCount: number
+    iframeCount: number
+    externalLinkCount: number
+    newWindowHints: number
+  }
+  pageSignals: {
+    sensitiveFieldCount: number
+    hiddenSensitiveFieldCount: number
+    hiddenFormCount: number
+    loginButtonCount: number
+    externalFormActionCount: number
+    insecureFormActionCount: number
+    brandMismatchCount: number
+    suspiciousScriptCount: number
+    autoRedirectHintCount: number
+    metaRefreshCount: number
+  }
 }
 
 export interface ThreatReport {
@@ -89,10 +107,15 @@ export interface SignalMap {
   suspiciousTLD: number
   ipAsHostname: number
   longSubdomains: number
+  longUrl: number
+  manyDots: number
   suspiciousKeywords: number
   encodedChars: number
   pathEntropy: number
   portAnomaly: number
+  punycode: number
+  atSymbol: number
+  suspiciousLength: number
 }
 
 // Chrome runtime message types

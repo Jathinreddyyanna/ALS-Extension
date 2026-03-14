@@ -100,6 +100,10 @@ export const useStore = create<StoreState>((set, get) => ({
       getRecentFeed(),
       new Promise<EmailAnalysis | null>(resolve => chrome.storage.local.get('latestEmailAnalysis', r => resolve(r.latestEmailAnalysis || null)))
     ])
+    const domainHistoryScore = history
+      .filter(event => event.domain === domain)
+      .reduce((max, event) => Math.max(max, event.riskScore || 0), 0)
+    currentScore = Math.max(currentScore ?? 0, domainHistoryScore)
     const currentExplanation =
       history.find(event => event.domain === domain && !!event.aiExplanation)?.aiExplanation ||
       liveExplanation

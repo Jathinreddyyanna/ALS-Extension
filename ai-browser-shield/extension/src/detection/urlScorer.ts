@@ -2,7 +2,7 @@ import type { SignalMap, RiskLevel } from '../types'
 
 const SUSPICIOUS_TLDS = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click', '.loan', '.work', '.party', '.review', '.accountant']
 const PHISHING_KEYWORDS = ['login', 'signin', 'verify', 'secure', 'account', 'update', 'banking', 'paypal', 'amazon', 'apple', 'microsoft', 'google', 'netflix', 'password', 'credential', 'suspend', 'confirm', 'wallet', 'crypto']
-const TRUSTED_DOMAINS = ['google', 'facebook', 'amazon', 'apple', 'microsoft', 'paypal', 'netflix', 'instagram', 'twitter', 'linkedin']
+const TRUSTED_DOMAINS = ['google', 'gmail', 'facebook', 'amazon', 'apple', 'microsoft', 'paypal', 'netflix', 'instagram', 'twitter', 'linkedin']
 
 function shannonEntropy(str: string): number {
   const freq: Record<string, number> = {}
@@ -30,6 +30,22 @@ function getHostnameParts(hostname: string) {
   const baseLabel = normalized.split('.')[0]
   const tokens = baseLabel.split(/[^a-z0-9]+/).filter(Boolean)
   return { normalized, baseLabel, tokens }
+}
+
+const GOOGLE_TRUSTED_HOSTS = [
+  'google.com',
+  'gmail.com',
+  'mail.google.com',
+  'accounts.google.com',
+  'classroom.google.com',
+  'notifications.google.com',
+  'googleusercontent.com',
+  'gstatic.com',
+]
+
+function isGoogleOwnedHostnameStrict(hostname: string): boolean {
+  const normalized = hostname.toLowerCase()
+  return GOOGLE_TRUSTED_HOSTS.some(domain => normalized === domain || normalized.endsWith(`.${domain}`))
 }
 
 function isTrustedHostname(hostname: string): boolean {
@@ -144,6 +160,20 @@ function checkPort(port: string): number {
   return [80, 443, 8080, 8443].includes(p) ? 0 : 10
 }
 
+function checkLongUrl(url: string): number {
+  if (url.length >= 180) return 15
+  if (url.length >= 120) return 10
+  if (url.length >= 90) return 5
+  return 0
+}
+
+function checkManyDots(hostname: string): number {
+  const dotCount = (hostname.match(/\./g) || []).length
+  if (dotCount >= 4) return 10
+  if (dotCount === 3) return 5
+  return 0
+}
+
 export interface ScoreResult {
   score: number
   signals: SignalMap & { brandKeywordCombo?: number }
@@ -158,15 +188,40 @@ export function scoreUrl(rawUrl: string): ScoreResult {
     return { score: 0, signals: {} as ScoreResult['signals'], riskLevel: 'LOW' }
   }
 
+  if (isGoogleOwnedHostnameStrict(u.hostname)) {
+    const safeSignals: ScoreResult['signals'] = {
+      typosquatScore: 0,
+      suspiciousTLD: 0,
+      ipAsHostname: 0,
+      longSubdomains: 0,
+      longUrl: 0,
+      manyDots: 0,
+      suspiciousKeywords: 0,
+      encodedChars: 0,
+      pathEntropy: 0,
+      portAnomaly: 0,
+      punycode: 0,
+      atSymbol: 0,
+      suspiciousLength: 0,
+      brandKeywordCombo: 0,
+    }
+    return { score: 5, signals: safeSignals, riskLevel: 'LOW' }
+  }
+
   const signals: ScoreResult['signals'] = {
     typosquatScore: checkTyposquat(u.hostname) + checkBrandAbuse(u.hostname),
     suspiciousTLD: checkTLD(u.hostname),
     ipAsHostname: /^\d{1,3}(\.\d{1,3}){3}$/.test(u.hostname) ? 20 : 0,
     longSubdomains: u.hostname.split('.').length > 4 ? 10 : 0,
+    longUrl: checkLongUrl(u.href),
+    manyDots: checkManyDots(u.hostname),
     suspiciousKeywords: checkKeywords(u.href, u.hostname),
     encodedChars: (u.href.match(/%[0-9a-f]{2}/gi) || []).length > 3 ? 10 : 0,
     pathEntropy: shannonEntropy(u.pathname) > 4.5 ? 10 : 0,
     portAnomaly: checkPort(u.port),
+    punycode: u.hostname.includes('xn--') ? 20 : 0,
+    atSymbol: u.href.includes('@') ? 15 : 0,
+    suspiciousLength: u.hostname.replace(/^www\./, '').split('.')[0].length >= 25 ? 10 : 0,
     brandKeywordCombo: checkBrandKeywordCombo(u.hostname, u.href),
   }
 

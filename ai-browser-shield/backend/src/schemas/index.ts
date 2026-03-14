@@ -13,6 +13,24 @@ const PageContextSchema = z.object({
   bodyPreview: z.string().max(1000).optional().default(''),
   formSignals: z.array(z.string().max(120)).max(8).optional().default([]),
   actionTexts: z.array(z.string().max(80)).max(8).optional().default([]),
+  popupSignals: z.object({
+    fixedOverlayCount: z.number().int().min(0).max(999).optional().default(0),
+    iframeCount: z.number().int().min(0).max(999).optional().default(0),
+    externalLinkCount: z.number().int().min(0).max(9999).optional().default(0),
+    newWindowHints: z.number().int().min(0).max(999).optional().default(0),
+  }).optional(),
+  pageSignals: z.object({
+    sensitiveFieldCount: z.number().int().min(0).max(999).optional().default(0),
+    hiddenSensitiveFieldCount: z.number().int().min(0).max(999).optional().default(0),
+    hiddenFormCount: z.number().int().min(0).max(999).optional().default(0),
+    loginButtonCount: z.number().int().min(0).max(999).optional().default(0),
+    externalFormActionCount: z.number().int().min(0).max(999).optional().default(0),
+    insecureFormActionCount: z.number().int().min(0).max(999).optional().default(0),
+    brandMismatchCount: z.number().int().min(0).max(999).optional().default(0),
+    suspiciousScriptCount: z.number().int().min(0).max(999).optional().default(0),
+    autoRedirectHintCount: z.number().int().min(0).max(999).optional().default(0),
+    metaRefreshCount: z.number().int().min(0).max(999).optional().default(0),
+  }).optional(),
 })
 
 // Flexible signals that accept any numeric values

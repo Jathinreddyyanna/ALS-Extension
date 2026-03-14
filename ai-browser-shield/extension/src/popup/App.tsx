@@ -42,6 +42,23 @@ export default function App() {
     loadAll()
     const params = new URLSearchParams(window.location.search)
     if (params.get('tab') === 'report') setTab('report')
+
+    const handleStorageChange = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
+      if (areaName !== 'local') return
+      if (
+        changes.threatHistory ||
+        changes.latestEmailAnalysis ||
+        changes.currentAnalysis ||
+        Object.keys(changes).some((key) => key.startsWith('score:'))
+      ) {
+        loadAll()
+      }
+    }
+
+    chrome.storage.onChanged.addListener(handleStorageChange)
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange)
+    }
   }, [])
 
   const riskKey = getRiskKey(currentScore)
