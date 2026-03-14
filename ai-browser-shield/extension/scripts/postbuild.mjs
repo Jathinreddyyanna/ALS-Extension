@@ -2,6 +2,7 @@
 import { copyFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { build } from 'esbuild'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
@@ -25,6 +26,20 @@ copy(resolve(root, 'public/icon128.png'), resolve(dist, 'icon128.png'))
 
 // rules/adblock.json → dist/rules/adblock.json
 copy(resolve(root, 'rules/adblock.json'), resolve(dist, 'rules/adblock.json'))
+
+// Rebundle the content script as a single classic script.
+// Chrome content scripts cannot use top-level ES module imports here.
+await build({
+  entryPoints: [resolve(root, 'src/content/index.ts')],
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: ['chrome114'],
+  outfile: resolve(dist, 'content.js'),
+  sourcemap: false,
+  logLevel: 'silent',
+})
+console.log('  ✓ /dist/content.js (rebundled as standalone content script)')
 
 // Fix popup.html path — vite outputs to dist/src/popup/index.html
 // Chrome needs it at dist/popup.html

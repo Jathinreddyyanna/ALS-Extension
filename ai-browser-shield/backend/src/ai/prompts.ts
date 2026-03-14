@@ -1,7 +1,18 @@
 ﻿// ── All Gemini prompts in one file ────────────────────────────────────────────
 // Keeps prompts versioned and easy to iterate during hackathon
 
-export function buildUrlScanPrompt(url: string, signals: Record<string, number>, riskScore: number): string {
+export function buildUrlScanPrompt(
+  url: string,
+  signals: Record<string, number>,
+  riskScore: number,
+  pageContext?: {
+    title?: string
+    headings?: string[]
+    bodyPreview?: string
+    formSignals?: string[]
+    actionTexts?: string[]
+  }
+): string {
   return `You are a cybersecurity expert analyzing URLs for phishing and malware. A browser extension has flagged this URL. Return ONLY valid JSON — no markdown, no code fences, no extra text.
 
 URL: ${url}
@@ -9,6 +20,13 @@ Overall Risk Score: ${riskScore}/100
 
 Signals detected (each signal contributes to the total score):
 ${Object.entries(signals).map(([k, v]) => `  - ${k}: ${v} pts`).join('\n')}
+
+Visible page snapshot:
+  - Title: ${pageContext?.title || 'N/A'}
+  - Headings: ${(pageContext?.headings || []).join(' | ') || 'N/A'}
+  - Form signals: ${(pageContext?.formSignals || []).join(' | ') || 'N/A'}
+  - Action texts: ${(pageContext?.actionTexts || []).join(' | ') || 'N/A'}
+  - Body preview: ${pageContext?.bodyPreview || 'N/A'}
 
 Signal meanings:
 - typosquatScore: Domain looks like a typo of a trusted brand (e.g. "gooogle.com")
@@ -19,6 +37,9 @@ Signal meanings:
 - encodedChars: Excessive URL encoding (used to obfuscate malicious links)
 - pathEntropy: Path looks randomly generated (malware link patterns)
 - portAnomaly: Using unusual/non-standard port number
+- pageContextRisk: The visible page content itself looks suspicious, insecure, deceptive, or like a testing/demo target
+
+Use the page snapshot to spot phishing signals such as fake login flows, urgent account verification, wallet/seed phrase prompts, payment requests, credential collection, or signs that the page is an insecure/vulnerability-demo environment that should not be treated as a normal safe site.
 
 Return this exact JSON (no deviations):
 {

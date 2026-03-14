@@ -41,14 +41,50 @@ export function CommunityFeed({ feed }: Props) {
     if (sort === 'reports') return b.reports - a.reports
     return new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
   })
+  const totalReports = feed.reduce((sum, item) => sum + item.reports, 0)
+  const highestRisk = Math.max(...feed.map(item => item.riskScore))
+  const visibleFeed = sorted.slice(0, 10)
 
   return (
     <div style={{ padding: '16px', animation: 'slide-up 0.25s ease' }}>
-      {/* Header + sort */}
+      <div style={{
+        background: '#0D1421',
+        border: '1px solid #1E293B',
+        borderRadius: '14px',
+        padding: '14px',
+        marginBottom: '14px',
+      }}>
+        <div style={{ color: '#F1F5F9', fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>
+          Top Reported Threats
+        </div>
+        <div style={{ color: '#64748B', fontSize: '12px', lineHeight: '1.5' }}>
+          Community feed shows the most reported domains from the last 24 hours, not every site ever reported.
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '12px' }}>
+          <div style={{ background: '#0A0F1A', border: '1px solid #172033', borderRadius: '10px', padding: '10px' }}>
+            <div style={{ color: '#64748B', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Domains</div>
+            <div style={{ color: '#F1F5F9', fontSize: '18px', fontWeight: 800, marginTop: '2px' }}>{feed.length}</div>
+          </div>
+          <div style={{ background: '#0A0F1A', border: '1px solid #172033', borderRadius: '10px', padding: '10px' }}>
+            <div style={{ color: '#64748B', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Reports</div>
+            <div style={{ color: '#F1F5F9', fontSize: '18px', fontWeight: 800, marginTop: '2px' }}>{totalReports}</div>
+          </div>
+          <div style={{ background: '#0A0F1A', border: '1px solid #172033', borderRadius: '10px', padding: '10px' }}>
+            <div style={{ color: '#64748B', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Top Risk</div>
+            <div style={{ color: '#FCA5A5', fontSize: '18px', fontWeight: 800, marginTop: '2px' }}>{highestRisk}</div>
+          </div>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <div>
-          <span style={{ color: '#F1F5F9', fontSize: '13px', fontWeight: 700 }}>{feed.length}</span>
-          <span style={{ color: '#475569', fontSize: '12px' }}> active threats</span>
+          <span style={{ color: '#F1F5F9', fontSize: '13px', fontWeight: 700 }}>{visibleFeed.length}</span>
+          <span style={{ color: '#475569', fontSize: '12px' }}> ranked results</span>
+          {feed.length > visibleFeed.length && (
+            <div style={{ color: '#334155', fontSize: '10px', marginTop: '2px' }}>
+              Showing top {visibleFeed.length} of {feed.length}
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '4px' }}>
           {(['risk', 'reports', 'recent'] as const).map(s => (
@@ -64,9 +100,8 @@ export function CommunityFeed({ feed }: Props) {
         </div>
       </div>
 
-      {/* Items */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '400px', overflowY: 'auto' }}>
-        {sorted.map((item, i) => {
+        {visibleFeed.map((item, i) => {
           const cat = CAT_META[item.category] || CAT_META.other
           const riskColor = item.riskScore >= 70 ? '#EF4444' : item.riskScore >= 40 ? '#F97316' : '#EAB308'
           return (
@@ -106,10 +141,20 @@ export function CommunityFeed({ feed }: Props) {
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     marginBottom: '2px',
                   }}>{item.domain}</div>
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ color: cat.color, fontSize: '10px', fontWeight: 600 }}>{cat.label}</span>
                     <span style={{ color: '#334155', fontSize: '10px' }}>·</span>
-                    <span style={{ color: '#475569', fontSize: '10px' }}>{item.reports} report{item.reports !== 1 ? 's' : ''}</span>
+                    <span style={{
+                      color: '#93C5FD',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      background: 'rgba(59,130,246,0.12)',
+                      border: '1px solid rgba(59,130,246,0.25)',
+                      borderRadius: '999px',
+                      padding: '2px 6px',
+                    }}>
+                      Reported {item.reports} time{item.reports !== 1 ? 's' : ''}
+                    </span>
                   </div>
                   <ScoreBar score={item.riskScore} />
                 </div>

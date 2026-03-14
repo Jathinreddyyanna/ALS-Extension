@@ -31,6 +31,14 @@ export interface UrlScanResult {
   cached: boolean
 }
 
+export interface PageContextSnapshot {
+  title: string
+  headings: string[]
+  bodyPreview: string
+  formSignals: string[]
+  actionTexts: string[]
+}
+
 export interface ThreatReport {
   url: string
   category: ThreatCategory
@@ -70,6 +78,7 @@ export type MessageType =
   | 'ANALYZE_URL'
   | 'URL_RESULT'
   | 'POPUP_ATTEMPT'
+  | 'GET_PAGE_CONTEXT'
   | 'REDIRECT_WARNING'
   | 'DOWNLOAD_WARNING'
   | 'FILE_SCAN_RESULT'

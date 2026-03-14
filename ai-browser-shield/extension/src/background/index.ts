@@ -1,47 +1,78 @@
 import { scoreUrl } from '../detection/urlScorer'
+import { assessPageContext, getRiskLevel, hasSensitiveContent } from '../detection/pageScorer'
 import { trackRedirect, resetTab } from '../detection/redirectTracker'
 import { checkDownload } from '../detection/downloadChecker'
 import { saveThreatEvent, setDomainScore } from './storage'
 import { scanUrl, scanFile } from '../api/client'
-import type { ThreatEvent } from '../types'
+import type { PageContextSnapshot } from '../types'
 
-// ── URL Analysis ──────────────────────────────────────────────────────────────
+// URL Analysis
 async function analyzeUrl(tabId: number, url: string) {
   if (!url || url.startsWith('chrome://') || url.startsWith('about:') || url.startsWith('chrome-extension://')) return
-  let hostname = ''
-  try { hostname = new URL(url).hostname } catch { return }
 
-  const { score, signals, riskLevel } = scoreUrl(url)
+  let parsedUrl: URL
+  try { parsedUrl = new URL(url) } catch { return }
+  const hostname = parsedUrl.hostname
+
+  const { score, signals } = scoreUrl(url)
+  const pageContext = await getPageContext(tabId)
+  const pageAssessment = assessPageContext(parsedUrl, pageContext)
+  const effectiveScore = Math.max(score, pageAssessment.score)
+  const effectiveRiskLevel = getRiskLevel(effectiveScore)
+  const aiSignals = pageAssessment.score > 0
+    ? { ...signals, pageContextRisk: pageAssessment.score }
+    : signals
 
   const colors: Record<string, string> = { LOW: '#166534', MEDIUM: '#B45309', HIGH: '#DC2626', CRITICAL: '#7F1D1D' }
-  chrome.action.setBadgeBackgroundColor({ color: colors[riskLevel], tabId })
-  chrome.action.setBadgeText({ text: riskLevel === 'LOW' ? 'OK' : score.toString(), tabId })
+  chrome.action.setBadgeBackgroundColor({ color: colors[effectiveRiskLevel], tabId })
+  chrome.action.setBadgeText({ text: effectiveRiskLevel === 'LOW' ? 'OK' : effectiveScore.toString(), tabId })
 
-  // Cache the current domain's score for the popup even when the site is low-risk.
-  await setDomainScore(hostname, score)
+  // Keep the popup in sync even for low-risk sites.
+  await setDomainScore(hostname, effectiveScore)
 
-  if (score < 30) return
+  const shouldUseAi =
+    effectiveScore >= 45 ||
+    pageAssessment.score >= 20 ||
+    (effectiveScore >= 20 && !!pageContext) ||
+    (!!pageContext && hasSensitiveContent(pageContext))
 
-  let aiExplanation = ''
-  if (score >= 60) {
-    const result = await scanUrl(url, signals)
-    aiExplanation = result?.explanation || getFallbackExplanation(score)
-    chrome.tabs.sendMessage(tabId, {
-      type: 'SHOW_OVERLAY',
-      payload: { url, score, riskLevel, explanation: aiExplanation, recommendedAction: result?.recommendedAction || 'warn' }
-    }).catch(() => {})
+  if (effectiveScore < 30 && !shouldUseAi) return
+
+  let aiExplanation = pageAssessment.explanation || getFallbackExplanation(effectiveScore)
+  let recommendedAction: 'allow' | 'warn' | 'block' = effectiveScore >= 80 ? 'block' : 'warn'
+
+  if (shouldUseAi) {
+    const result = await scanUrl(url, aiSignals, pageContext)
+    aiExplanation = result?.explanation || aiExplanation
+    recommendedAction = result?.recommendedAction || recommendedAction
+  } else if (pageContext && hasSensitiveContent(pageContext)) {
+    aiExplanation = 'This page asks for sensitive information or uses suspicious account-verification language. Double-check the site before entering anything.'
+    recommendedAction = 'warn'
   }
+
+  chrome.tabs.sendMessage(tabId, {
+    type: 'SHOW_OVERLAY',
+    payload: { url, score: effectiveScore, riskLevel: effectiveRiskLevel, explanation: aiExplanation, recommendedAction }
+  }).catch(() => {})
 
   await saveThreatEvent({
     id: crypto.randomUUID(),
     eventType: 'url_threat',
     domain: hostname,
     url,
-    riskScore: score,
-    riskLevel,
+    riskScore: effectiveScore,
+    riskLevel: effectiveRiskLevel,
     aiExplanation,
     timestamp: Date.now()
   })
+}
+
+async function getPageContext(tabId: number): Promise<PageContextSnapshot | null> {
+  try {
+    return await chrome.tabs.sendMessage(tabId, { type: 'GET_PAGE_CONTEXT' })
+  } catch {
+    return null
+  }
 }
 
 function getFallbackExplanation(score: number): string {
@@ -50,7 +81,7 @@ function getFallbackExplanation(score: number): string {
   return 'This website has unusual patterns. Proceed with caution.'
 }
 
-// ── Navigation Listeners ──────────────────────────────────────────────────────
+// Navigation listeners
 chrome.webNavigation.onBeforeNavigate.addListener(({ tabId, url, frameId }) => {
   if (frameId !== 0) return
   resetTab(tabId)
@@ -77,7 +108,7 @@ chrome.webNavigation.onCommitted.addListener(({ tabId, url, frameId, transitionQ
   }
 })
 
-// ── Download Intercept (before file is written) ───────────────────────────────
+// Download intercept (before file is written)
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
   const risk = checkDownload(item.filename, item.mime, item.url)
   if (risk.level === 'safe') { suggest({}); return }
@@ -102,7 +133,6 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
     timestamp: Date.now()
   })
 
-  // Auto-cancel high risk; let medium through (user decides via overlay)
   if (risk.level === 'high') {
     chrome.downloads.cancel(item.id)
   } else {
@@ -110,7 +140,7 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
   }
 })
 
-// ── Post-Download AI File Scan (after file is complete) ───────────────────────
+// Post-download AI file scan
 chrome.downloads.onChanged.addListener(async (delta) => {
   if (delta.state?.current !== 'complete') return
   const [item] = await chrome.downloads.search({ id: delta.id })
@@ -149,11 +179,10 @@ chrome.downloads.onChanged.addListener(async (delta) => {
   }
 })
 
-// ── Unified Message Handler ───────────────────────────────────────────────────
+// Unified message handler
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const senderDomain = (() => { try { return new URL(sender.url || '').hostname } catch { return 'unknown' } })()
 
-  // Popup abuse reported by content script
   if (message.type === 'POPUP_ATTEMPT') {
     saveThreatEvent({
       id: crypto.randomUUID(),
@@ -169,14 +198,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true
   }
 
-  // Report button in overlay -> open popup to report tab
-  // overlayInjector sends this directly to background (not via content/index.ts relay)
   if (message.type === 'OPEN_REPORT_FORM') {
     chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') + '?tab=report' })
     return true
   }
 
-  // Content script asking background to cancel a download (downloads API unavailable in content)
   if (message.type === 'CANCEL_DOWNLOAD') {
     chrome.downloads.cancel(message.payload.downloadId)
     return true
@@ -185,5 +211,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true
 })
 
-// ── Tab Cleanup ───────────────────────────────────────────────────────────────
 chrome.tabs.onRemoved.addListener((tabId) => resetTab(tabId))

@@ -1,5 +1,3 @@
-import type { SignalMap, RiskLevel } from '../types'
-
 const SUSPICIOUS_TLDS = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click', '.loan', '.work', '.party', '.review', '.accountant']
 const PHISHING_KEYWORDS = ['login', 'signin', 'verify', 'secure', 'account', 'update', 'banking', 'paypal', 'amazon', 'apple', 'microsoft', 'google', 'netflix', 'password', 'credential', 'suspend', 'confirm', 'wallet', 'crypto']
 const TRUSTED_DOMAINS = ['google', 'facebook', 'amazon', 'apple', 'microsoft', 'paypal', 'netflix', 'instagram', 'twitter', 'linkedin']
@@ -14,38 +12,12 @@ function shannonEntropy(str: string): number {
 }
 
 function levenshtein(a: string, b: string): number {
-  const m = a.length
-  const n = b.length
+  const m = a.length, n = b.length
   const dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0))
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
       dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
-    }
-  }
   return dp[m][n]
-}
-
-function getHostnameParts(hostname: string) {
-  const normalized = hostname.toLowerCase().replace(/^www\./, '')
-  const baseLabel = normalized.split('.')[0]
-  const tokens = baseLabel.split(/[^a-z0-9]+/).filter(Boolean)
-  return { normalized, baseLabel, tokens }
-}
-
-function isTrustedHostname(hostname: string): boolean {
-  const { normalized } = getHostnameParts(hostname)
-  return TRUSTED_DOMAINS.some((trusted) => normalized === trusted || normalized === `${trusted}.com` || normalized.endsWith(`.${trusted}.com`))
-}
-
-function normalizeLookalikes(str: string): string {
-  return str
-    .replace(/0/g, 'o')
-    .replace(/1/g, 'l')
-    .replace(/3/g, 'e')
-    .replace(/4/g, 'a')
-    .replace(/5/g, 's')
-    .replace(/7/g, 't')
-    .replace(/@/g, 'a')
 }
 
 function normalizeToken(value: string): string {
@@ -66,17 +38,10 @@ function getHostnameTokens(hostname: string): string[] {
 }
 
 function checkTyposquat(hostname: string): number {
-  const { baseLabel, tokens } = getHostnameParts(hostname)
-  const candidates = [baseLabel, normalizeLookalikes(baseLabel), ...tokens, ...tokens.map(normalizeLookalikes)]
-
+  const clean = normalizeToken(hostname.split('.')[0])
   for (const trusted of TRUSTED_DOMAINS) {
-    for (const candidate of candidates) {
-      if (!candidate || candidate === trusted) continue
-      if (candidate.includes(trusted)) return 30
-      if (levenshtein(candidate, trusted) <= 2) return 25
-    }
+    if (clean !== trusted && levenshtein(clean, trusted) <= 2) return 25
   }
-
   return 0
 }
 
@@ -95,9 +60,7 @@ function checkBrandAbuse(hostname: string): number {
     const tokenLooksLikeBrand = tokens.some(token => token.includes(trusted) || levenshtein(token, trusted) <= 2)
     const mentionsBrand = root.includes(trusted) || normalizedRoot.includes(trusted) || tokenLooksLikeBrand
     const isExactTrustedDomain = clean === `${trusted}.com` || clean === `www.${trusted}.com`
-
     if (!mentionsBrand || isExactTrustedDomain) continue
-
     if (hasSuspiciousTLD) return 35
     if (root !== trusted) return 20
   }
@@ -105,13 +68,12 @@ function checkBrandAbuse(hostname: string): number {
   return 0
 }
 
-function checkKeywords(url: string, hostname: string): number {
-  if (isTrustedHostname(hostname)) return 0
-
+function checkKeywords(url: string): number {
   const lower = url.toLowerCase()
   const matches = PHISHING_KEYWORDS.filter(k => lower.includes(k)).length
   let score = Math.min(15, matches * 5)
 
+  const hostname = (() => { try { return new URL(url).hostname.toLowerCase() } catch { return '' } })()
   const root = hostname.replace(/^www\./, '').split('.')[0]
   const normalizedRoot = normalizeToken(root)
   const tokens = getHostnameTokens(hostname)
@@ -130,48 +92,27 @@ function checkKeywords(url: string, hostname: string): number {
   return Math.min(30, score)
 }
 
-function checkBrandKeywordCombo(hostname: string, url: string): number {
-  if (isTrustedHostname(hostname)) return 0
-  const lowerUrl = url.toLowerCase()
-  const hasBrand = TRUSTED_DOMAINS.some((trusted) => lowerUrl.includes(trusted))
-  const hasAction = ['login', 'signin', 'verify', 'secure', 'account', 'password', 'confirm', 'update'].some((keyword) => lowerUrl.includes(keyword))
-  return hasBrand && hasAction ? 20 : 0
-}
-
 function checkPort(port: string): number {
   if (!port) return 0
-  const p = parseInt(port, 10)
+  const p = parseInt(port)
   return [80, 443, 8080, 8443].includes(p) ? 0 : 10
 }
 
-export interface ScoreResult {
-  score: number
-  signals: SignalMap & { brandKeywordCombo?: number }
-  riskLevel: RiskLevel
-}
-
-export function scoreUrl(rawUrl: string): ScoreResult {
+export function scoreUrlLocal(rawUrl: string): { score: number; riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' } {
   let u: URL
-  try {
-    u = new URL(rawUrl)
-  } catch {
-    return { score: 0, signals: {} as ScoreResult['signals'], riskLevel: 'LOW' }
-  }
+  try { u = new URL(rawUrl) } catch { return { score: 0, riskLevel: 'LOW' } }
 
-  const signals: ScoreResult['signals'] = {
-    typosquatScore: checkTyposquat(u.hostname) + checkBrandAbuse(u.hostname),
-    suspiciousTLD: checkTLD(u.hostname),
-    ipAsHostname: /^\d{1,3}(\.\d{1,3}){3}$/.test(u.hostname) ? 20 : 0,
-    longSubdomains: u.hostname.split('.').length > 4 ? 10 : 0,
-    suspiciousKeywords: checkKeywords(u.href, u.hostname),
-    encodedChars: (u.href.match(/%[0-9a-f]{2}/gi) || []).length > 3 ? 10 : 0,
-    pathEntropy: shannonEntropy(u.pathname) > 4.5 ? 10 : 0,
-    portAnomaly: checkPort(u.port),
-    brandKeywordCombo: checkBrandKeywordCombo(u.hostname, u.href),
-  }
+  const score = Math.min(100, [
+    checkTyposquat(u.hostname) + checkBrandAbuse(u.hostname),
+    checkTLD(u.hostname),
+    /^\d{1,3}(\.\d{1,3}){3}$/.test(u.hostname) ? 20 : 0,
+    u.hostname.split('.').length > 4 ? 10 : 0,
+    checkKeywords(u.href),
+    (u.href.match(/%[0-9a-f]{2}/gi) || []).length > 3 ? 10 : 0,
+    shannonEntropy(u.pathname) > 4.5 ? 10 : 0,
+    checkPort(u.port),
+  ].reduce((a, b) => a + b, 0))
 
-  const score = Math.min(100, Object.values(signals).reduce((a, b) => a + (b || 0), 0))
-  const riskLevel: RiskLevel = score >= 80 ? 'CRITICAL' : score >= 60 ? 'HIGH' : score >= 30 ? 'MEDIUM' : 'LOW'
-
-  return { score, signals, riskLevel }
+  const riskLevel = score >= 80 ? 'CRITICAL' : score >= 60 ? 'HIGH' : score >= 30 ? 'MEDIUM' : 'LOW'
+  return { score, riskLevel }
 }

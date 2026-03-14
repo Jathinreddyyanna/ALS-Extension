@@ -1,6 +1,8 @@
 import { create } from 'zustand'
-import type { ThreatEvent, CommunityReport } from '../types'
-import { getRecentFeed, submitReport, getDomainScore } from '../api/client'
+import type { ThreatEvent, CommunityReport, PageContextSnapshot } from '../types'
+import { getRecentFeed, submitReport, getDomainScore, scanUrl } from '../api/client'
+import { scoreUrl } from '../detection/urlScorer'
+import { assessPageContext, hasSensitiveContent } from '../detection/pageScorer'
 
 async function readHistory(): Promise<ThreatEvent[]> {
   return new Promise(resolve => {
@@ -17,6 +19,7 @@ interface StoreState {
   feed: CommunityReport[]
   currentScore: number | null
   currentDomain: string
+  currentExplanation: string
   activeTab: 'score' | 'history' | 'feed' | 'report'
   isLoading: boolean
   reportSuccess: boolean
@@ -31,6 +34,7 @@ export const useStore = create<StoreState>((set, get) => ({
   feed: [],
   currentScore: null,
   currentDomain: '',
+  currentExplanation: '',
   activeTab: 'score',
   isLoading: false,
   reportSuccess: false,
@@ -39,10 +43,23 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ isLoading: true })
     let domain = ''
     let currentScore: number | null = null
+    let liveExplanation = ''
     try {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
       const url = tabs[0]?.url || ''
       domain = new URL(url).hostname
+      const { score: heuristicScore, signals } = scoreUrl(url)
+      const pageContext: PageContextSnapshot | null = tabs[0]?.id
+        ? await chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_PAGE_CONTEXT' }).catch(() => null)
+        : null
+      const pageAssessment = (() => {
+        try {
+          return assessPageContext(new URL(url), pageContext)
+        } catch {
+          return { score: 0, explanation: '' }
+        }
+      })()
+      const pageScore = pageAssessment.score
       const cached: { score: number; ts: number } | null = await new Promise(resolve => {
         chrome.storage.local.get('score:' + domain, r => resolve(r['score:' + domain] || null))
       })
@@ -52,9 +69,35 @@ export const useStore = create<StoreState>((set, get) => ({
         const scoreData = await getDomainScore(domain)
         currentScore = scoreData?.riskScore ?? null
       }
+      currentScore = Math.max(currentScore ?? 0, heuristicScore, pageScore)
+
+      const shouldRunLiveScan =
+        pageScore >= 20 ||
+        heuristicScore >= 30 ||
+        (!!pageContext && hasSensitiveContent(pageContext))
+
+      if (shouldRunLiveScan) {
+        const liveResult = await scanUrl(
+          url,
+          pageScore > 0 ? { ...signals, pageContextRisk: pageScore } : signals,
+          pageContext
+        )
+        if (liveResult) {
+          liveExplanation = liveResult.explanation || pageAssessment.explanation
+          const aiMappedScore =
+            liveResult.riskLevel === 'CRITICAL' ? 90 :
+            liveResult.riskLevel === 'HIGH' ? 70 :
+            liveResult.riskLevel === 'MEDIUM' ? 40 : 10
+
+          currentScore = Math.max(currentScore ?? 0, aiMappedScore, pageScore, heuristicScore)
+        }
+      }
     } catch {}
     const [history, feed] = await Promise.all([readHistory(), getRecentFeed()])
-    set({ history, feed, currentDomain: domain, currentScore, isLoading: false })
+    const currentExplanation =
+      history.find(event => event.domain === domain && !!event.aiExplanation)?.aiExplanation ||
+      liveExplanation
+    set({ history, feed, currentDomain: domain, currentScore, currentExplanation, isLoading: false })
   },
 
   setTab: (tab) => set({ activeTab: tab }),
@@ -62,8 +105,11 @@ export const useStore = create<StoreState>((set, get) => ({
   submitUserReport: async ({ category, description }) => {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
     const url = tabs[0]?.url || ''
-    await submitReport({ url, category: category as any, description })
-    set({ reportSuccess: true })
+    const result = await submitReport({ url, category: category as any, description })
+    if (!result) return
+
+    const [history, feed] = await Promise.all([readHistory(), getRecentFeed()])
+    set({ history, feed, reportSuccess: true })
     setTimeout(() => set({ reportSuccess: false, activeTab: 'history' }), 2000)
   },
 

@@ -31,7 +31,18 @@ export function initPopupMonitor() {
       }
     }
   })
-  observer.observe(document.body, { childList: true, subtree: false })
+
+  const startObserving = () => {
+    if (!document.body) return false
+    observer.observe(document.body, { childList: true, subtree: false })
+    return true
+  }
+
+  if (!startObserving()) {
+    window.addEventListener('DOMContentLoaded', () => {
+      startObserving()
+    }, { once: true })
+  }
 }
 
 function showPopupBlockedBanner(count: number) {
@@ -58,6 +69,6 @@ function showPopupBlockedBanner(count: number) {
       padding:4px 8px;border-radius:6px;cursor:pointer;font-size:11px;margin-left:8px;
     ">✕</button>
   `
-  document.body.appendChild(banner)
+  ;(document.body || document.documentElement).appendChild(banner)
   setTimeout(() => banner?.remove(), 4000)
 }

@@ -19,7 +19,7 @@ model ThreatReport {
   userAgent     String?         @map("user_agent")
   createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   deletedAt     DateTime?       @map("deleted_at") @db.Timestamptz(6)
-  created_hour  DateTime?       @default(dbgenerated("(date_trunc('hour'::text, (created_at AT TIME ZONE 'UTC'::text)) AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  created_hour  DateTime?       @db.Timestamptz(6)
   domain_scores DomainScore     @relation(fields: [domain], references: [domain], onDelete: Cascade)
 
   @@index([category], map: "idx_threat_reports_category")

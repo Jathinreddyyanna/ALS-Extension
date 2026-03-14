@@ -6,19 +6,6 @@ export async function createReport(data: ReportInput, ipHash: string, userAgent?
   let domain = ''
   try { domain = new URL(data.url).hostname } catch { domain = data.url }
 
-  const report = await prisma.threatReport.create({
-    data: {
-      url: data.url,
-      domain,
-      category: data.category,
-      description: data.description,
-      signals: data.signals as any,
-      ipHash,
-      userAgent,
-    }
-  })
-
-  // Update domain score
   const existing = await prisma.domainScore.findUnique({ where: { domain } })
   if (existing) {
     await prisma.domainScore.update({
@@ -41,6 +28,18 @@ export async function createReport(data: ReportInput, ipHash: string, userAgent?
       }
     })
   }
+
+  const report = await prisma.threatReport.create({
+    data: {
+      url: data.url,
+      domain,
+      category: data.category,
+      description: data.description,
+      signals: data.signals as any,
+      ipHash,
+      userAgent,
+    }
+  })
 
   // Invalidate caches
   await Promise.all([

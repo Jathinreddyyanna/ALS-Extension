@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react'
 interface Props {
   score: number | null
   domain: string
+  explanation?: string
   isLoading?: boolean
 }
 
@@ -22,7 +23,7 @@ function getRisk(score: number | null) {
   return RISK_LEVELS.LOW
 }
 
-export function TrustScore({ score, domain, isLoading }: Props) {
+export function TrustScore({ score, domain, explanation, isLoading }: Props) {
   const [animatedScore, setAnimatedScore] = useState(0)
   const risk = getRisk(score)
   const pct = score ?? 0
@@ -147,6 +148,30 @@ export function TrustScore({ score, domain, isLoading }: Props) {
       }}>
         {risk.msg}
       </div>
+
+      {!!explanation && score !== null && score >= 30 && (
+        <div style={{
+          marginTop: '14px',
+          background: '#0F172A',
+          border: `1px solid ${risk.color}22`,
+          borderRadius: '10px',
+          padding: '12px 14px',
+        }}>
+          <div style={{
+            color: risk.color,
+            fontSize: '10px',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            marginBottom: '6px',
+          }}>
+            Why It Was Flagged
+          </div>
+          <div style={{ color: '#CBD5E1', fontSize: '12px', lineHeight: '1.6' }}>
+            {explanation}
+          </div>
+        </div>
+      )}
 
       {/* Score breakdown if risky */}
       {score !== null && score >= 30 && (

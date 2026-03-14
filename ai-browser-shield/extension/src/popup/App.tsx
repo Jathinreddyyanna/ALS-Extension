@@ -31,7 +31,7 @@ function getRiskKey(score: number | null): string {
 
 export default function App() {
   const {
-    history, feed, currentScore, currentDomain,
+    history, feed, currentScore, currentDomain, currentExplanation,
     activeTab, isLoading, reportSuccess,
     loadAll, setTab, submitUserReport, clearAll,
   } = useStore()
@@ -145,7 +145,7 @@ export default function App() {
       {/* ── Content ── */}
       <div style={{ flex: 1, overflowY: 'auto', background: '#080C14' }}>
         {activeTab === 'score' && (
-          <TrustScore score={currentScore} domain={currentDomain} isLoading={isLoading} />
+          <TrustScore score={currentScore} domain={currentDomain} explanation={currentExplanation} isLoading={isLoading} />
         )}
         {activeTab === 'history' && (
           <ThreatHistory history={history} onClear={clearAll} />

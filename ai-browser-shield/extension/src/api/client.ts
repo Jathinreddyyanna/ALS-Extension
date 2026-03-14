@@ -1,4 +1,4 @@
-import type { ThreatReport, UrlScanResult, FileScanResult, DomainScore, CommunityReport, SignalMap } from '../types'
+import type { ThreatReport, UrlScanResult, FileScanResult, DomainScore, CommunityReport, SignalMap, PageContextSnapshot } from '../types'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
 
@@ -88,8 +88,8 @@ async function get<T>(path: string): Promise<{ data: T | null; error: ApiError |
   }
 }
 
-export async function scanUrl(url: string, signals: SignalMap): Promise<UrlScanResult | null> {
-  const { data } = await post('/scan/url', { url, signals: signals || {} })
+export async function scanUrl(url: string, signals: SignalMap, pageContext?: PageContextSnapshot | null): Promise<UrlScanResult | null> {
+  const { data } = await post('/scan/url', { url, signals: signals || {}, pageContext: pageContext || undefined })
   return data
 }
 

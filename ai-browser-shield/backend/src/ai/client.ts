@@ -41,9 +41,20 @@ export interface UrlScanResult {
   keyIndicators: string[]
 }
 
-export async function analyzeUrl(url: string, signals: Record<string, number>, riskScore: number): Promise<UrlScanResult> {
+export async function analyzeUrl(
+  url: string,
+  signals: Record<string, number>,
+  riskScore: number,
+  pageContext?: {
+    title?: string
+    headings?: string[]
+    bodyPreview?: string
+    formSignals?: string[]
+    actionTexts?: string[]
+  }
+): Promise<UrlScanResult> {
   try {
-    const prompt = buildUrlScanPrompt(url, signals, riskScore)
+    const prompt = buildUrlScanPrompt(url, signals, riskScore, pageContext)
     const raw = await callGemini(prompt)
     const parsed = safeParseJSON<UrlScanResult>(raw)
     if (!parsed?.explanation) return getFallbackUrlResult(riskScore)
@@ -99,12 +110,19 @@ function getFallbackUrlResult(score: number): UrlScanResult {
     confidence: 0.6,
     keyIndicators: ['Suspicious URL structure', 'Unusual domain pattern'],
   }
-  return {
-    explanation: 'This website has some minor unusual patterns. While it may be legitimate, proceed with reasonable caution and avoid sharing sensitive information unless you are confident in its authenticity.',
+  if (score >= 30) return {
+    explanation: 'This website has some unusual patterns. Proceed carefully and avoid sharing sensitive information unless you trust the site.',
     riskLevel: 'MEDIUM',
     recommendedAction: 'warn',
     confidence: 0.5,
-    keyIndicators: ['Minor suspicious signals detected'],
+    keyIndicators: ['Some suspicious signals detected'],
+  }
+  return {
+    explanation: 'No strong threat indicators were confirmed for this website from the available signals.',
+    riskLevel: 'LOW',
+    recommendedAction: 'allow',
+    confidence: 0.4,
+    keyIndicators: ['No strong indicators found'],
   }
 }
 

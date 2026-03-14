@@ -9,6 +9,8 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:seed": "ts-node src/db/seed.ts",
+    "db:import-phishing-domains": "ts-node src/db/import-phishing-domains.ts",
+    "db:import-phishing-links": "ts-node src/db/import-phishing-links.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {
@@ -16,6 +18,7 @@
     "@prisma/client": "^5.17.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
     "express": "^4.19.2",
     "express-rate-limit": "^7.3.1",
     "helmet": "^7.1.0",

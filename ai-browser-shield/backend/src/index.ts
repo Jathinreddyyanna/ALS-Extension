@@ -1,5 +1,9 @@
+import { config as loadEnv } from 'dotenv'
+import { resolve } from 'path'
 import app from './app'
 import { prisma } from './db/client'
+
+loadEnv({ path: resolve(__dirname, '../../.env') })
 
 const PORT = parseInt(process.env.PORT || '3001')
 
