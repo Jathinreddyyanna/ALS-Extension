@@ -16,6 +16,111 @@ function normalizeSubject(subject: string) {
   return (subject || '').toLowerCase().replace(/\s+/g, ' ').trim()
 }
 
+function getSenderDomain(data: EmailSnapshot) {
+  const sender = (data.fromEmail || data.from || '').toLowerCase().trim()
+  const atIndex = sender.lastIndexOf('@')
+  return atIndex >= 0 ? sender.slice(atIndex + 1) : ''
+}
+
+function hasHighRiskEmailIntent(data: EmailSnapshot) {
+  const text = `${data.subject || ''}\n${data.body || ''}`.toLowerCase()
+  const links = Array.isArray(data.links) ? data.links : []
+  const shortenerRe = /(bit\.ly|tinyurl|forms\.gle|rb\.gy|goo\.gl)/i
+  const credentialRe = /\b(password|otp|pin|cvv|bank account|ssn|aadhaar|verify your account|login now|update password)\b/i
+  const paymentRe = /\b(fee|payment|upi|wire transfer|crypto|bitcoin|transfer now|pay now)\b/i
+  const ipUrlRe = /https?:\/\/\d{1,3}(?:\.\d{1,3}){3}/i
+
+  return (
+    credentialRe.test(text) ||
+    paymentRe.test(text) ||
+    shortenerRe.test(text) ||
+    ipUrlRe.test(text) ||
+    links.some((link) => shortenerRe.test(link || '') || ipUrlRe.test(link || ''))
+  )
+}
+
+function isTrustedInstitutionalEmail(data: EmailSnapshot) {
+  const senderDomain = getSenderDomain(data)
+  if (!senderDomain) return false
+
+  const trustedInstitutionalDomainRe = /(\.ac\.in|\.edu|\.edu\.[a-z]{2}|\.ac\.[a-z]{2}|\.edu\.in)$/i
+  const trustedMailerPrefixRe = /^(mailer|mail|noreply|no-reply|notifications?)\./i
+  const text = `${data.subject || ''}\n${data.body || ''}\n${data.from || ''}`.toLowerCase()
+  const institutionalContextRe = /\b(internship|admission|application|confirmation|registered|registration|submission|receipt|schedule|academic|campus|student|iit|university|college|institute|department)\b/i
+
+  const domainLooksTrusted = trustedInstitutionalDomainRe.test(senderDomain) || trustedMailerPrefixRe.test(senderDomain)
+  return domainLooksTrusted && institutionalContextRe.test(text) && !hasHighRiskEmailIntent(data)
+}
+
+function isTrustedCorporateBrandEmail(data: EmailSnapshot) {
+  const senderDomain = getSenderDomain(data)
+  if (!senderDomain) return false
+
+  const text = `${data.subject || ''}\n${data.body || ''}\n${data.from || ''}`.toLowerCase()
+  const trustedBrands = [
+    { name: 'jpmorgan chase', domains: ['jpmorganchase.com', 'chase.com'] },
+    { name: 'chase', domains: ['jpmorganchase.com', 'chase.com'] },
+  ]
+
+  const matchedBrand = trustedBrands.find((brand) => {
+    const mentionsBrand = text.includes(brand.name)
+    const trustedSender = brand.domains.some((domain) => senderDomain === domain || senderDomain.endsWith(`.${domain}`))
+    return mentionsBrand && trustedSender
+  })
+
+  if (!matchedBrand) return false
+
+  const links = Array.isArray(data.links) ? data.links : []
+  const allLinksTrusted = links.every((link) => {
+    try {
+      const hostname = new URL(link).hostname.toLowerCase()
+      return matchedBrand.domains.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`))
+    } catch {
+      return true
+    }
+  })
+
+  return allLinksTrusted && !hasHighRiskEmailIntent(data)
+}
+
+function normalizeLikelySafeInstitutionalEmail(data: EmailSnapshot, analysis: EmailAnalysis): EmailAnalysis {
+  if (!isTrustedInstitutionalEmail(data)) return analysis
+
+  const filteredPatterns = (analysis.detected_patterns || []).filter(
+    (pattern) => !/urgency|sender identity risk|manipulation/i.test(pattern)
+  )
+
+  return {
+    ...analysis,
+    risk_label: 'safe',
+    final_risk_label: 'safe',
+    final_score: Math.min(analysis.final_score || 0, 0.18),
+    detected_patterns: filteredPatterns,
+    explanation: 'Trusted institutional confirmation-style email detected. The sender domain appears academic or organizational, and no credential, payment, or unsafe-link phishing signals were found.',
+  }
+}
+
+function normalizeLikelySafeBrandEmail(data: EmailSnapshot, analysis: EmailAnalysis): EmailAnalysis {
+  if (!isTrustedCorporateBrandEmail(data)) return analysis
+
+  const filteredPatterns = (analysis.detected_patterns || []).filter(
+    (pattern) => !/urgency|sender identity risk|manipulation/i.test(pattern)
+  )
+
+  return {
+    ...analysis,
+    risk_label: 'safe',
+    final_risk_label: 'safe',
+    final_score: Math.min(analysis.final_score || 0, 0.18),
+    detected_patterns: filteredPatterns,
+    explanation: 'Trusted branded email detected. The sender and links match official JPMorgan Chase domains, and no credential, payment-diversion, or unsafe-link phishing signals were found.',
+  }
+}
+
+function normalizeLikelySafeEmail(data: EmailSnapshot, analysis: EmailAnalysis): EmailAnalysis {
+  return normalizeLikelySafeBrandEmail(data, normalizeLikelySafeInstitutionalEmail(data, analysis))
+}
+
 function runLocalFallbackAnalysis(data: EmailSnapshot, reason: string): EmailAnalysis {
   const subject = (data.subject || '').toLowerCase()
   const body = (data.body || '').toLowerCase()
@@ -94,7 +199,7 @@ function runLocalFallbackAnalysis(data: EmailSnapshot, reason: string): EmailAna
     label = 'suspicious'
   }
 
-  return {
+  return normalizeLikelySafeEmail(data, {
     risk_label: label,
     final_risk_label: label,
     final_score: finalScore,
@@ -102,7 +207,7 @@ function runLocalFallbackAnalysis(data: EmailSnapshot, reason: string): EmailAna
     detected_patterns: detected,
     explanation: `Local email analysis used (${reason}). Risk score ${Math.round(finalScore * 100)}%. ${detected.length ? `Signals: ${detected.join(', ')}.` : 'No strong scam signals detected.'}`,
     engine: 'local-fallback',
-  }
+  })
 }
 
 export function getEmailHash(data: EmailSnapshot) {
@@ -147,7 +252,7 @@ export async function analyzeEmail(data: EmailSnapshot): Promise<EmailAnalysis> 
       return runLocalFallbackAnalysis(data, 'invalid backend response')
     }
 
-    return {
+    return normalizeLikelySafeEmail(data, {
       risk_label: result.risk_label || label,
       final_risk_label: result.final_risk_label || label,
       final_score: typeof result.final_score === 'number' ? result.final_score : 0,
@@ -155,7 +260,7 @@ export async function analyzeEmail(data: EmailSnapshot): Promise<EmailAnalysis> 
       explanation: result.explanation || 'Email analysis completed.',
       detected_patterns: Array.isArray(result.detected_patterns) ? result.detected_patterns : [],
       engine: 'remote-ml',
-    }
+    })
   } catch (error) {
     return runLocalFallbackAnalysis(data, error instanceof Error ? error.message : 'backend unavailable')
   }

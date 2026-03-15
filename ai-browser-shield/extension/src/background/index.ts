@@ -16,37 +16,6 @@ let currentEmailData: EmailSnapshot = {
   platform: 'gmail',
   timestamp: null,
 }
-const injectedEmailTabs = new Map<number, string>()
-
-function getSupportedEmailHost(url?: string | null) {
-  try {
-    const hostname = new URL(url || '').hostname
-    if (hostname.includes('mail.google.com')) return 'mail.google.com'
-  } catch {}
-  return null
-}
-
-function injectEmailMonitorIntoTab(tabId: number, url?: string | null) {
-  const host = getSupportedEmailHost(url)
-  if (!host) {
-    injectedEmailTabs.delete(tabId)
-    return
-  }
-
-  if (injectedEmailTabs.get(tabId) === host) return
-
-  chrome.scripting.executeScript({
-    target: { tabId },
-    files: ['emailContentScript.js'],
-  }, () => {
-    if (chrome.runtime.lastError) {
-      console.warn('[Email] Gmail content injection failed:', chrome.runtime.lastError.message)
-      return
-    }
-    injectedEmailTabs.set(tabId, host)
-    console.log('[Email] Injected content script into Gmail tab', tabId)
-  })
-}
 
 function setBadgeForRisk(tabId: number, riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL', score: number) {
   const colors: Record<string, string> = { LOW: '#166534', MEDIUM: '#B45309', HIGH: '#DC2626', CRITICAL: '#7F1D1D' }
@@ -118,18 +87,6 @@ chrome.webNavigation.onBeforeNavigate.addListener(({ tabId, url, frameId }) => {
   if (frameId !== 0) return
   resetTab(tabId)
   analyzeUrl(tabId, url)
-})
-
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status !== 'complete') return
-  injectEmailMonitorIntoTab(tabId, tab.url)
-})
-
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  chrome.tabs.get(activeInfo.tabId, (tab) => {
-    if (chrome.runtime.lastError) return
-    injectEmailMonitorIntoTab(activeInfo.tabId, tab?.url)
-  })
 })
 
 chrome.webNavigation.onCommitted.addListener(({ tabId, url, frameId, transitionQualifiers }) => {
@@ -482,5 +439,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ── Tab Cleanup ───────────────────────────────────────────────────────────────
 chrome.tabs.onRemoved.addListener((tabId) => {
   resetTab(tabId)
-  injectedEmailTabs.delete(tabId)
 })

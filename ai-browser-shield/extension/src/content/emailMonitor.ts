@@ -114,7 +114,6 @@ function extractEmailData() {
     body: '',
     links: [] as string[],
     platform: 'gmail' as const,
-    timestamp: Date.now(),
   }
 
   try {
