@@ -116,7 +116,9 @@ ai-browser-shield/
 For production/deployment replace Docker Postgres with Supabase:
 
 1. Create project at https://supabase.com
-2. Copy connection strings to `.env`
+2. In `.env`, set:
+   - `DATABASE_URL` to your Supabase pooled connection string
+   - `DIRECT_URL` to your Supabase direct (non-pooled) connection string
 3. Run `npx prisma migrate deploy`
 
 ---

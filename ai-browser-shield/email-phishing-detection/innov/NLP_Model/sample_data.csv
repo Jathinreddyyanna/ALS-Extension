@@ -1,4 +1,4 @@
-text,label
+`text,label
 "Dear user, your account needs verification. Click http://192.168.0.1/verify to confirm.",1
 Your bank account was accessed. Verify your password at http://secure-bank.example.com/login,1
 "Hi team, the meeting is at 3pm. See agenda here: https://example.com/agenda",0

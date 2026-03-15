@@ -190,6 +190,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ ok: false })
       return true
     }
+    const hash = emailHash(data)
+    const cached = emailPredictionCache.get(tabId)
+    const inFlight = emailInFlightByTab.get(tabId)
+
+    if (cached?.hash === hash) {
+      chrome.tabs.sendMessage(tabId, {
+        type: 'EMAIL_ANALYSIS_RESULT',
+        payload: cached.result,
+      }).catch(() => {})
+      sendResponse({ ok: true, status: 'cached' })
+      return true
+    }
+
+    if (inFlight?.hash === hash) {
+      sendResponse({ ok: true, status: 'processing' })
+      return true
+    }
+
+    emailInFlightByTab.set(tabId, { hash, startedAt: Date.now() })
 
     chrome.storage.local.set({ processingState: true })
     chrome.tabs.sendMessage(tabId, {
@@ -208,7 +227,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     analyzeEmailContent(data).then(async (analysis) => {
       const stabilized = stabilizeEmailPrediction(tabId, data, analysis)
-      emailPredictionCache.set(tabId, { hash: emailHash(data), result: stabilized })
+      const startedAt = emailInFlightByTab.get(tabId)?.startedAt ?? Date.now()
+      const elapsed = Date.now() - startedAt
+      if (elapsed < MIN_EMAIL_PROCESSING_MS) {
+        await new Promise(resolve => setTimeout(resolve, MIN_EMAIL_PROCESSING_MS - elapsed))
+      }
+
+      emailPredictionCache.set(tabId, { hash, result: stabilized })
+      emailInFlightByTab.delete(tabId)
       await chrome.storage.local.set({
         latestEmailAnalysis: stabilized,
         currentAnalysis: stabilized,
@@ -233,6 +259,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         type: 'EMAIL_ANALYSIS_RESULT',
         payload: stabilized,
       }).catch(() => {})
+    }).catch(async () => {
+      emailInFlightByTab.delete(tabId)
+      await chrome.storage.local.set({ processingState: false })
     })
 
     sendResponse({ ok: true, status: 'processing' })
@@ -267,11 +296,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true
 })
 
-chrome.tabs.onRemoved.addListener((tabId) => resetTab(tabId))
+chrome.tabs.onRemoved.addListener((tabId) => {
+  resetTab(tabId)
+  emailPredictionCache.delete(tabId)
+  emailInFlightByTab.delete(tabId)
+})
 
 const EMAIL_BACKEND_URL = 'http://127.0.0.1:5000/predict'
 const emailPredictionCache = new Map<number, { hash: string; result: EmailAnalysis }>()
 const lastEmailRiskByKey = new Map<string, { label: EmailAnalysis['riskLabel']; result: EmailAnalysis; ts: number }>()
+const emailInFlightByTab = new Map<number, { hash: string; startedAt: number }>()
+const MIN_EMAIL_PROCESSING_MS = 1800
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))

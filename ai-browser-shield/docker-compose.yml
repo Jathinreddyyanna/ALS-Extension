@@ -1,7 +1,7 @@
 version: '3.9'
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15
     environment:
       POSTGRES_DB: abs_dev
       POSTGRES_USER: abs
@@ -10,6 +10,7 @@ services:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./backend/prisma/init.sql:/docker-entrypoint-initdb.d/001_pg_trgm.sql:ro
 
   redis:
     image: redis:7-alpine
@@ -29,9 +30,6 @@ services:
     depends_on:
       - postgres
       - redis
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
 
 volumes:
   pgdata:
