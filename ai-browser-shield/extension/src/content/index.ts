@@ -1,6 +1,6 @@
 import { initPopupMonitor } from './popupMonitor'
 import { initHoverPreview } from './hoverPreview'
-import { injectOverlay, showWarningOverlay, showRedirectWarning, showDownloadWarning } from './overlayInjector'
+import { injectOverlay, showWarningOverlay, showRedirectWarning, showDownloadWarning, showClickjackWarning } from './overlayInjector'
 
 // Init all content-script features
 initPopupMonitor()
@@ -19,5 +19,8 @@ chrome.runtime.onMessage.addListener((message) => {
   }
   if (message.type === 'DOWNLOAD_WARNING') {
     showDownloadWarning(message.payload)
+  }
+  if (message.type === 'CLICKJACK_WARNING') {
+    showClickjackWarning(message.payload)
   }
 })

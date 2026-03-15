@@ -1,4 +1,4 @@
-﻿const statusEl = document.getElementById('status') as HTMLDivElement
+const statusEl = document.getElementById('status') as HTMLDivElement
 const geminiKeyInput = document.getElementById('geminiKey') as HTMLInputElement
 const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement
@@ -18,7 +18,7 @@ function readSettings() {
 
 saveBtn.addEventListener('click', () => {
   const geminiApiKey = geminiKeyInput.value.trim()
-  const apiBaseUrl = apiBaseUrlInput.value.trim()
+  const apiBaseUrl = apiBaseUrlInput.value.trim().replace(/\/+$/, '')
 
   if (!geminiApiKey) {
     setStatus('Gemini API key is required.', 'err')
@@ -33,7 +33,8 @@ saveBtn.addEventListener('click', () => {
 
 clearBtn.addEventListener('click', () => {
   chrome.storage.local.get(null, (items) => {
-    const keys = Object.keys(items)
+    const safeItems = items && typeof items === 'object' ? items : {}
+    const keys = Object.keys(safeItems)
     const toRemove = keys.filter(k => k === 'threatHistory' || k.startsWith('score:'))
     chrome.storage.local.remove(toRemove, () => {
       setStatus('Cache cleared.', 'ok')

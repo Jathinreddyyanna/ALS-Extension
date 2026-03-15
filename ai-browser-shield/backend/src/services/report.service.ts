@@ -42,10 +42,23 @@ export async function createReport(data: ReportInput, ipHash: string, userAgent?
     })
   }
 
+  // EVENT-DRIVEN SCORING: Lock in a high risk score for the exact URL
+  await prisma.detectionEvent.create({
+    data: {
+      eventType: 'url_threat',
+      domain,
+      url: data.url,
+      riskScore: 85, // Immediately flag reported URLs as high risk
+      riskLevel: 'HIGH',
+      aiExplanation: `This URL was reported by the community as ${data.category}. ${data.description || ''}`,
+    }
+  }).catch(() => {}) // non-blocking
+
   // Invalidate caches
   await Promise.all([
     cacheDel(keys.domainScore(domain)),
     cacheDel(keys.threatFeed()),
+    cacheDel(keys.urlScan(data.url)), // Clear URL scan cache so next scan incorporates the new report instantly
   ])
 
   return report

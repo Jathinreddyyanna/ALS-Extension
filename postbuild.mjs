@@ -1,0 +1,1 @@
+console.log('[postbuild] Deprecated script. Use ai-browser-shield/extension/scripts/postbuild.mjs instead.');

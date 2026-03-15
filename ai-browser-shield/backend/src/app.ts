@@ -5,6 +5,9 @@ import { errorHandler } from './middleware'
 import reportsRouter from './routes/reports'
 import scanRouter from './routes/scan'
 import healthRouter from './routes/health'
+import aiRouter from './routes/ai'
+import emailSecurityRouter from './routes/emailSecurity'
+import downloadsRouter from './routes/downloads'
 
 const app = express()
 
@@ -12,10 +15,15 @@ const app = express()
 app.use(helmet())
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || process.env.NODE_ENV === 'development') return cb(null, true)
-    const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim())
-    if (allowed.some(o => origin.startsWith(o))) return cb(null, true)
-    cb(new Error(`CORS blocked: ${origin}`))
+    try {
+      if (!origin || process.env.NODE_ENV === 'development') return cb(null, true)
+      const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)
+      if (allowed.some(o => origin.startsWith(o))) return cb(null, true)
+      cb(new Error(`CORS blocked: ${origin}`))
+    } catch (err) {
+      console.error('[CORS] Origin check failed:', err)
+      cb(new Error('CORS origin validation failed'))
+    }
   },
   credentials: true,
 }))
@@ -29,6 +37,9 @@ app.set('trust proxy', 1)
 app.use('/api/v1/reports', reportsRouter)
 app.use('/api/v1/scan',    scanRouter)
 app.use('/api/v1/health',  healthRouter)
+app.use('/api/v1/ai',      aiRouter)
+app.use('/api/v1/security', emailSecurityRouter)
+app.use('/api/v1/downloads', downloadsRouter)
 
 // ── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({

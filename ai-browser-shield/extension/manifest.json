@@ -32,7 +32,6 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "type": "module",
       "run_at": "document_end"
     }
   ],
@@ -44,6 +43,7 @@
     "webNavigation",
     "webRequest",
     "declarativeNetRequest",
+    "declarativeNetRequestFeedback",
     "notifications",
     "activeTab"
   ],
@@ -65,7 +65,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["assets/*", "*.js", "*.css", "icon48.png", "icon128.png"],
+      "resources": ["assets/*", "icon48.png", "icon128.png"],
       "matches": ["<all_urls>"]
     }
   ],

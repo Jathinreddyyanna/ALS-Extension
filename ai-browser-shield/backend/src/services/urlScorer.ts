@@ -31,13 +31,13 @@ function checkTyposquat(hostname: string): number {
 }
 
 function checkTLD(hostname: string): number {
-  return SUSPICIOUS_TLDS.some(tld => hostname.endsWith(tld)) ? 15 : 0
+  return SUSPICIOUS_TLDS.some(tld => hostname.endsWith(tld)) ? 20 : 0
 }
 
 function checkKeywords(url: string): number {
   const lower = url.toLowerCase()
   const matches = PHISHING_KEYWORDS.filter(k => lower.includes(k)).length
-  return Math.min(15, matches * 5)
+  return Math.min(30, matches * 6)
 }
 
 function checkPort(port: string): number {
@@ -66,6 +66,12 @@ export function scoreUrl(rawUrl: string): ScoreResult {
     portAnomaly:        checkPort(u.port),
   }
 
-  const score = Math.min(100, Object.values(signals).reduce((a, b) => a + b, 0))
+  let score = Math.min(100, Object.values(signals).reduce((a, b) => a + b, 0))
+
+  if (signals.suspiciousTLD > 0 && signals.suspiciousKeywords >= 12) score += 20
+  if (signals.typosquatScore > 0 && signals.suspiciousKeywords >= 6) score += 15
+  if (signals.ipAsHostname > 0 && signals.suspiciousKeywords >= 6) score += 10
+  score = Math.min(100, score)
+
   return { score, signals }
 }

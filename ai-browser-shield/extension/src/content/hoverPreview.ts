@@ -1,11 +1,38 @@
-// Hover preview — shows risk tooltip before user clicks any link
-import { scoreUrl } from '../detection/urlScorer'
-
 const RISK_COLORS: Record<string, { bg: string; text: string; emoji: string }> = {
-  CRITICAL: { bg: '#450A0A', text: '#FCA5A5', emoji: '🚨' },
-  HIGH:     { bg: '#431407', text: '#FED7AA', emoji: '⚠️' },
-  MEDIUM:   { bg: '#422006', text: '#FEF08A', emoji: '🟡' },
-  LOW:      { bg: '#052E16', text: '#86EFAC', emoji: '✅' },
+  CRITICAL: { bg: '#450A0A', text: '#FCA5A5', emoji: 'Alert' },
+  HIGH:     { bg: '#431407', text: '#FED7AA', emoji: 'Warn' },
+  MEDIUM:   { bg: '#422006', text: '#FEF08A', emoji: 'Caution' },
+  LOW:      { bg: '#052E16', text: '#86EFAC', emoji: 'Safe' },
+}
+
+type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+
+function scorePreviewUrl(rawUrl: string): { score: number; riskLevel: RiskLevel } {
+  let url: URL
+  try {
+    url = new URL(rawUrl)
+  } catch {
+    return { score: 0, riskLevel: 'LOW' }
+  }
+
+  const lower = url.href.toLowerCase()
+  let score = 0
+
+  if (/(login|verify|secure|account|password|wallet|crypto)/.test(lower)) score += 10
+  if (/(filmyzilla|torrent|movies|piracy|movierulz|dramacool)/.test(lower)) score += 15
+  if (/\.(tk|ml|ga|cf|gq|xyz|top|click|rest|zip|icu|sbs)$/.test(url.hostname)) score += 15
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(url.hostname)) score += 20
+  if ((url.href.match(/%[0-9a-f]{2}/gi) || []).length > 3) score += 10
+  if (url.hostname.split('.').length > 4) score += 10
+
+  const capped = Math.min(100, score)
+  const riskLevel: RiskLevel =
+    capped >= 75 ? 'CRITICAL' :
+    capped >= 50 ? 'HIGH' :
+    capped >= 30 ? 'MEDIUM' :
+    'LOW'
+
+  return { score: capped, riskLevel }
 }
 
 let tooltip: HTMLElement | null = null
@@ -31,16 +58,15 @@ function createTooltip(x: number, y: number, url: string, score: number, riskLev
     transition:opacity 0.15s ease;
   `
 
-  const displayUrl = url.length > 50 ? url.slice(0, 50) + '…' : url
+  const displayUrl = url.length > 50 ? url.slice(0, 50) + '...' : url
   tooltip.innerHTML = `
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
       <span>${colors.emoji}</span>
-      <span style="letter-spacing:1px;text-transform:uppercase;font-size:10px;">${riskLevel} RISK · ${score}/100</span>
+      <span style="letter-spacing:1px;text-transform:uppercase;font-size:10px;">${riskLevel} risk � ${score}/100</span>
     </div>
     <div style="opacity:0.7;font-weight:400;font-size:11px;">${displayUrl}</div>
   `
 
-  // Position near cursor but keep on screen
   const left = Math.min(x + 12, window.innerWidth - 300)
   const top = Math.max(y - 60, 8)
   tooltip.style.left = left + 'px'
@@ -59,18 +85,17 @@ export function initHoverPreview() {
     const href = anchor.getAttribute('href')
     if (!href || href.startsWith('#') || href.startsWith('javascript:')) return
 
-    // Resolve relative URLs
     let fullUrl = href
     try {
       fullUrl = new URL(href, window.location.href).href
-    } catch { return }
+    } catch {
+      return
+    }
 
-    // Skip same origin — only warn on external links
     if (fullUrl.startsWith(window.location.origin)) return
 
     hoverTimeout = setTimeout(() => {
-      const { score, riskLevel } = scoreUrl(fullUrl)
-      // Only show tooltip for non-LOW risk
+      const { score, riskLevel } = scorePreviewUrl(fullUrl)
       if (score >= 30) {
         createTooltip(e.clientX, e.clientY, fullUrl, score, riskLevel)
       }

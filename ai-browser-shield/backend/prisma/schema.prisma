@@ -5,12 +5,10 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model ThreatReport {
   id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  url           String
   domain        String
   category      threat_category
   description   String?         @db.VarChar(500)
@@ -19,7 +17,7 @@ model ThreatReport {
   userAgent     String?         @map("user_agent")
   createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   deletedAt     DateTime?       @map("deleted_at") @db.Timestamptz(6)
-  created_hour  DateTime?       @default(dbgenerated("(date_trunc('hour'::text, (created_at AT TIME ZONE 'UTC'::text)) AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  created_hour  DateTime?       @db.Timestamptz(6)
   domain_scores DomainScore     @relation(fields: [domain], references: [domain], onDelete: Cascade)
 
   @@index([category], map: "idx_threat_reports_category")
@@ -65,7 +63,7 @@ model DomainScore {
 
   @@index([last_report_at(sort: Desc)], map: "idx_domain_scores_last_report")
   @@index([riskScore(sort: Desc)], map: "idx_domain_scores_risk")
-  @@index([domain(ops: raw("gin_trgm_ops"))], map: "idx_domain_scores_trgm", type: Gin)
+  @@index([domain], map: "idx_domain_scores_trgm")
   @@map("domain_scores")
 }
 
@@ -89,6 +87,65 @@ model FileScan {
   @@index([extension], map: "idx_file_scans_extension")
   @@index([verdict], map: "idx_file_scans_verdict")
   @@map("file_scans")
+}
+
+model DownloadRecord {
+  id                String          @id @default(cuid())
+  filename          String
+  extension         String
+  mimeType          String
+  fileSize          Int
+  sourceUrl         String
+  sourceHostname    String
+  tabId             Int
+  status            String
+  approvalStatus    String
+  userAction        String?
+  userActionReason  String?
+  userActionTime    DateTime?
+  aiAnalysis        String?
+  riskScore         Int?
+  malwareSuspected  Boolean         @default(false)
+  knownMalicious    Boolean         @default(false)
+  previousIncidents Int             @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  auditTrail        DownloadAudit[]
+
+  @@index([tabId])
+  @@index([status])
+  @@index([approvalStatus])
+  @@index([createdAt])
+}
+
+model DownloadAudit {
+  id         String         @id @default(cuid())
+  downloadId String
+  action     String
+  reason     String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime       @default(now())
+  download   DownloadRecord @relation(fields: [downloadId], references: [id], onDelete: Cascade)
+
+  @@index([downloadId])
+  @@index([action])
+}
+
+model MaliciousFile {
+  id          String    @id @default(cuid())
+  filename    String?
+  extension   String?
+  fileHash    String?   @unique
+  isMalicious Boolean
+  incidents   Int       @default(0)
+  threats     String?
+  lastSeen    DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([filename])
+  @@index([extension])
+  @@index([fileHash])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

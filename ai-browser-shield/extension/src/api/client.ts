@@ -1,107 +1,99 @@
-﻿import type { ThreatReport, UrlScanResult, FileScanResult, DomainScore, CommunityReport, SignalMap } from '../types'
+import type {
+  ThreatReport,
+  UrlScanResult,
+  FileScanResult,
+  DomainScore,
+  CommunityReport,
+  SignalMap,
+  ThreatEvent,
+} from '../types'
+import { getEffectiveApiBaseUrl } from '../config'
 
-const DEFAULT_BASE_URL = 'http://localhost:3001/api/v1'
+const BASE_URL =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL) ||
+  'http://localhost:3001/api/v1'
+const DOMAIN_MISS_TTL_MS = 10 * 60 * 1000
 
-interface ApiError {
-  status: number
-  message: string
-  errors?: Record<string, string>
-}
-
-async function getBaseUrl(): Promise<string> {
-  return new Promise(resolve => {
-    chrome.storage.sync.get('apiBaseUrl', (r) => {
-      const v = (r.apiBaseUrl || '').trim()
-      resolve(v || DEFAULT_BASE_URL)
-    })
-  })
-}
-
-async function post<T>(path: string, body: unknown): Promise<{ data: T | null; error: ApiError | null }> {
+async function resolveBaseUrl(): Promise<string> {
   try {
-    const baseUrl = await getBaseUrl()
-    const res = await fetch(`${baseUrl}${path}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Extension-Version': '1.0.0',
-      },
-      body: JSON.stringify(body),
-    })
-
-    const responseText = await res.text()
-    let data: T | null = null
-
-    try {
-      data = JSON.parse(responseText)
-    } catch {
-      data = null
-    }
-
-    if (!res.ok) {
-      return {
-        data: null,
-        error: {
-          status: res.status,
-          message: `Request failed with status ${res.status}`,
-          errors: typeof data === 'object' && data !== null ? (data as any).errors : undefined,
-        },
-      }
-    }
-
-    return { data, error: null }
-  } catch (err) {
-    return {
-      data: null,
-      error: {
-        status: 0,
-        message: err instanceof Error ? err.message : 'Network error',
-      },
-    }
+    return await getEffectiveApiBaseUrl()
+  } catch {
+    return BASE_URL
   }
 }
 
-async function get<T>(path: string): Promise<{ data: T | null; error: ApiError | null }> {
+function normalizeSignals(signals: SignalMap): SignalMap {
+  return {
+    typosquatScore: signals?.typosquatScore ?? 0,
+    suspiciousTLD: signals?.suspiciousTLD ?? 0,
+    ipAsHostname: signals?.ipAsHostname ?? 0,
+    longSubdomains: signals?.longSubdomains ?? 0,
+    suspiciousKeywords: signals?.suspiciousKeywords ?? 0,
+    encodedChars: signals?.encodedChars ?? 0,
+    pathEntropy: signals?.pathEntropy ?? 0,
+    portAnomaly: signals?.portAnomaly ?? 0,
+  }
+}
+
+async function post<T>(path: string, body: unknown): Promise<T | null> {
   try {
-    const baseUrl = await getBaseUrl()
+    const baseUrl = await resolveBaseUrl()
+    const res = await fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Extension-Version': '1.0.0' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+async function get<T>(path: string): Promise<T | null> {
+  try {
+    const baseUrl = await resolveBaseUrl()
     const res = await fetch(`${baseUrl}${path}`, {
       headers: { 'X-Extension-Version': '1.0.0' },
     })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
 
-    const responseText = await res.text()
-    let data: T | null = null
+async function getDomainMiss(domain: string): Promise<boolean> {
+  try {
+    const key = `domain-miss:${domain}`
+    const result = await chrome.storage.local.get(key)
+    const cached = result[key] as { ts?: number } | undefined
+    return typeof cached?.ts === 'number' && Date.now() - cached.ts < DOMAIN_MISS_TTL_MS
+  } catch {
+    return false
+  }
+}
 
-    try {
-      data = JSON.parse(responseText)
-    } catch {
-      data = null
-    }
+async function setDomainMiss(domain: string): Promise<void> {
+  try {
+    const key = `domain-miss:${domain}`
+    await chrome.storage.local.set({ [key]: { ts: Date.now() } })
+  } catch {
+    // Ignore storage failures; backend fallback still works.
+  }
+}
 
-    if (!res.ok) {
-      return {
-        data: null,
-        error: {
-          status: res.status,
-          message: `Request failed with status ${res.status}`,
-        },
-      }
-    }
-
-    return { data, error: null }
-  } catch (err) {
-    return {
-      data: null,
-      error: {
-        status: 0,
-        message: err instanceof Error ? err.message : 'Network error',
-      },
-    }
+async function clearDomainMiss(domain: string): Promise<void> {
+  try {
+    await chrome.storage.local.remove(`domain-miss:${domain}`)
+  } catch {
+    // Ignore storage failures.
   }
 }
 
 export async function scanUrl(url: string, signals: SignalMap): Promise<UrlScanResult | null> {
-  const { data } = await post('/scan/url', { url, signals: signals || {} })
-  return data
+  if (!url || !signals) return null
+  return post<UrlScanResult>('/scan/url', { url, signals: normalizeSignals(signals) })
 }
 
 export async function scanFile(data: {
@@ -110,23 +102,66 @@ export async function scanFile(data: {
   mimeType: string
   sizeBytes: number
   sourceUrl: string
+  sourceDomain?: string
+  domainRiskScore?: number
+  domainReportCount?: number
+  domainCategories?: string[]
   contentSnippet?: string
 }): Promise<FileScanResult | null> {
-  const { data: result } = await post('/scan/file', data)
-  return result
+  if (!data?.filename) return null
+  return post<FileScanResult>('/scan/file', data)
 }
 
 export async function submitReport(report: ThreatReport): Promise<{ status: string } | null> {
-  const { data } = await post('/reports', report)
-  return data
+  if (!report?.url) return null
+  return post<{ status: string }>('/reports', report)
 }
 
 export async function getRecentFeed(): Promise<CommunityReport[]> {
-  const { data } = await get<CommunityReport[]>('/reports/recent')
-  return data || []
+  const data = await get<CommunityReport[]>('/reports/recent')
+  return Array.isArray(data) ? data : []
 }
 
 export async function getDomainScore(domain: string): Promise<DomainScore | null> {
-  const { data } = await get(`/scan/domain/${domain}/score`)
-  return data
+  if (!domain) return null
+  if (await getDomainMiss(domain)) return null
+  const data = await get<any>(`/scan/domain/${encodeURIComponent(domain)}/score`)
+  if (!data) {
+    await setDomainMiss(domain)
+    return null
+  }
+
+  await clearDomainMiss(domain)
+
+  if (data.risk_score !== undefined) {
+    return {
+      domain: data.domain,
+      riskScore: data.risk_score ?? 0,
+      reportCount: data.report_count ?? 0,
+      categories: Array.isArray(data.categories) ? data.categories : [],
+      lastUpdated: data.last_updated ?? new Date().toISOString(),
+      aiSummary: data.ai_summary ?? null,
+      aiThreatLevel: data.ai_threat_level ?? null,
+      aiRecommendation: data.ai_recommendation ?? null,
+    }
+  }
+
+  return data as DomainScore
+}
+
+export async function getThreatEvents(domain: string): Promise<ThreatEvent[]> {
+  if (!domain) return []
+  const query = `?domain=${encodeURIComponent(domain)}&limit=100`
+  const data = await get<ThreatEvent[]>(`/scan/events${query}`)
+  return Array.isArray(data) ? data : []
+}
+
+export async function storeThreatEvent(event: ThreatEvent): Promise<boolean> {
+  const result = await post<{ ok?: boolean }>('/scan/events', {
+    ...event,
+    metadata: {
+      persistedBy: 'extension',
+    },
+  })
+  return !!result
 }

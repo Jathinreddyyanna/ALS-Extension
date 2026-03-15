@@ -1,6 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+
+// Emulate __dirname in ESM ("type": "module")
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = resolve(__filename, '..');
 
 export default defineConfig({
   plugins: [react()],
@@ -22,14 +27,18 @@ export default defineConfig({
         settings:   resolve(__dirname, 'src/settings/index.html'),
       },
       output: {
-        entryFileNames: '[name].js',
+        format: 'es',
+        inlineDynamicImports: false,
+        entryFileNames: (chunkInfo) => {
+          if (['background', 'content'].includes(chunkInfo.name)) {
+            return '[name].js';
+          }
+          return '[name].js';
+        },
         chunkFileNames: 'assets/[name].js',
         assetFileNames: 'assets/[name].[ext]',
       },
     },
   },
 
-  define: {
-    'process.env.NODE_ENV': JSON.stringify('production'),
-  },
 });

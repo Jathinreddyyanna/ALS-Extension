@@ -1,7 +1,7 @@
+import 'dotenv/config'
 import app from './app'
 import { prisma } from './db/client'
-
-const PORT = parseInt(process.env.PORT || '3001')
+import { serverConfig } from './config'
 
 async function start() {
   try {
@@ -9,9 +9,9 @@ async function start() {
     await prisma.$connect()
     console.log('✅ Database connected')
 
-    app.listen(PORT, () => {
-      console.log(`🚀 AI Browser Shield API running on http://localhost:${PORT}`)
-      console.log(`📊 Health check: http://localhost:${PORT}/api/v1/health`)
+    app.listen(serverConfig.port, () => {
+      console.log(`🚀 AI Browser Shield API running on http://localhost:${serverConfig.port}`)
+      console.log(`📊 Health check: http://localhost:${serverConfig.port}/api/v1/health`)
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
     })
   } catch (err) {

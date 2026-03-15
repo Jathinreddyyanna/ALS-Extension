@@ -11,6 +11,7 @@ export interface ThreatEvent {
   riskScore: number
   riskLevel: RiskLevel
   aiExplanation?: string
+  source?: string
   verdict?: Verdict
   timestamp: number
 }
@@ -19,8 +20,12 @@ export interface FileScanResult {
   verdict: Verdict
   confidence: number
   explanation: string
-  recommendedAction: 'keep' | 'quarantine' | 'delete'
+  recommendedAction: 'allow' | 'warn' | 'block'
   indicators: string[]
+  sourceRisk?: 'safe' | 'suspicious' | 'dangerous'
+  sourceDomain?: string
+  domainRiskScore?: number
+  domainReportCount?: number
 }
 
 export interface UrlScanResult {
@@ -29,7 +34,11 @@ export interface UrlScanResult {
   recommendedAction: 'allow' | 'warn' | 'block'
   confidence: number
   keyIndicators?: string[]
-  riskScore?: number
+  riskScore: number
+  heuristic?: number
+  dbRiskScore?: number
+  dbReportCount?: number
+  source?: string
   db?: {
     reportCount: number
     categories: string[]
@@ -51,7 +60,38 @@ export interface DomainScore {
   riskScore: number
   reportCount: number
   categories: string[]
+  aiSummary?: string | null
+  aiThreatLevel?: string | null
+  aiRecommendation?: string | null
   lastUpdated: string
+}
+
+export interface TrackerTabStats {
+  tabId: number
+  tabUrl: string
+  tabDomain: string
+  ads: number
+  trackers: number
+  fingerprinters: number
+  social: number
+  cryptominers: number
+  bounceTrackers: number
+  total: number
+  bandwidthSavedBytes: number
+  lastUpdated: number
+}
+
+export interface TrackerSessionStats {
+  totalBlocked: number
+  ads: number
+  trackers: number
+  fingerprinters: number
+  social: number
+  cryptominers: number
+  bounceTrackers: number
+  bandwidthSavedBytes: number
+  sitesProtected: number
+  since: number
 }
 
 export interface CommunityReport {
@@ -80,6 +120,7 @@ export type MessageType =
   | 'POPUP_ATTEMPT'
   | 'REDIRECT_WARNING'
   | 'DOWNLOAD_WARNING'
+  | 'ALLOW_DOWNLOAD'
   | 'FILE_SCAN_RESULT'
   | 'SHOW_OVERLAY'
   | 'HIDE_OVERLAY'
