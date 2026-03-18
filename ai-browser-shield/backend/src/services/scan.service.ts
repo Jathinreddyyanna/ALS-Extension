@@ -1,359 +1,329 @@
-import { prisma } from '../db/client'
-import { cacheGetJSON, cacheSetJSON, keys } from './cache.service'
-import { analyzeUrl, analyzeFile } from '../ai/client'
-import type { UrlScanInput, FileScanInput, ThreatEventInput } from '../schemas'
+import { prisma } from '../db/client';
+import { parseAndNormalizeUrl } from '../detection/urlParser';
+import { scoreUrl } from '../detection/urlScorer';
+import { analyzeWithGemini } from './ai.service';
+import { cacheKeys, cacheService, getScanTtlSeconds } from './cache.service';
+import { detectAndFlagSpike, getDomainScoreRecord, getOrCreateDomainScore, updateDomainFromScan } from './domain.service';
+import { localPersistence } from './localPersistence.service';
+import { hashIp } from '../utils/ip';
+import { logger } from '../utils/logger';
+import type { Category, RiskLevel, UrlScanResult } from '../types/scan.types';
 
-type PersistedUrlScanResult = {
-  explanation: string
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-  recommendedAction: 'allow' | 'warn' | 'block'
-  confidence: number
-  keyIndicators?: string[]
-  riskScore?: number
-  heuristic?: number
-  source?: string
-  cached: boolean
-  db?: {
-    reportCount: number
-    categories: string[]
-    domainRiskScore: number
-    lastSeen: Date | string | null
+const toRiskLevel = (score: number): RiskLevel => score >= 75 ? 'CRITICAL' : score >= 50 ? 'HIGH' : score >= 30 ? 'MEDIUM' : 'LOW';
+const aiRiskNumeric = (riskLevel: RiskLevel): number => riskLevel === 'CRITICAL' ? 95 : riskLevel === 'HIGH' ? 80 : riskLevel === 'MEDIUM' ? 50 : 15;
+const categoriesFromAssessment = (category: Category): Category[] => category === 'clean' || category === 'unknown' ? [] : [category];
+
+const clampScore = (value: number, requestId?: string, url?: string): number => {
+  if (Number.isNaN(value)) {
+    logger.warn({ requestId, url }, 'NaN detected in score calculation, defaulting to 0');
+    return 0;
   }
-  vt?: {
-    vendorsFlagged: number
-    vendorsTotal: number
-    score: number
+  if (!Number.isFinite(value)) {
+    return 100;
   }
-}
+  return Math.max(0, Math.min(100, Math.round(value)));
+};
 
-function inferCategoriesFromSignals(
-  signals: Record<string, number>,
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-): string[] {
-  const categories = new Set<string>()
-  if ((signals.popupRedirectRisk || 0) > 0) categories.add('popup_abuse')
-  if ((signals.redirectChainRisk || 0) > 0 || (signals.redirectRisk || 0) > 0) categories.add('redirect')
-  if ((signals.phishingRisk || 0) > 0 || (signals.typosquatScore || 0) > 0) categories.add('phishing')
-  if ((signals.malwareRisk || 0) > 0) categories.add('malware')
-  if (categories.size === 0 && (riskLevel === 'HIGH' || riskLevel === 'CRITICAL')) categories.add('other')
-  return [...categories]
-}
+export const performUrlScan = async (input: {
+  url: string;
+  signals?: Record<string, number>;
+  sessionId?: string;
+  tabId?: number;
+  requestContext?: { referrer?: string; tabCount?: number; timeOnPage?: number };
+  ip?: string;
+  userAgent?: string;
+  forceAi?: boolean;
+  requestId?: string;
+  userGeminiKey?: string;
+}): Promise<UrlScanResult> => {
+  const started = Date.now();
+  const parsed = parseAndNormalizeUrl(input.url);
 
-async function persistUrlObservation(params: {
-  domain: string
-  url: string
-  result: PersistedUrlScanResult
-  signals: Record<string, number>
-  computedSignals?: Record<string, number>
-  popupRisk?: number
-  abuseEvents?: number
-  reportCount?: number
-  reportCategories?: string[]
-  dbRiskScore?: number
-}) {
-  const {
-    domain,
-    url,
-    result,
-    signals,
-    computedSignals = {},
-    popupRisk = 0,
-    abuseEvents = 0,
-    reportCount = 0,
-    reportCategories = [],
-    dbRiskScore = 0,
-  } = params
-
-  const riskScore = result.riskScore ?? 0
-  const inferredCategories = inferCategoriesFromSignals(signals, result.riskLevel)
-  const mergedCategories = [...new Set([...(reportCategories || []), ...inferredCategories])]
-  const nextDomainRisk = Math.min(100, Math.round(dbRiskScore * 0.65 + riskScore * 0.35))
-
-  await prisma.domainScore.upsert({
-    where: { domain },
-    update: {
-      riskScore: nextDomainRisk,
-      categories: mergedCategories,
-      last_report_at: new Date(),
-    },
-    create: {
-      domain,
-      riskScore: nextDomainRisk,
-      reportCount,
-      categories: mergedCategories,
-    },
-  }).catch(() => {})
-
-  // Ensure the domain exists in the DomainScore table
-  const existingDomain = await prisma.domainScore.findUnique({ where: { domain } });
-  if (!existingDomain) {
-    await prisma.domainScore.create({
-      data: {
-        domain,
-        riskScore: 0,
-        reportCount: 0,
-        categories: [],
-        category_counts: {},
-        is_confirmed: false,
-      },
-    });
+  if (parsed.skip) {
+    return {
+      url: input.url,
+      domain: parsed.domain,
+      riskScore: 0,
+      riskLevel: 'LOW',
+      explanation: 'Skipped browser internal URL.',
+      keyIndicators: [],
+      recommendedAction: 'allow',
+      confidence: 1,
+      category: 'clean',
+      heuristic: 0,
+      dbRiskScore: 0,
+      dbReportCount: 0,
+      cached: false,
+      processedMs: Date.now() - started,
+      urlType: parsed.urlType,
+      skip: true,
+      reason: parsed.skipReason,
+      source: 'browser_internal'
+    };
   }
 
-  await prisma.detectionEvent.create({
-    data: {
-      eventType: 'url_threat',
-      domain,
-      url,
-      riskScore,
-      riskLevel: result.riskLevel,
-      signals: {
-        source: result.source || 'unknown',
-        cached: result.cached,
-        confidence: result.confidence,
-        keyIndicators: result.keyIndicators || [],
-        recommended_action: result.recommendedAction,
-        popupRisk,
-        abuseEvents,
-        reportCount,
-        reportCategories,
-        previousDomainRiskScore: dbRiskScore,
-        inputSignals: signals,
-        computedSignals,
-        vt: result.vt || null,
-      } as any,
-      aiExplanation: result.explanation,
-    },
-  }).catch(() => {})
-}
-
-function extractDomain(url: string): string {
-  try {
-    return new URL(url).hostname
-  } catch {
-    return url
-  }
-}
-
-export async function scanUrl(data: UrlScanInput) {
-  const cacheKey = keys.urlScan(data.url)
-  const cached = await cacheGetJSON(cacheKey)
-  if (cached) return { ...cached, cached: true }
-
-  const signals = (data.signals ?? {}) as Record<string, number>
-  const heuristic = Math.min(100,
-    Object.values(signals).reduce((a: number, b) => a + (Number(b) || 0), 0))
-
-  const domain = extractDomain(data.url)
-
-  // Fetch DB score first — community truth overrides everything
-  let dbRiskScore = 0
-  let dbReportCount = 0
-  try {
-    const dbRow = await prisma.domainScore.findUnique({ where: { domain } })
-    if (dbRow) {
-      dbRiskScore = dbRow.riskScore
-      dbReportCount = dbRow.reportCount
+  const cacheKey = cacheKeys.urlScan(parsed.normalizedUrl);
+  if (!input.forceAi) {
+    const cached = await cacheService.get<UrlScanResult>(cacheKey);
+    if (cached) {
+      return { ...cached, cached: true, processedMs: Date.now() - started };
     }
-  } catch { /* non-blocking */ }
+  }
 
-  // Call Gemini AI
-  const aiResult = await analyzeUrl(data.url, signals, heuristic)
+  const urlHashLockKey = `scan:${cacheKey}`;
+  let canCallAi = true;
+  const lockAcquired = await cacheService.acquireLock(urlHashLockKey, 10_000);
+  if (!lockAcquired && !input.forceAi) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const afterWait = await cacheService.get<UrlScanResult>(cacheKey);
+    if (afterWait) {
+      return { ...afterWait, cached: true, processedMs: Date.now() - started };
+    }
+    canCallAi = false;
+  }
 
-  // Combined formula: H×0.20 + AI×conf×0.50 + DB×0.30 + boosts
-  const aiNumeric = aiResult.riskLevel === 'CRITICAL' ? 95
-    : aiResult.riskLevel === 'HIGH' ? 80
-    : aiResult.riskLevel === 'MEDIUM' ? 50 : 15
-  const conf = Math.min(1, Math.max(0, aiResult.confidence ?? 0.5))
+  const heuristic = scoreUrl(parsed);
+  const shouldSkipAi = ['localhost', 'private_ip', 'file', 'data', 'internal'].includes(parsed.urlType) || !canCallAi;
 
-  let score = (heuristic * 0.20) + (aiNumeric * conf * 0.50) + (dbRiskScore * 0.30)
+  let domainScore: Awaited<ReturnType<typeof getDomainScoreRecord>> | null = null;
+  let dbRiskScore = 0;
+  let dbReportCount = 0;
+  try {
+    domainScore = await getDomainScoreRecord(parsed.domain);
+    if (!domainScore && parsed.domain) {
+      domainScore = await getOrCreateDomainScore(parsed.domain);
+    }
+    dbRiskScore = domainScore?.riskScore ?? 0;
+    dbReportCount = domainScore?.reportCount ?? 0;
+  } catch (error) {
+    logger.warn({ err: error, requestId: input.requestId, domain: parsed.domain }, 'domain score lookup failed, continuing degraded');
+  }
 
-  // Boosts
-  if (aiResult.recommendedAction === 'block') score += 12
-  else if (aiResult.recommendedAction === 'warn') score += 6
-  if ((signals.typosquatScore ?? 0) > 0) score += 8
-  if ((signals.ipAsHostname ?? 0) > 0) score += 15
-  if ((signals.suspiciousTLD ?? 0) > 0 && (signals.suspiciousKeywords ?? 0) > 0) score += 7
-  if (dbReportCount >= 3) score += 10
-  if (dbReportCount >= 5) score += 10
+  const aiAssessment = shouldSkipAi
+    ? {
+      riskLevel: 'LOW' as const,
+      riskScore: parsed.urlType === 'data' ? 10 : 5,
+      confidence: 0.95,
+      recommendedAction: 'allow' as const,
+      explanation: parsed.urlType === 'file'
+        ? 'Local file URL detected.'
+        : parsed.urlType === 'data'
+          ? 'Data URL detected.'
+          : parsed.urlType === 'localhost' || parsed.urlType === 'private_ip' || parsed.urlType === 'internal'
+            ? 'Internal URL detected.'
+            : 'Concurrent scan in progress, heuristic result returned.',
+      keyIndicators: parsed.notes,
+      category: 'clean' as const,
+      categories: [] as string[],
+      verdict: 'safe' as const,
+      threatVector: 'unknown' as const,
+      isFalsePositiveRisk: false,
+      suggestedWhitelist: false,
+      source: 'heuristic' as const,
+      aiDegraded: !canCallAi,
+      cached: false
+    }
+    : await analyzeWithGemini({
+      url: parsed.aiSafeUrl,
+      hostname: parsed.hostnameUnicode,
+      path: parsed.path,
+      queryParams: parsed.queryParams,
+      heuristicScore: heuristic.score,
+      heuristicSignals: heuristic.signals,
+      domainReputation: {
+        riskScore: dbRiskScore,
+        reportCount: dbReportCount,
+        trustScore: domainScore?.trustScore ?? 50,
+        is_whitelisted: domainScore?.isWhitelisted ?? false
+      },
+      urlType: parsed.urlType,
+      requestContext: input.requestContext,
+      requestId: input.requestId,
+      cacheKey,
+      domain: parsed.domain,
+      userGeminiKey: input.userGeminiKey
+    });
 
-  // RULE: never show a lower score than what community has confirmed
-  if (dbRiskScore > 0) score = Math.max(score, dbRiskScore)
+  const base = (heuristic.score * 0.20) + (aiRiskNumeric(aiAssessment.riskLevel) * aiAssessment.confidence * 0.50) + (dbRiskScore * 0.30);
+  let bonuses = 0;
+  if (aiAssessment.recommendedAction === 'block') {
+    bonuses += 12;
+  } else if (aiAssessment.recommendedAction === 'warn') {
+    bonuses += 6;
+  }
+  if (heuristic.signals.typosquat > 0) {
+    bonuses += 8;
+  }
+  if (heuristic.signals.ipAsHostname > 0) {
+    bonuses += 15;
+  }
+  if (heuristic.signals.suspiciousTLD > 0 && heuristic.signals.suspiciousKeywords > 0) {
+    bonuses += 7;
+  }
+  if (dbReportCount >= 3) {
+    bonuses += 10;
+  }
+  if (dbReportCount >= 5) {
+    bonuses += 10;
+  }
+  if (heuristic.signals.credentialInUrl > 0) {
+    bonuses += 25;
+  }
+  if (heuristic.signals.idnHomoglyph > 0) {
+    bonuses += 20;
+  }
+  if ((domainScore?.isWhitelisted ?? false) && heuristic.score < 40) {
+    bonuses -= 15;
+  }
+  if (parsed.urlType === 'localhost' || parsed.urlType === 'private_ip') {
+    bonuses -= 10;
+  }
 
-  const finalScore = Math.min(100, Math.round(score))
-  const finalRiskLevel = finalScore >= 75 ? 'CRITICAL'
-    : finalScore >= 50 ? 'HIGH'
-    : finalScore >= 30 ? 'MEDIUM' : 'LOW'
+  let finalScore = clampScore(base + bonuses, input.requestId, input.url);
+  if (dbRiskScore > 0) {
+    finalScore = Math.max(finalScore, dbRiskScore);
+  }
+  if (parsed.urlType === 'localhost' || parsed.urlType === 'private_ip') {
+    finalScore = Math.min(10, Math.max(5, finalScore));
+  }
+  if (parsed.urlType === 'file') {
+    finalScore = 10;
+  }
+  if (parsed.urlType === 'data' || parsed.urlType === 'internal') {
+    finalScore = 5;
+  }
 
-  const payload = {
-    ...aiResult,
-    riskLevel: finalRiskLevel,
+  const finalRiskLevel = parsed.urlType === 'localhost' || parsed.urlType === 'private_ip' || parsed.urlType === 'file' || parsed.urlType === 'data' || parsed.urlType === 'internal'
+    ? 'LOW'
+    : toRiskLevel(finalScore);
+
+  const response: UrlScanResult = {
+    url: input.url,
+    domain: parsed.domain,
     riskScore: finalScore,
-    heuristic,
+    riskLevel: heuristic.signals.credentialInUrl > 0 || heuristic.signals.idnHomoglyph > 0
+      ? (['LOW', 'MEDIUM'].includes(finalRiskLevel) ? 'HIGH' : finalRiskLevel)
+      : finalRiskLevel,
+    explanation: aiAssessment.explanation,
+    keyIndicators: Array.from(new Set([...heuristic.indicators, ...aiAssessment.keyIndicators, ...parsed.notes])).slice(0, 5),
+    recommendedAction: parsed.urlType === 'localhost' || parsed.urlType === 'private_ip' ? 'allow' : aiAssessment.recommendedAction,
+    confidence: aiAssessment.confidence,
+    category: aiAssessment.category,
+    categories: aiAssessment.categories,
+    verdict: aiAssessment.verdict,
+    heuristic: heuristic.score,
     dbRiskScore,
     dbReportCount,
     cached: false,
+    aiDegraded: aiAssessment.source !== 'gemini',
+    aiSource: aiAssessment.source,
+    aiExplanation: aiAssessment.explanation,
+    modelUsed: aiAssessment.modelUsed,
+    processedMs: Date.now() - started,
+    urlType: parsed.urlType,
+    source: aiAssessment.source,
+    ...(parsed.urlType === 'browser_internal' ? { skip: true, reason: parsed.skipReason } : {})
+  };
+
+  const ttl = getScanTtlSeconds(response.riskScore, domainScore?.isWhitelisted ?? false, parsed.urlType);
+  if (ttl > 0) {
+    await cacheService.set(cacheKey, response, ttl);
   }
 
-  const ttl = finalScore >= 60 ? 900 : 3600
-  await cacheSetJSON(cacheKey, payload, ttl)
-
-  prisma.detectionEvent.create({
+  const ipHash = hashIp(input.ip ?? '0.0.0.0');
+  void prisma.detectionEvent.create({
     data: {
-      eventType: 'url_threat', domain, url: data.url,
-      riskScore: finalScore, riskLevel: finalRiskLevel as any,
-      signals: signals as any, aiExplanation: aiResult.explanation,
-    }
-  }).catch(() => {})
-
-  return payload
-}
-
-export async function scanFile(data: FileScanInput) {
-  let sourceDomain = (data as any).sourceDomain || ''
-  if (!sourceDomain) {
-    try {
-      sourceDomain = new URL(data.sourceUrl).hostname
-    } catch {
-      sourceDomain = ''
-    }
-  }
-
-  let domainRiskScore = (data as any).domainRiskScore ?? 0
-  let domainReportCount = (data as any).domainReportCount ?? 0
-  let domainCategories: string[] = (data as any).domainCategories ?? []
-
-  if (sourceDomain && domainRiskScore === 0) {
-    try {
-      const dbRow = await prisma.domainScore.findUnique({ where: { domain: sourceDomain } })
-      if (dbRow) {
-        domainRiskScore = dbRow.riskScore
-        domainReportCount = dbRow.reportCount
-        domainCategories = dbRow.categories ?? []
-      }
-    } catch {
-      // Non-blocking: AI scan can still run without domain context.
-    }
-  }
-
-  const result = await analyzeFile({
-    ...data,
-    sourceDomain,
-    domainRiskScore,
-    domainReportCount,
-    domainCategories,
-  })
-
-  prisma.fileScan.create({
-    data: {
-      filename: data.filename,
-      extension: data.extension,
-      mimeType: data.mimeType,
-      sizeBytes: BigInt(data.sizeBytes),
-      sourceUrl: data.sourceUrl,
-      verdict: result.verdict,
-      confidence: result.confidence,
-      aiExplanation: result.explanation,
-      indicators: result.indicators,
-      recommended_action: result.recommendedAction,
-    },
-  }).catch(() => {})
-
-  return {
-    ...result,
-    sourceDomain,
-    domainRiskScore,
-    domainReportCount,
-  }
-}
-
-export async function recordThreatEvent(event: ThreatEventInput) {
-  const domain = event.domain
-  const categories = inferCategoriesFromSignals(event.metadata as Record<string, number> || {}, event.riskLevel)
-
-  await prisma.domainScore.upsert({
-    where: { domain },
-    update: {
-      riskScore: Math.min(100, Math.round((event.riskScore * 0.4) + (categories.length > 0 ? 10 : 0))),
-      categories,
-      last_report_at: new Date(event.timestamp || Date.now()),
-    },
-    create: {
-      domain,
-      riskScore: Math.min(100, Math.max(event.riskScore, categories.length > 0 ? 25 : event.riskScore)),
-      categories,
-    },
-  }).catch(() => {})
-
-  await prisma.detectionEvent.create({
-    data: {
-      eventType: event.eventType,
-      domain,
-      url: event.url,
-      riskScore: event.riskScore,
-      riskLevel: event.riskLevel,
+      eventType: 'url_threat',
+      domain: parsed.domain,
+      url: input.url,
+      riskScore: response.riskScore,
+      riskLevel: response.riskLevel,
       signals: {
-        source: event.source || 'extension',
-        metadata: event.metadata || null,
-      } as any,
-      aiExplanation: event.aiExplanation,
-      verdict: event.verdict,
-      createdAt: event.timestamp ? new Date(event.timestamp) : undefined,
-    },
-  })
-}
+        ...heuristic.signals,
+        category: aiAssessment.category,
+        requestSignals: input.signals ?? {},
+        tabId: input.tabId
+      },
+      aiExplanation: aiAssessment.explanation,
+      ipHash,
+      userAgent: input.userAgent,
+      sessionId: input.sessionId,
+      domainScoreId: domainScore?.id
+    }
+  }).catch((error) => {
+    logger.warn({ err: error, requestId: input.requestId }, 'detection event write failed');
+    return localPersistence.createDetectionEvent({
+      eventType: 'url_threat',
+      domain: parsed.domain,
+      url: input.url,
+      riskScore: response.riskScore,
+      riskLevel: response.riskLevel,
+      signals: {
+        ...heuristic.signals,
+        category: aiAssessment.category,
+        requestSignals: input.signals ?? {},
+        tabId: input.tabId
+      },
+      aiExplanation: aiAssessment.explanation,
+      ipHash,
+      userAgent: input.userAgent,
+      sessionId: input.sessionId,
+      domainScoreId: domainScore?.id,
+      fileScanId: undefined
+    });
+  }).finally(() => {
+    void detectAndFlagSpike(parsed.domain).catch(() => undefined);
+  });
 
-export async function getDomainScore(domain: string) {
-  const cacheKey = keys.domainScore(domain)
-  const cached = await cacheGetJSON(cacheKey)
-  if (cached) return cached
-
-  const score = await prisma.domainScore.findUnique({ where: { domain } }).catch(() => null)
-  if (!score) return null
-
-  const result = {
-    domain: score.domain,
-    riskScore: score.riskScore,
-    reportCount: score.reportCount,
-    categories: score.categories ?? [],
-    lastUpdated: score.lastUpdated?.toISOString() ?? new Date().toISOString(),
+  if (parsed.domain) {
+    void updateDomainFromScan({
+      domain: parsed.domain,
+      riskScore: response.riskScore,
+      categories: categoriesFromAssessment(aiAssessment.category),
+      eventRiskLevel: response.riskLevel
+    }).catch((error) => {
+      logger.warn({ err: error, requestId: input.requestId }, 'domain update failed');
+    });
   }
 
-  await cacheSetJSON(cacheKey, result, 600)
-  return result
-}
+  if (lockAcquired) {
+    await cacheService.releaseLock(urlHashLockKey);
+  }
+  return response;
+};
 
-interface ThreatEventDto {
-  id: string
-  eventType: 'url_threat' | 'redirect_chain' | 'popup_abuse' | 'download_intercept' | 'file_scan' | 'ad_block'
-  domain: string
-  url: string
-  riskScore: number
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-  aiExplanation?: string
-  verdict?: 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS'
-  timestamp: number
-}
+export const explainUrlWithAi = async (input: {
+  url: string;
+  signals?: Record<string, number>;
+  popupRedirect?: { popupCount: number; redirectCount: number; riskLevel: RiskLevel; flags: string[] };
+  force?: boolean;
+  ip?: string;
+  userAgent?: string;
+  requestId?: string;
+  userGeminiKey?: string;
+}) => performUrlScan({
+  url: input.url,
+  signals: input.signals,
+  forceAi: input.force ?? true,
+  ip: input.ip,
+  userAgent: input.userAgent,
+  requestId: input.requestId,
+  userGeminiKey: input.userGeminiKey
+});
 
-export async function getThreatEvents(params: { domain?: string; limit?: number } = {}): Promise<ThreatEventDto[]> {
-  const { domain, limit = 100 } = params
-
-  const where = domain ? { domain } : {}
-
-  const events = await prisma.detectionEvent.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: Math.min(Math.max(limit, 1), 500),
-  }).catch(() => [])
-
-  return events.map((e) => ({
-    id: e.id,
-    eventType: e.eventType,
-    domain: e.domain,
-    url: e.url,
-    riskScore: e.riskScore,
-    riskLevel: e.riskLevel,
-    aiExplanation: e.aiExplanation ?? undefined,
-    verdict: e.verdict ?? undefined,
-    timestamp: e.createdAt.getTime(),
-  }))
-}
+export const scoreExtractedEmailUrls = async (input: { emailBody: string; senderEmail: string; subject: string; requestId?: string }) => {
+  const matches = Array.from(input.emailBody.matchAll(/https?:\/\/[^\s"'<>]+/g)).map((match) => match[0]);
+  const urls = await Promise.all(matches.map((url) => performUrlScan({ url, forceAi: false, ip: '0.0.0.0', requestId: input.requestId })));
+  const senderDomain = input.senderEmail.split('@')[1] ?? '';
+  const senderRisk = /support|billing|security|admin|hr/i.test(input.subject) && ['gmail.com', 'yahoo.com', 'outlook.com'].includes(senderDomain)
+    ? 'HIGH'
+    : urls.some((item) => item.riskLevel === 'HIGH' || item.riskLevel === 'CRITICAL')
+      ? 'MEDIUM'
+      : 'LOW';
+  const overallRisk = urls.some((item) => item.riskLevel === 'CRITICAL') || senderRisk === 'HIGH'
+    ? 'HIGH'
+    : urls.some((item) => item.riskLevel === 'HIGH' || item.riskLevel === 'MEDIUM')
+      ? 'MEDIUM'
+      : 'LOW';
+  return { urls, senderRisk, overallRisk };
+};

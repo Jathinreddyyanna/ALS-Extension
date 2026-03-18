@@ -5,200 +5,224 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-}
-
-model ThreatReport {
-  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  domain        String
-  category      threat_category
-  description   String?         @db.VarChar(500)
-  signals       Json?
-  ipHash        String          @map("ip_hash")
-  userAgent     String?         @map("user_agent")
-  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  deletedAt     DateTime?       @map("deleted_at") @db.Timestamptz(6)
-  created_hour  DateTime?       @db.Timestamptz(6)
-  domain_scores DomainScore     @relation(fields: [domain], references: [domain], onDelete: Cascade)
-
-  @@index([category], map: "idx_threat_reports_category")
-  @@index([createdAt(sort: Desc)], map: "idx_threat_reports_created_at")
-  @@index([domain], map: "idx_threat_reports_domain")
-  @@map("threat_reports")
-}
-
-model DetectionEvent {
-  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventType     event_type    @map("event_type")
-  domain        String
-  url           String
-  riskScore     Int           @map("risk_score")
-  riskLevel     risk_level    @map("risk_level")
-  signals       Json?
-  aiExplanation String?       @map("ai_explanation")
-  verdict       file_verdict?
-  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  file_scan_id  String?       @db.Uuid
-  domain_scores DomainScore   @relation(fields: [domain], references: [domain], onDelete: Cascade)
-  file_scans    FileScan?     @relation(fields: [file_scan_id], references: [id], onUpdate: NoAction, map: "fk_detection_events_file_scan")
-
-  @@index([createdAt(sort: Desc)], map: "idx_detection_events_created_at")
-  @@index([domain], map: "idx_detection_events_domain")
-  @@index([eventType], map: "idx_detection_events_event_type")
-  @@index([riskLevel], map: "idx_detection_events_risk_level")
-  @@map("detection_events")
+  directUrl = env("DIRECT_URL")
 }
 
 model DomainScore {
-  domain           String           @id
-  riskScore        Int              @default(0) @map("risk_score")
-  reportCount      Int              @default(0) @map("report_count")
-  categories       String[]         @default([])
-  category_counts  Json             @default("{}")
-  is_confirmed     Boolean          @default(false)
-  first_seen       DateTime         @default(now()) @db.Timestamptz(6)
-  last_report_at   DateTime         @default(now()) @db.Timestamptz(6)
-  lastUpdated      DateTime         @default(now()) @updatedAt @map("last_updated") @db.Timestamptz(6)
-  detection_events DetectionEvent[]
-  threat_reports   ThreatReport[]
+  id              String           @id @default(uuid())
+  domain          String           @unique
+  riskScore       Int              @default(0)
+  reportCount     Int              @default(0)
+  trustScore      Int              @default(50)
+  categories      String[]         @default([])
+  categoryCounts  Json             @default("{}") @map("category_counts")
+  isConfirmed     Boolean          @default(false) @map("is_confirmed")
+  isWhitelisted   Boolean          @default(false) @map("is_whitelisted")
+  firstSeen       DateTime         @default(now()) @map("first_seen")
+  lastReportAt    DateTime?        @map("last_report_at")
+  lastUpdated     DateTime         @updatedAt @map("last_updated")
+  scanCount       Int              @default(0)
+  detectionEvents DetectionEvent[]
+  threatReports   ThreatReport[]
 
-  @@index([last_report_at(sort: Desc)], map: "idx_domain_scores_last_report")
-  @@index([riskScore(sort: Desc)], map: "idx_domain_scores_risk")
-  @@index([domain], map: "idx_domain_scores_trgm")
-  @@map("domain_scores")
+  @@index([riskScore])
+  @@index([lastReportAt])
+  @@index([scanCount])
 }
 
-model FileScan {
-  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  filename           String
-  extension          String
-  mimeType           String           @map("mime_type")
-  sizeBytes          BigInt           @map("size_bytes")
-  sourceUrl          String           @map("source_url")
-  chrome_download_id Int?
-  verdict            file_verdict
-  confidence         Float
-  aiExplanation      String           @map("ai_explanation")
-  indicators         String[]         @default([])
-  recommended_action String?
-  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  detection_events   DetectionEvent[]
+model DetectionEvent {
+  id            String       @id @default(uuid())
+  eventType     EventType
+  domain        String
+  url           String
+  riskScore     Int
+  riskLevel     RiskLevel
+  signals       Json         @default("{}")
+  aiExplanation String?
+  verdict       String?
+  ipHash        String?
+  userAgent     String?
+  sessionId     String?
+  createdAt     DateTime     @default(now())
+  domainScoreId String?
+  fileScanId    String?
+  domainScore   DomainScore? @relation(fields: [domainScoreId], references: [id])
+  fileScan      FileScan?    @relation(fields: [fileScanId], references: [id])
 
-  @@index([createdAt(sort: Desc)], map: "idx_file_scans_created_at")
-  @@index([extension], map: "idx_file_scans_extension")
-  @@index([verdict], map: "idx_file_scans_verdict")
-  @@map("file_scans")
+  @@index([domain])
+  @@index([createdAt])
+  @@index([riskLevel])
+  @@index([eventType])
 }
 
-model DownloadRecord {
-  id                String          @id @default(cuid())
-  filename          String
-  extension         String
-  mimeType          String
-  fileSize          Int
-  sourceUrl         String
-  sourceHostname    String
-  tabId             Int
-  status            String
-  approvalStatus    String
-  userAction        String?
-  userActionReason  String?
-  userActionTime    DateTime?
-  aiAnalysis        String?
-  riskScore         Int?
-  malwareSuspected  Boolean         @default(false)
-  knownMalicious    Boolean         @default(false)
-  previousIncidents Int             @default(0)
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  auditTrail        DownloadAudit[]
+model ThreatReport {
+  id          String         @id @default(uuid())
+  url         String
+  domain      String
+  category    ThreatCategory
+  description String
+  signals     Json           @default("{}")
+  ipHash      String
+  userAgent   String?
+  status      ReportStatus   @default(pending)
+  adminNotes  String?
+  sessionId   String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  domainScore DomainScore    @relation(fields: [domain], references: [domain], onDelete: SetNull)
 
-  @@index([tabId])
+  @@index([domain])
   @@index([status])
-  @@index([approvalStatus])
   @@index([createdAt])
 }
 
-model DownloadAudit {
-  id         String         @id @default(cuid())
-  downloadId String
-  action     String
-  reason     String?
-  ipAddress  String?
-  userAgent  String?
-  createdAt  DateTime       @default(now())
-  download   DownloadRecord @relation(fields: [downloadId], references: [id], onDelete: Cascade)
+model FileScan {
+  id                String           @id @default(uuid())
+  filename          String
+  extension         String
+  mimeType          String
+  sizeBytes         BigInt
+  sourceUrl         String
+  sourceDomain      String
+  verdict           FileVerdict
+  confidence        Float
+  aiExplanation     String
+  indicators        Json             @default("{}")
+  recommendedAction String           @map("recommended_action")
+  chromeDownloadId  String?          @map("chrome_download_id")
+  createdAt         DateTime         @default(now())
+  detectionEvents   DetectionEvent[]
+  downloadRecords   DownloadRecord[]
 
-  @@index([downloadId])
-  @@index([action])
+  @@index([sourceDomain])
+  @@index([createdAt])
+  @@index([verdict])
+}
+
+model DownloadRecord {
+  id               String         @id @default(uuid())
+  chromeDownloadId String         @unique @map("chrome_download_id")
+  url              String
+  filename         String
+  mimeType         String
+  sizeBytes        BigInt
+  status           DownloadStatus @default(pending)
+  riskLevel        RiskLevel      @default(LOW)
+  aiVerdict        String?        @map("ai_verdict")
+  approvedAt       DateTime?      @map("approved_at")
+  fileScanId       String?
+  sessionId        String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  fileScan         FileScan?      @relation(fields: [fileScanId], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
 }
 
 model MaliciousFile {
-  id          String    @id @default(cuid())
-  filename    String?
-  extension   String?
-  fileHash    String?   @unique
-  isMalicious Boolean
-  incidents   Int       @default(0)
-  threats     String?
-  lastSeen    DateTime?
-  createdAt   DateTime  @default(now())
+  id         String          @id @default(uuid())
+  sha256     String          @unique
+  md5        String?
+  filename   String
+  mimeType   String
+  sizeBytes  BigInt
+  verdict    FileVerdict
+  confidence Float
+  source     MaliciousSource
+  createdAt  DateTime        @default(now())
 
   @@index([filename])
-  @@index([extension])
-  @@index([fileHash])
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model app_stats {
-  id                     Int      @id @default(1)
-  total_reports          BigInt   @default(0)
-  total_detection_events BigInt   @default(0)
-  total_file_scans       BigInt   @default(0)
-  malicious_files        BigInt   @default(0)
-  high_risk_domains      Int      @default(0)
-  last_updated           DateTime @default(now()) @db.Timestamptz(6)
+model AdminLog {
+  id         String   @id @default(uuid())
+  action     String
+  targetType String
+  targetId   String
+  adminId    String
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([createdAt])
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model rate_limit_log {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ip_hash    String
-  endpoint   String
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-
-  @@index([ip_hash, endpoint, created_at(sort: Desc)], map: "idx_rate_limit_ip_endpoint")
+model AppStats {
+  id             Int      @id @default(1)
+  totalScans     Int      @default(0) @map("total_scans")
+  totalThreats   Int      @default(0) @map("total_threats")
+  totalReports   Int      @default(0) @map("total_reports")
+  totalFileScans Int      @default(0) @map("total_file_scans")
+  lastUpdated    DateTime @default(now()) @map("last_updated")
 }
 
-enum event_type {
-  url_threat
-  redirect_chain
-  popup_abuse
-  download_intercept
-  file_scan
-  ad_block
+model RateLimitLog {
+  id           String   @id @default(uuid())
+  ipHash       String   @map("ip_hash")
+  endpoint     String
+  requestCount Int      @default(0) @map("request_count")
+  windowStart  DateTime @map("window_start")
+  blocked      Boolean  @default(false)
+
+  @@index([ipHash, endpoint, windowStart])
 }
 
-enum file_verdict {
-  SAFE
-  SUSPICIOUS
-  MALICIOUS
-}
-
-enum risk_level {
+enum RiskLevel {
   LOW
   MEDIUM
   HIGH
   CRITICAL
 }
 
-enum threat_category {
+enum EventType {
+  url_threat
+  redirect_chain
+  popup_abuse
+  download_intercept
+  file_scan
+  ad_block
+  crypto_mining
+  data_exfil
+}
+
+enum ThreatCategory {
   phishing
   scam
   malware
   redirect
   popup_abuse
+  ad_abuse
+  data_exfil
+  crypto_mining
   other
+  clean
+  unknown
+}
+
+enum ReportStatus {
+  pending
+  reviewed
+  confirmed
+  rejected
+}
+
+enum FileVerdict {
+  SAFE
+  SUSPICIOUS
+  MALICIOUS
+}
+
+enum DownloadStatus {
+  pending
+  approved
+  cancelled
+  completed
+  flagged
+}
+
+enum MaliciousSource {
+  ai
+  user_report
+  admin
 }

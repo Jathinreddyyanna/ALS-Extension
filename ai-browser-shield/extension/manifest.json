@@ -1,14 +1,12 @@
 {
   "manifest_version": 3,
   "name": "AI Browser Shield",
-  "version": "1.0.0",
-  "description": "Real-time AI-powered browser protection against phishing, malware, and suspicious downloads.",
-
+  "version": "2.0.0",
+  "description": "Real-time AI-powered browser protection against phishing, malware, scams, unsafe downloads, and deceptive redirects.",
   "icons": {
     "48": "icon48.png",
     "128": "icon128.png"
   },
-
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -17,17 +15,14 @@
     },
     "default_title": "AI Browser Shield"
   },
-
   "options_ui": {
-    "page": "settings.html",
+    "page": "dashboard.html",
     "open_in_tab": true
   },
-
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
-
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
@@ -35,7 +30,6 @@
       "run_at": "document_end"
     }
   ],
-
   "permissions": [
     "tabs",
     "storage",
@@ -47,12 +41,11 @@
     "notifications",
     "activeTab"
   ],
-
   "host_permissions": [
     "<all_urls>",
-    "https://generativelanguage.googleapis.com/*"
+    "http://localhost:3001/*",
+    "https://localhost:3001/*"
   ],
-
   "declarative_net_request": {
     "rule_resources": [
       {
@@ -62,14 +55,12 @@
       }
     ]
   },
-
   "web_accessible_resources": [
     {
       "resources": ["assets/*", "icon48.png", "icon128.png"],
       "matches": ["<all_urls>"]
     }
   ],
-
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }

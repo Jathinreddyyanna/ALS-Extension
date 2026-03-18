@@ -1,0 +1,16 @@
+
+> ai-browser-shield-backend@2.0.0 dev
+> tsx watch src/index.ts
+
+{"level":30,"time":1773776940466,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+1:19:27 am [tsx] Return key Restarting...
+c{"level":30,"time":1773776972285,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+{"level":40,"time":1773779107297,"err":{"type":"Error","message":"read ECONNRESET","stack":"Error: read ECONNRESET\n    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20)","errno":-4077,"code":"ECONNRESET","syscall":"read"},"msg":"redis unavailable, using lru fallback"}
+{"level":40,"time":1773779182695,"requestId":"3eb18d22-f8c3-4f08-915e-32ca7ae782db","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773779182703,"requestId":"d7059088-011e-4874-a2bb-f259a1a26f6c","code":"unauthorized","msg":"invalid api key"}
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }

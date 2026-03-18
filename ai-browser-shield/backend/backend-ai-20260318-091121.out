@@ -1,0 +1,548 @@
+
+> ai-browser-shield-backend@2.0.0 dev
+> tsx watch src/index.ts
+
+{"level":30,"time":1773805288654,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+{"level":40,"time":1773805290808,"requestId":"f8b00371-b732-405b-a00e-82263815d2d1","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773805290861,"requestId":"edd6c4d4-664a-4386-86c8-d1eacfdf5a7c","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773805293034,"msg":"Gemini rate limited, falling back to heuristic_on_429"}
+{"level":40,"time":1773805294912,"requestId":"23d4bc0b-e7a3-4746-9a51-31aa54d603f1","msg":"Gemini rate limited, falling back to heuristic_on_429"}
+{"level":40,"time":1773806371007,"err":{"type":"Error","message":"read ECONNRESET","stack":"Error: read ECONNRESET\n    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20)","errno":-4077,"code":"ECONNRESET","syscall":"read"},"msg":"redis unavailable, using lru fallback"}
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+9:43:29 am [tsx] change in ./src\config\index.ts Restarting...
+c{"level":50,"time":1773807225265,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773807225391,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":30,"time":1773807227206,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+prisma:error 
+Invalid `prisma.detectionEvent.findMany()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\jobs\domainRecalculator.ts:6:47
+
+  3 import { recalculateDomainScore } from '../services/domain.service';
+  4 
+  5 export const startDomainRecalculatorJob = () => cron.schedule('*/5 * * * *', async () => {
+→ 6   const domains = await prisma.detectionEvent.findMany(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773807308603,"requestId":"e5bf95fe-978a-4cda-99d5-c565d00f0423","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773807311586,"requestId":"31402d06-3c81-4da2-a253-be8a1b83dada","code":"unauthorized","msg":"invalid api key"}
+prisma:error 
+Invalid `prisma.rateLimitLog.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\middleware\rateLimiter.ts:26:29
+
+  23 
+  24 const recordRateLimit = async (req: Request, endpoint: string, count: number, blocked: boolean): Promise<void> => {
+  25   const ipHash = hashIp(req.ip || '0.0.0.0');
+→ 26   await prisma.rateLimitLog.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773807314078,"requestId":"a3a35df6-120f-4b11-9564-3b73b5321e28","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773807317951,"requestId":"5ec8a080-904b-484e-9ff5-d3ed1946a783","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773807318698,"requestId":"59de58c4-4e01-4139-a34f-bc6c05bcc1c7","code":"unauthorized","msg":"invalid api key"}
+prisma:error 
+Invalid `prisma.rateLimitLog.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\middleware\rateLimiter.ts:26:29
+
+  23 
+  24 const recordRateLimit = async (req: Request, endpoint: string, count: number, blocked: boolean): Promise<void> => {
+  25   const ipHash = hashIp(req.ip || '0.0.0.0');
+→ 26   await prisma.rateLimitLog.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.rateLimitLog.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\middleware\rateLimiter.ts:26:29
+
+  23 
+  24 const recordRateLimit = async (req: Request, endpoint: string, count: number, blocked: boolean): Promise<void> => {
+  25   const ipHash = hashIp(req.ip || '0.0.0.0');
+→ 26   await prisma.rateLimitLog.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.domainScore.findUnique()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\domain.service.ts:41:45
+
+  38   return decayIfStale(cached);
+  39 }
+  40 try {
+→ 41   const result = await prisma.domainScore.findUnique(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773807330479,"err":{"type":"DatabaseError","message":"Database temporarily unavailable","stack":"DatabaseError: Database temporarily unavailable\n    at getDomainScoreRecord (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:48:11)\n    at async performUrlScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:90:19)\n    at async scanUrlController (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\controllers\\scan.controller.ts:34:18)","statusCode":503,"code":"database_error","details":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:41:45\n\n  38   return decayIfStale(cached);\n  39 }\n  40 try {\n→ 41   const result = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:41:45\n\n  38   return decayIfStale(cached);\n  39 }\n  40 try {\n→ 41   const result = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async getDomainScoreRecord (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:41:20)\n    at async performUrlScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:90:19)\n    at async scanUrlController (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\controllers\\scan.controller.ts:34:18)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"name":"DatabaseError"},"requestId":"c4c8f4cf-cc9d-4d00-a911-7dec08d47611","domain":"example.com","msg":"domain score lookup failed, continuing degraded"}
+prisma:error 
+Invalid `prisma.detectionEvent.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\scan.service.ts:224:30
+
+  221 }
+  222 
+  223 const ipHash = hashIp(input.ip ?? '0.0.0.0');
+→ 224 void prisma.detectionEvent.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.domainScore.upsert()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\domain.service.ts:54:37
+
+  51 
+  52 export const getOrCreateDomainScore = async (domain: string) => {
+  53   try {
+→ 54     return await prisma.domainScore.upsert(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773807338191,"err":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.detectionEvent.create()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:224:30\n\n  221 }\n  222 \n  223 const ipHash = hashIp(input.ip ?? '0.0.0.0');\n→ 224 void prisma.detectionEvent.create(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.detectionEvent.create()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:224:30\n\n  221 }\n  222 \n  223 const ipHash = hashIp(input.ip ?? '0.0.0.0');\n→ 224 void prisma.detectionEvent.create(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"requestId":"c4c8f4cf-cc9d-4d00-a911-7dec08d47611","msg":"detection event write failed"}
+{"level":40,"time":1773807338192,"err":{"type":"DatabaseError","message":"Database temporarily unavailable","stack":"DatabaseError: Database temporarily unavailable\n    at updateDomainFromScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:92:11)","statusCode":503,"code":"database_error","details":{"type":"DatabaseError","message":"Database temporarily unavailable","stack":"DatabaseError: Database temporarily unavailable\n    at getOrCreateDomainScore (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:64:11)\n    at async updateDomainFromScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:75:22)","statusCode":503,"code":"database_error","details":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.domainScore.upsert()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:54:37\n\n  51 \n  52 export const getOrCreateDomainScore = async (domain: string) => {\n  53   try {\n→ 54     return await prisma.domainScore.upsert(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.domainScore.upsert()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:54:37\n\n  51 \n  52 export const getOrCreateDomainScore = async (domain: string) => {\n  53   try {\n→ 54     return await prisma.domainScore.upsert(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async getOrCreateDomainScore (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:54:12)\n    at async updateDomainFromScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:75:22)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"name":"DatabaseError"},"name":"DatabaseError"},"requestId":"c4c8f4cf-cc9d-4d00-a911-7dec08d47611","msg":"domain update failed"}
+prisma:error 
+Invalid `prisma.domainScore.findUnique()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\domain.service.ts:161:44
+
+  158 
+  159 export const detectAndFlagSpike = async (domain: string): Promise<void> => {
+  160   try {
+→ 161     const score = await prisma.domainScore.findUnique(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773807338197,"err":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:161:44\n\n  158 \n  159 export const detectAndFlagSpike = async (domain: string): Promise<void> => {\n  160   try {\n→ 161     const score = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:161:44\n\n  158 \n  159 export const detectAndFlagSpike = async (domain: string): Promise<void> => {\n  160   try {\n→ 161     const score = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async detectAndFlagSpike (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:161:19)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"domain":"example.com","msg":"failed during spike detection"}
+prisma:error 
+Invalid `prisma.detectionEvent.findMany()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\jobs\domainRecalculator.ts:6:47
+
+  3 import { recalculateDomainScore } from '../services/domain.service';
+  4 
+  5 export const startDomainRecalculatorJob = () => cron.schedule('*/5 * * * *', async () => {
+→ 6   const domains = await prisma.detectionEvent.findMany(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.rateLimitLog.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\middleware\rateLimiter.ts:26:29
+
+  23 
+  24 const recordRateLimit = async (req: Request, endpoint: string, count: number, blocked: boolean): Promise<void> => {
+  25   const ipHash = hashIp(req.ip || '0.0.0.0');
+→ 26   await prisma.rateLimitLog.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.rateLimitLog.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\middleware\rateLimiter.ts:26:29
+
+  23 
+  24 const recordRateLimit = async (req: Request, endpoint: string, count: number, blocked: boolean): Promise<void> => {
+  25   const ipHash = hashIp(req.ip || '0.0.0.0');
+→ 26   await prisma.rateLimitLog.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.domainScore.findUnique()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\domain.service.ts:41:45
+
+  38   return decayIfStale(cached);
+  39 }
+  40 try {
+→ 41   const result = await prisma.domainScore.findUnique(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773807887316,"err":{"type":"DatabaseError","message":"Database temporarily unavailable","stack":"DatabaseError: Database temporarily unavailable\n    at getDomainScoreRecord (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:48:11)\n    at async performUrlScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:90:19)\n    at async scanUrlController (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\controllers\\scan.controller.ts:34:18)","statusCode":503,"code":"database_error","details":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:41:45\n\n  38   return decayIfStale(cached);\n  39 }\n  40 try {\n→ 41   const result = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:41:45\n\n  38   return decayIfStale(cached);\n  39 }\n  40 try {\n→ 41   const result = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async getDomainScoreRecord (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:41:20)\n    at async performUrlScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:90:19)\n    at async scanUrlController (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\controllers\\scan.controller.ts:34:18)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"name":"DatabaseError"},"requestId":"296b6f5c-5259-432f-ac46-ee1111db9ec9","domain":"claude.ai","msg":"domain score lookup failed, continuing degraded"}
+prisma:error 
+Invalid `prisma.detectionEvent.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\scan.service.ts:224:30
+
+  221 }
+  222 
+  223 const ipHash = hashIp(input.ip ?? '0.0.0.0');
+→ 224 void prisma.detectionEvent.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.domainScore.upsert()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\domain.service.ts:54:37
+
+  51 
+  52 export const getOrCreateDomainScore = async (domain: string) => {
+  53   try {
+→ 54     return await prisma.domainScore.upsert(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773807893900,"err":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.detectionEvent.create()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:224:30\n\n  221 }\n  222 \n  223 const ipHash = hashIp(input.ip ?? '0.0.0.0');\n→ 224 void prisma.detectionEvent.create(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.detectionEvent.create()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:224:30\n\n  221 }\n  222 \n  223 const ipHash = hashIp(input.ip ?? '0.0.0.0');\n→ 224 void prisma.detectionEvent.create(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"requestId":"296b6f5c-5259-432f-ac46-ee1111db9ec9","msg":"detection event write failed"}
+{"level":40,"time":1773807893901,"err":{"type":"DatabaseError","message":"Database temporarily unavailable","stack":"DatabaseError: Database temporarily unavailable\n    at updateDomainFromScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:92:11)","statusCode":503,"code":"database_error","details":{"type":"DatabaseError","message":"Database temporarily unavailable","stack":"DatabaseError: Database temporarily unavailable\n    at getOrCreateDomainScore (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:64:11)\n    at async updateDomainFromScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:75:22)","statusCode":503,"code":"database_error","details":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.domainScore.upsert()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:54:37\n\n  51 \n  52 export const getOrCreateDomainScore = async (domain: string) => {\n  53   try {\n→ 54     return await prisma.domainScore.upsert(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.domainScore.upsert()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:54:37\n\n  51 \n  52 export const getOrCreateDomainScore = async (domain: string) => {\n  53   try {\n→ 54     return await prisma.domainScore.upsert(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async getOrCreateDomainScore (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:54:12)\n    at async updateDomainFromScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:75:22)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"name":"DatabaseError"},"name":"DatabaseError"},"requestId":"296b6f5c-5259-432f-ac46-ee1111db9ec9","msg":"domain update failed"}
+prisma:error 
+Invalid `prisma.domainScore.findUnique()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\domain.service.ts:161:44
+
+  158 
+  159 export const detectAndFlagSpike = async (domain: string): Promise<void> => {
+  160   try {
+→ 161     const score = await prisma.domainScore.findUnique(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773807893906,"err":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:161:44\n\n  158 \n  159 export const detectAndFlagSpike = async (domain: string): Promise<void> => {\n  160   try {\n→ 161     const score = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:161:44\n\n  158 \n  159 export const detectAndFlagSpike = async (domain: string): Promise<void> => {\n  160   try {\n→ 161     const score = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async detectAndFlagSpike (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:161:19)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"domain":"claude.ai","msg":"failed during spike detection"}
+prisma:error 
+Invalid `prisma.detectionEvent.findMany()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\jobs\domainRecalculator.ts:6:47
+
+  3 import { recalculateDomainScore } from '../services/domain.service';
+  4 
+  5 export const startDomainRecalculatorJob = () => cron.schedule('*/5 * * * *', async () => {
+→ 6   const domains = await prisma.detectionEvent.findMany(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.detectionEvent.count()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\stats.service.ts:6:27
+
+  3 
+  4 export const updateAppStats = async () => {
+  5   const [totalScans, totalThreats, totalReports, totalFileScans] = await Promise.all([
+→ 6     prisma.detectionEvent.count(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.detectionEvent.count()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\stats.service.ts:7:27
+
+  4 export const updateAppStats = async () => {
+  5   const [totalScans, totalThreats, totalReports, totalFileScans] = await Promise.all([
+  6     prisma.detectionEvent.count().catch(() => 0),
+→ 7     prisma.detectionEvent.count(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.threatReport.count()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\stats.service.ts:8:25
+
+  5 const [totalScans, totalThreats, totalReports, totalFileScans] = await Promise.all([
+  6   prisma.detectionEvent.count().catch(() => 0),
+  7   prisma.detectionEvent.count({ where: { riskScore: { gte: 50 } } }).catch(() => 0),
+→ 8   prisma.threatReport.count(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.fileScan.count()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\stats.service.ts:9:21
+
+  6 prisma.detectionEvent.count().catch(() => 0),
+  7 prisma.detectionEvent.count({ where: { riskScore: { gte: 50 } } }).catch(() => 0),
+  8 prisma.threatReport.count().catch(() => 0),
+→ 9 prisma.fileScan.count(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.detectionEvent.findMany()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\jobs\domainRecalculator.ts:6:47
+
+  3 import { recalculateDomainScore } from '../services/domain.service';
+  4 
+  5 export const startDomainRecalculatorJob = () => cron.schedule('*/5 * * * *', async () => {
+→ 6   const domains = await prisma.detectionEvent.findMany(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.rateLimitLog.deleteMany()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\jobs\cleanup.ts:9:31
+
+  6 export const startCleanupJobs = () => {
+  7   const hourly = cron.schedule('0 * * * *', async () => {
+  8     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+→ 9     await prisma.rateLimitLog.deleteMany(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.appStats.upsert()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\stats.service.ts:11:39
+
+   8   prisma.threatReport.count().catch(() => 0),
+   9   prisma.fileScan.count().catch(() => 0)
+  10 ]);
+→ 11 const stats = await prisma.appStats.upsert(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+10:00:55 am [tsx] change in ./src\types\scan.types.ts Restarting...
+c{"level":50,"time":1773808257049,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773808257055,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":30,"time":1773808257222,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+10:02:00 am [tsx] change in ./src\services\ai.service.ts Restarting...
+c10:02:07 am [tsx] change in ./src\services\scan.service.ts Restarting...
+c10:02:12 am [tsx] change in ./src\types\scan.types.ts Restarting...
+c10:02:17 am [tsx] change in ./src\config\index.ts Restarting...
+c{"level":50,"time":1773808339932,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773808339936,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":30,"time":1773808340192,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+10:03:42 am [tsx] change in ./src\services\ai.service.ts Restarting...
+c{"level":50,"time":1773808427723,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773808427743,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773808428280,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:04:56 am [tsx] change in ./src\services\scan.service.ts Rerunning...
+c{"level":50,"time":1773808498498,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773808498504,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":30,"time":1773808498672,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+prisma:error 
+Invalid `prisma.detectionEvent.findMany()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\jobs\domainRecalculator.ts:6:47
+
+  3 import { recalculateDomainScore } from '../services/domain.service';
+  4 
+  5 export const startDomainRecalculatorJob = () => cron.schedule('*/5 * * * *', async () => {
+→ 6   const domains = await prisma.detectionEvent.findMany(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.rateLimitLog.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\middleware\rateLimiter.ts:26:29
+
+  23 
+  24 const recordRateLimit = async (req: Request, endpoint: string, count: number, blocked: boolean): Promise<void> => {
+  25   const ipHash = hashIp(req.ip || '0.0.0.0');
+→ 26   await prisma.rateLimitLog.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.rateLimitLog.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\middleware\rateLimiter.ts:26:29
+
+  23 
+  24 const recordRateLimit = async (req: Request, endpoint: string, count: number, blocked: boolean): Promise<void> => {
+  25   const ipHash = hashIp(req.ip || '0.0.0.0');
+→ 26   await prisma.rateLimitLog.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.rateLimitLog.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\middleware\rateLimiter.ts:26:29
+
+  23 
+  24 const recordRateLimit = async (req: Request, endpoint: string, count: number, blocked: boolean): Promise<void> => {
+  25   const ipHash = hashIp(req.ip || '0.0.0.0');
+→ 26   await prisma.rateLimitLog.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.domainScore.findUnique()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\domain.service.ts:41:45
+
+  38   return decayIfStale(cached);
+  39 }
+  40 try {
+→ 41   const result = await prisma.domainScore.findUnique(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773808618238,"err":{"type":"DatabaseError","message":"Database temporarily unavailable","stack":"DatabaseError: Database temporarily unavailable\n    at getDomainScoreRecord (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:48:11)\n    at async performUrlScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:90:19)\n    at async scanUrlController (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\controllers\\scan.controller.ts:34:18)","statusCode":503,"code":"database_error","details":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:41:45\n\n  38   return decayIfStale(cached);\n  39 }\n  40 try {\n→ 41   const result = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:41:45\n\n  38   return decayIfStale(cached);\n  39 }\n  40 try {\n→ 41   const result = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async getDomainScoreRecord (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:41:20)\n    at async performUrlScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:90:19)\n    at async scanUrlController (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\controllers\\scan.controller.ts:34:18)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"name":"DatabaseError"},"requestId":"77a5c424-cc5a-4c1e-81b3-f7f532fec244","domain":"paypa1-secure-login.com","msg":"domain score lookup failed, continuing degraded"}
+{"level":40,"time":1773808618525,"model":"gemini-2.0-flash","msg":"gemini rate limited"}
+{"level":40,"time":1773808618563,"msg":"Gemini rate limited, falling back to heuristic_on_429"}
+{"level":40,"time":1773808618656,"requestId":"77a5c424-cc5a-4c1e-81b3-f7f532fec244","model":"gemini-2.0-flash","msg":"gemini rate limited"}
+{"level":40,"time":1773808618700,"requestId":"77a5c424-cc5a-4c1e-81b3-f7f532fec244","msg":"Gemini rate limited, falling back to heuristic_on_429"}
+prisma:error 
+Invalid `prisma.detectionEvent.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\scan.service.ts:230:30
+
+  227 }
+  228 
+  229 const ipHash = hashIp(input.ip ?? '0.0.0.0');
+→ 230 void prisma.detectionEvent.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.domainScore.upsert()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\domain.service.ts:54:37
+
+  51 
+  52 export const getOrCreateDomainScore = async (domain: string) => {
+  53   try {
+→ 54     return await prisma.domainScore.upsert(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773808618746,"err":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.detectionEvent.create()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:230:30\n\n  227 }\n  228 \n  229 const ipHash = hashIp(input.ip ?? '0.0.0.0');\n→ 230 void prisma.detectionEvent.create(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.detectionEvent.create()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:230:30\n\n  227 }\n  228 \n  229 const ipHash = hashIp(input.ip ?? '0.0.0.0');\n→ 230 void prisma.detectionEvent.create(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"requestId":"77a5c424-cc5a-4c1e-81b3-f7f532fec244","msg":"detection event write failed"}
+{"level":40,"time":1773808618753,"err":{"type":"DatabaseError","message":"Database temporarily unavailable","stack":"DatabaseError: Database temporarily unavailable\n    at updateDomainFromScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:92:11)","statusCode":503,"code":"database_error","details":{"type":"DatabaseError","message":"Database temporarily unavailable","stack":"DatabaseError: Database temporarily unavailable\n    at getOrCreateDomainScore (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:64:11)\n    at async updateDomainFromScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:75:22)","statusCode":503,"code":"database_error","details":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.domainScore.upsert()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:54:37\n\n  51 \n  52 export const getOrCreateDomainScore = async (domain: string) => {\n  53   try {\n→ 54     return await prisma.domainScore.upsert(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.domainScore.upsert()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:54:37\n\n  51 \n  52 export const getOrCreateDomainScore = async (domain: string) => {\n  53   try {\n→ 54     return await prisma.domainScore.upsert(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async getOrCreateDomainScore (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:54:12)\n    at async updateDomainFromScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:75:22)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"name":"DatabaseError"},"name":"DatabaseError"},"requestId":"77a5c424-cc5a-4c1e-81b3-f7f532fec244","msg":"domain update failed"}
+prisma:error 
+Invalid `prisma.domainScore.findUnique()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\domain.service.ts:161:44
+
+  158 
+  159 export const detectAndFlagSpike = async (domain: string): Promise<void> => {
+  160   try {
+→ 161     const score = await prisma.domainScore.findUnique(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773808618779,"err":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:161:44\n\n  158 \n  159 export const detectAndFlagSpike = async (domain: string): Promise<void> => {\n  160   try {\n→ 161     const score = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.domainScore.findUnique()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:161:44\n\n  158 \n  159 export const detectAndFlagSpike = async (domain: string): Promise<void> => {\n  160   try {\n→ 161     const score = await prisma.domainScore.findUnique(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async detectAndFlagSpike (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\domain.service.ts:161:19)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"domain":"paypa1-secure-login.com","msg":"failed during spike detection"}
+prisma:error 
+Invalid `prisma.detectionEvent.findMany()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\jobs\domainRecalculator.ts:6:47
+
+  3 import { recalculateDomainScore } from '../services/domain.service';
+  4 
+  5 export const startDomainRecalculatorJob = () => cron.schedule('*/5 * * * *', async () => {
+→ 6   const domains = await prisma.detectionEvent.findMany(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.rateLimitLog.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\middleware\rateLimiter.ts:26:29
+
+  23 
+  24 const recordRateLimit = async (req: Request, endpoint: string, count: number, blocked: boolean): Promise<void> => {
+  25   const ipHash = hashIp(req.ip || '0.0.0.0');
+→ 26   await prisma.rateLimitLog.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.domainScore.findUnique()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\services\domain.service.ts:41:45
+
+  38   return decayIfStale(cached);
+  39 }
+  40 try {
+→ 41   const result = await prisma.domainScore.findUnique(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":40,"time":1773808841423,"requestId":"45511669-5e47-413f-a212-c1fd46d6f85e","code":"database_error","details":{"name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"msg":"Database temporarily unavailable"}
+prisma:error 
+Invalid `prisma.rateLimitLog.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\middleware\rateLimiter.ts:26:29
+
+  23 
+  24 const recordRateLimit = async (req: Request, endpoint: string, count: number, blocked: boolean): Promise<void> => {
+  25   const ipHash = hashIp(req.ip || '0.0.0.0');
+→ 26   await prisma.rateLimitLog.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+prisma:error 
+Invalid `prisma.detectionEvent.create()` invocation in
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend\src\controllers\scan.controller.ts:141:47
+
+  138   ? new Date(body.timestamp)
+  139   : undefined;
+  140 
+→ 141 const created = await prisma.detectionEvent.create(
+Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`
+
+Please make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.
+{"level":50,"time":1773808841692,"err":{"type":"PrismaClientInitializationError","message":"\nInvalid `prisma.detectionEvent.create()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\controllers\\scan.controller.ts:141:47\n\n  138   ? new Date(body.timestamp)\n  139   : undefined;\n  140 \n→ 141 const created = await prisma.detectionEvent.create(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: \nInvalid `prisma.detectionEvent.create()` invocation in\nc:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\controllers\\scan.controller.ts:141:47\n\n  138   ? new Date(body.timestamp)\n  139   : undefined;\n  140 \n→ 141 const created = await prisma.detectionEvent.create(\nCan't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at $n.handleRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:7615)\n    at $n.handleAndLogRequestError (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async createThreatEventController (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\controllers\\scan.controller.ts:141:19)","name":"PrismaClientInitializationError","clientVersion":"5.22.0"},"requestId":"34deea0b-10d4-4357-badb-554e17877f19","msg":"unhandled error"}
+10:17:33 am [tsx] change in ./src\config\index.ts Rerunning...
+c{"level":50,"time":1773809258710,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809258739,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":30,"time":1773809259124,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+10:17:57 am [tsx] change in ./src\services\ai.service.ts Restarting...
+c{"level":50,"time":1773809279651,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809279655,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773809279826,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:18:10 am [tsx] change in ./src\types\scan.types.ts Rerunning...
+c{"level":50,"time":1773809293940,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809293963,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773809294277,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:20:12 am [tsx] change in ./src\config\index.ts Rerunning...
+c10:20:12 am [tsx] change in ./src\services\ai.service.ts Restarting...
+c{"level":50,"time":1773809415652,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809415679,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773809416232,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:23:13 am [tsx] change in ./src\services\domain.service.ts Rerunning...
+c{"level":50,"time":1773809596116,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809596121,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773809596289,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:23:28 am [tsx] change in ./src\controllers\scan.controller.ts Rerunning...
+c{"level":50,"time":1773809610440,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809610445,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773809610597,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:23:37 am [tsx] change in ./src\services\scan.service.ts Rerunning...
+c{"level":50,"time":1773809622525,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809622555,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":30,"time":1773809623242,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+10:23:47 am [tsx] change in ./src\types\scan.types.ts Restarting...
+c{"level":50,"time":1773809633539,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809633558,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773809634085,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:24:02 am [tsx] change in ./src\services\scan.service.ts Rerunning...
+c{"level":50,"time":1773809647244,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809647269,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773809647711,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:24:10 am [tsx] change in ./src\config\index.ts Rerunning...
+c{"level":50,"time":1773809656306,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809656322,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773809656683,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:25:06 am [tsx] change in ./src\services\ai.service.ts Rerunning...
+c{"level":50,"time":1773809711368,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809711386,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773809711786,"port":3001,"msg":"port already in use. choose a different PORT."}
+
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend>10:29:15 am [tsx] change in ./src\db\client.ts Rerunning...
+c{"level":50,"time":1773809959138,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809959155,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773809959491,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:29:26 am [tsx] change in ./src\services\domain.service.ts Rerunning...
+c{"level":50,"time":1773809972172,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:19:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773809972204,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773809972718,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:31:00 am [tsx] change in ./src\db\client.ts Rerunning...
+c{"level":50,"time":1773810063194,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:27:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773810063211,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773810063748,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:31:10 am [tsx] change in ./src\middleware\rateLimiter.ts Rerunning...
+c{"level":50,"time":1773810073392,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:27:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773810073419,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773810073936,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:31:22 am [tsx] change in ./src\jobs\domainRecalculator.ts Rerunning...
+c{"level":50,"time":1773810085288,"err":{"type":"PrismaClientInitializationError","message":"Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.","stack":"PrismaClientInitializationError: Can't reach database server at `db.xncrzubgvukrsizhbgby.supabase.co:6543`\n\nPlease make sure your database server is running at `db.xncrzubgvukrsizhbgby.supabase.co:6543`.\n    at t (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@prisma\\client\\runtime\\library.js:112:2488)\n    at async connectDatabase (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\db\\client.ts:27:5)\n    at async start (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\index.ts:26:14)","name":"PrismaClientInitializationError","clientVersion":"5.22.0","errorCode":"P1001"},"msg":"database connection failed"}
+{"level":40,"time":1773810085292,"msg":"database unavailable at startup, continuing in degraded mode"}
+{"level":50,"time":1773810085509,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:55:08 am [tsx] change in ./src\middleware\requestId.ts Rerunning...
+c{"level":50,"time":1773811511104,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:55:13 am [tsx] change in ./src\middleware\apiKeyAuth.ts Rerunning...
+c10:55:20 am [tsx] change in ./src\routes\ai.routes.ts Restarting...
+c{"level":50,"time":1773811530226,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:55:41 am [tsx] change in ./src\services\ai.service.ts Rerunning...
+c{"level":50,"time":1773811545208,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:55:50 am [tsx] change in ./src\types\scan.types.ts Rerunning...
+c{"level":50,"time":1773811558148,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:56:03 am [tsx] change in ./src\services\scan.service.ts Rerunning...
+c{"level":50,"time":1773811567587,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:56:13 am [tsx] change in ./src\services\file.service.ts Rerunning...
+c{"level":50,"time":1773811580743,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:56:25 am [tsx] change in ./src\controllers\ai.controller.ts Rerunning...
+c{"level":50,"time":1773811589903,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:56:39 am [tsx] change in ./src\controllers\scan.controller.ts Rerunning...
+c{"level":50,"time":1773811604288,"port":3001,"msg":"port already in use. choose a different PORT."}
+10:56:55 am [tsx] change in ./src\index.ts Rerunning...
+c{"level":50,"time":1773811619468,"port":3001,"msg":"port already in use. choose a different PORT."}
+11:01:41 am [tsx] change in ./src\routes\ai.routes.ts Rerunning...
+c{"level":50,"time":1773811904208,"port":3001,"msg":"port already in use. choose a different PORT."}
+11:08:41 am [tsx] change in ./src\index.ts Rerunning...
+c{"level":50,"time":1773812327018,"port":3001,"msg":"port already in use. choose a different PORT."}
+11:12:34 am [tsx] change in ./src\services\ai.service.ts Rerunning...
+c{"level":50,"time":1773812558650,"port":3001,"msg":"port already in use. choose a different PORT."}
+11:14:30 am [tsx] change in ./src\services\ai.service.ts Rerunning...
+c{"level":50,"time":1773812676219,"port":3001,"msg":"port already in use. choose a different PORT."}

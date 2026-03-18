@@ -1,0 +1,28 @@
+
+> ai-browser-shield-backend@2.0.0 dev
+> tsx watch src/index.ts
+
+{"level":30,"time":1773812086222,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+{"level":30,"time":1773812086222,"msg":"Running startup checks..."}
+{"level":30,"time":1773812086866,"msg":"Database connected"}
+{"level":30,"time":1773812087826,"model":"gemini-flash-lite-latest","msg":"Gemini connected"}
+{"level":30,"time":1773812140688,"modelUsed":"gemini-flash-lite-latest","msg":"gemini success"}
+{"level":40,"time":1773812168817,"modelName":"gemini-flash-lite-latest","attempt":1,"status":429,"requestId":"27f9acd9-abe4-48dd-8c82-784c6e989b17","msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812170483,"modelName":"gemini-flash-lite-latest","attempt":2,"status":429,"requestId":"27f9acd9-abe4-48dd-8c82-784c6e989b17","msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812170760,"modelName":"gemini-2.5-flash-lite","attempt":1,"status":429,"requestId":"27f9acd9-abe4-48dd-8c82-784c6e989b17","msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812172382,"modelName":"gemini-2.5-flash-lite","attempt":2,"status":429,"requestId":"27f9acd9-abe4-48dd-8c82-784c6e989b17","msg":"gemini quota/overload, trying next"}
+{"level":30,"time":1773812177314,"requestId":"27f9acd9-abe4-48dd-8c82-784c6e989b17","modelUsed":"gemini-flash-latest","msg":"gemini success"}
+11:08:41 am [tsx] change in ./src\index.ts Rerunning...
+c{"level":50,"time":1773812327136,"port":3001,"msg":"port already in use. choose a different PORT."}
+11:12:34 am [tsx] change in ./src\services\ai.service.ts Rerunning...
+c{"level":30,"time":1773812558288,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+{"level":30,"time":1773812558289,"msg":"Running startup checks..."}
+{"level":30,"time":1773812558915,"msg":"Database connected"}
+{"level":20,"time":1773812559411,"modelName":"gemini-flash-lite-latest","attempt":1,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":20,"time":1773812561077,"modelName":"gemini-flash-lite-latest","attempt":2,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":20,"time":1773812561383,"modelName":"gemini-2.5-flash-lite","attempt":1,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":20,"time":1773812563038,"modelName":"gemini-2.5-flash-lite","attempt":2,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":30,"time":1773812566321,"modelUsed":"gemini-flash-latest","msg":"gemini success"}
+{"level":30,"time":1773812566321,"configuredModel":"gemini-flash-lite-latest","modelUsed":"gemini-flash-latest","msg":"Gemini connected"}
+11:14:30 am [tsx] change in ./src\services\ai.service.ts Rerunning...
+c{"level":50,"time":1773812676283,"port":3001,"msg":"port already in use. choose a different PORT."}

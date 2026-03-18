@@ -1,0 +1,111 @@
+
+> ai-browser-shield-backend@2.0.0 dev
+> tsx watch src/index.ts
+
+{"level":30,"time":1773812405251,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+{"level":30,"time":1773812405252,"msg":"Running startup checks..."}
+{"level":30,"time":1773812405841,"msg":"Database connected"}
+{"level":40,"time":1773812406299,"modelName":"gemini-flash-lite-latest","attempt":1,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812407932,"modelName":"gemini-flash-lite-latest","attempt":2,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812408226,"modelName":"gemini-2.5-flash-lite","attempt":1,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812409868,"modelName":"gemini-2.5-flash-lite","attempt":2,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812411028,"modelName":"gemini-flash-lite-latest","attempt":1,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812412111,"modelName":"gemini-flash-lite-latest","attempt":1,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812412661,"modelName":"gemini-flash-lite-latest","attempt":2,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812412938,"modelName":"gemini-2.5-flash-lite","attempt":1,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":30,"time":1773812413392,"modelUsed":"gemini-flash-latest","msg":"gemini success"}
+{"level":30,"time":1773812413392,"configuredModel":"gemini-flash-lite-latest","modelUsed":"gemini-flash-latest","msg":"Gemini connected"}
+{"level":40,"time":1773812413751,"modelName":"gemini-flash-lite-latest","attempt":2,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812414055,"modelName":"gemini-2.5-flash-lite","attempt":1,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812414624,"modelName":"gemini-2.5-flash-lite","attempt":2,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":40,"time":1773812415699,"modelName":"gemini-2.5-flash-lite","attempt":2,"status":429,"msg":"gemini quota/overload, trying next"}
+{"level":30,"time":1773812417635,"modelUsed":"gemini-flash-latest","msg":"gemini success"}
+{"level":40,"time":1773812422647,"requestId":"6acabfd0-e16b-46bc-8632-cd7858ae7ece","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423094,"requestId":"77a0b2fe-b8f4-4fb8-839d-197ea32092c2","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423181,"requestId":"bb228374-1f19-4add-800d-583fccf1cb5d","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423267,"requestId":"4332e9b4-2edb-4a4f-b09b-7ba746710e8e","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423304,"requestId":"0e36837d-2127-49ec-858a-3fd37311552a","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423309,"requestId":"20b3133a-1ee8-40eb-9d66-ddbdb05d4220","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423324,"requestId":"9bd829cd-f2c7-4955-b66a-8b03c4039847","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423335,"requestId":"e37607a3-f591-4247-97fb-efa414192912","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423400,"requestId":"633bf360-e86b-45f4-9f1f-f30d5ccb65af","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423403,"requestId":"6900485b-e15d-4315-87d8-74d05418d768","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423406,"requestId":"1545231b-c1e9-420a-b66b-0aef1630abb5","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423408,"requestId":"8f9daae7-2ec5-44f8-b21d-5202b875edcf","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423412,"requestId":"f1a855e0-717f-421d-b32f-4a166ea46ac6","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423414,"requestId":"fa249e8d-8651-4dbb-ad91-1048d78d2166","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423415,"requestId":"f9fc47ea-589e-4918-b2c7-efd03a27f6f5","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423417,"requestId":"a8aabc06-272b-4c05-957e-7ad1801231e7","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423419,"requestId":"c844d71c-476d-497a-ba1a-5117c925b37f","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423422,"requestId":"b9fb944e-1e05-435a-8eae-7ac46f046efc","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423424,"requestId":"9b08a810-24de-4a51-aa3f-55eae8b2b1a3","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423426,"requestId":"9205d7e6-b2f2-432b-a968-3c3f6575ea59","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423428,"requestId":"f3c8acec-05b9-46a8-9a35-7beedeefcae6","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423429,"requestId":"0fb47403-1e13-468b-9d12-5bc8418c899d","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423431,"requestId":"b40ba27b-46dd-462c-90f8-773f1c175b63","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423466,"requestId":"11cb50ce-9d78-452d-864b-395cf8417f43","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423472,"requestId":"d6687b8e-1216-4e94-af47-28fcd5b470a9","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423476,"requestId":"7688f060-7746-4007-bf00-12db66373f40","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423483,"requestId":"8e02ab5a-70e0-4c89-babd-4281d60d2138","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423486,"requestId":"4a2cd044-b114-4b88-b3be-babfb7cade14","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423496,"requestId":"e1c457f7-ccf6-4d37-9ab2-15362fd0241e","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423510,"requestId":"9af5d0e2-91b4-4b87-91f3-a98f0d48c596","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423515,"requestId":"7279589f-40c2-4bd8-8926-103e7d5fa1fd","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423520,"requestId":"8982bd8b-fb50-4435-aaea-b36ad203f10b","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423524,"requestId":"27556bd1-1520-4e57-a807-088475de0d2c","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423526,"requestId":"045335d4-297d-4096-8991-cc33854cba14","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423585,"requestId":"36bab47b-2b68-43e0-91f0-8d0c1852f7f4","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423597,"requestId":"6e11c508-ef2d-478e-b1fb-a01f317bb8ed","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423599,"requestId":"ff270f65-67b7-4eac-a31e-06153801da62","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423601,"requestId":"bce8753b-b934-42e6-8fdf-102242f90356","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423603,"requestId":"a931dda9-2a1a-4473-9e4e-e396138aeb4a","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423605,"requestId":"096336bc-feee-42a5-a2e9-4035fed31ea6","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423616,"requestId":"e529fd45-6937-4a2b-8394-686c336f55e5","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423621,"requestId":"0a0ca079-e628-474c-be3a-05230d062401","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423713,"requestId":"89d81fea-5aef-4ba6-a369-6ec0a1c1a64c","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423716,"requestId":"912fcbaa-d69b-405c-90d3-f38c6626bad3","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423722,"requestId":"8a0c0600-7cd9-4011-a5f2-7cce870b80f2","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423728,"requestId":"5b3d7363-444e-4dec-b3e1-1961f602e945","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423835,"requestId":"8149c625-e9ac-4c13-9561-aa1a41ba6f15","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423837,"requestId":"b79d3774-0d86-484f-a1c9-48229f42213c","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423839,"requestId":"8460823f-b211-4fea-851f-8312221334fb","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423842,"requestId":"164f6aa8-3d7b-45d3-b198-87cd887f6d3c","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423878,"requestId":"29951d78-2281-4f3b-9aef-d94b59298d92","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423884,"requestId":"e43089ac-159a-4245-a618-ea04302da59d","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423886,"requestId":"1fbff4d4-3f9e-4589-aee9-ca15d88a7d30","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423888,"requestId":"afe63873-8d6f-4e58-803b-94619d8bf09e","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423890,"requestId":"008aa29d-d75e-4098-827b-c2d6f710fb44","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423893,"requestId":"bc055f80-1fd7-4dd4-9a13-2d011bedb776","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423895,"requestId":"373800f8-00de-4efb-a02e-c2aad8d72901","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423898,"requestId":"8451edf6-c8f5-4661-b9d0-ce82bab32dc2","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423907,"requestId":"7fa4390d-c13e-4dc1-b7c5-b6d749155f12","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423910,"requestId":"c103137a-9dc6-4df7-8939-f95f40d01693","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423914,"requestId":"3aa20d4f-f129-4932-be0b-a66b87ad25f0","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423916,"requestId":"d78dd0cf-daae-48c9-a910-dbf0ffa503f5","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423918,"requestId":"ea605073-54d2-471c-a4e6-f0300610b777","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423921,"requestId":"08825c5d-93e8-4ea7-b22a-563c497e4e96","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423929,"requestId":"f3d50eef-e31c-4f9a-b482-f81818b8e320","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423931,"requestId":"d73e49e4-07f5-4310-8fe0-c2566754b6b3","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423933,"requestId":"2ea451bf-2f38-4977-b808-c770d5d15f92","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423935,"requestId":"436a94cd-8ef8-486f-b3ca-6142712daf24","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423937,"requestId":"b69feb36-0ef4-4dbd-a0cc-58905d246ada","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423939,"requestId":"342364cd-53e5-49c0-a237-83cfdcb32ece","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812423941,"requestId":"c9e233ae-97a0-4e78-9cb9-68ebdf226dfa","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812424137,"requestId":"04da08b6-27e7-40bc-a464-8660240438a9","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812424139,"requestId":"1e64e4e1-1236-4b15-aa5d-7698a14d06f9","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812425241,"requestId":"03f9a268-b2ed-46c6-af98-06877e190969","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812425257,"requestId":"3691ec45-1532-46af-8861-94821bf2b442","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812425260,"requestId":"d57027f7-f3e1-48bb-ab9a-9a4ae4d2b63e","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812425265,"requestId":"24769f2d-eec3-47d7-8965-bb878f01f6f6","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812426542,"requestId":"ac1c7413-021d-4b01-bd20-b4f34cf50e61","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812426560,"requestId":"64e2c462-dd2e-402e-a052-791825547e80","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812426585,"requestId":"00795d80-b16f-4ae5-bed8-643b014bed7e","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812426592,"requestId":"64df42fe-c581-4a41-870e-3d7be9ca1790","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812430565,"requestId":"6d14bdcd-5587-4956-a38c-206b86185802","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812430580,"requestId":"9b6ba584-f258-48dd-8b0a-35aed159e392","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812430582,"requestId":"1e78ebac-7399-4c5e-9b5f-2dc88e684438","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773812430584,"requestId":"c2e0f4f1-5159-49f0-8520-4b2fe75f843d","code":"unauthorized","msg":"invalid api key"}
+11:12:34 am [tsx] change in ./src\services\ai.service.ts Restarting...
+c{"level":50,"time":1773812558448,"port":3001,"msg":"port already in use. choose a different PORT."}
+11:14:30 am [tsx] change in ./src\services\ai.service.ts Rerunning...
+c{"level":50,"time":1773812676228,"port":3001,"msg":"port already in use. choose a different PORT."}

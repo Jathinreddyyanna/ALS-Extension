@@ -1,29 +1,68 @@
-import rateLimit from 'express-rate-limit'
-import { Request, Response } from 'express'
-import { rateLimitConfig } from '../config'
+import type { NextFunction, Request, Response } from 'express';
+import { isDatabaseAvailable, prisma } from '../db/client';
+import { RateLimitError } from '../errors';
+import { hashIp } from '../utils/ip';
 
-const handler = (_req: Request, res: Response) =>
-  res.status(429).json({
-    type: 'https://aibrowsershield.dev/errors/rate-limit',
-    title: 'Too Many Requests',
-    status: 429,
-    detail: 'You are sending requests too quickly. Please slow down.',
-  })
+type Scope = 'ip' | 'apiKey';
 
-const make = (max: number, windowMs = 60_000) =>
-  rateLimit({ windowMs, max, standardHeaders: true, legacyHeaders: false, handler })
+interface RateLimitOptions {
+  endpoint: string;
+  limit: number;
+  windowMs: number;
+  scope?: Scope;
+}
 
-// Reports: default 10/min (prevent spam)
-export const reportLimiter = make(rateLimitConfig.reportsPerMinute)
+const counters = new Map<string, { count: number; expiresAt: number }>();
 
-// URL/file scan: default 30/min
-export const scanLimiter = make(rateLimitConfig.scanPerMinute)
+const getKey = (req: Request, endpoint: string, scope: Scope): string => {
+  if (scope === 'apiKey') {
+    return `${endpoint}:api:${req.header('x-api-key') ?? 'missing'}`;
+  }
+  return `${endpoint}:ip:${hashIp(req.ip || '0.0.0.0')}`;
+};
 
-// File scan: default 20/min (AI is expensive)
-export const fileLimiter = make(rateLimitConfig.fileScanPerMinute)
+const recordRateLimit = async (req: Request, endpoint: string, count: number, blocked: boolean): Promise<void> => {
+  if (!isDatabaseAvailable()) {
+    return;
+  }
+  const ipHash = hashIp(req.ip || '0.0.0.0');
+  await prisma.rateLimitLog.create({
+    data: {
+      ipHash,
+      endpoint,
+      requestCount: count,
+      windowStart: new Date(),
+      blocked
+    }
+  }).catch(() => undefined);
+};
 
-// Community feed: default 60/min (read-heavy)
-export const feedLimiter = make(rateLimitConfig.feedPerMinute)
+export const createRateLimiter = (options: RateLimitOptions) =>
+  async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    const scope = options.scope ?? 'ip';
+    const key = getKey(req, options.endpoint, scope);
+    const now = Date.now();
+    const current = counters.get(key);
+    if (!current || current.expiresAt <= now) {
+      counters.set(key, { count: 1, expiresAt: now + options.windowMs });
+      void recordRateLimit(req, options.endpoint, 1, false);
+      next();
+      return;
+    }
 
-// Health: default 120/min
-export const healthLimiter = make(rateLimitConfig.healthPerMinute)
+    current.count += 1;
+    const remaining = Math.max(0, options.limit - current.count);
+    if (current.count > options.limit) {
+      const retryAfterMs = current.expiresAt - now;
+      void recordRateLimit(req, options.endpoint, current.count, true);
+      next(new RateLimitError('rate limit exceeded', {
+        retryAfterMs,
+        limit: options.limit,
+        remaining
+      }));
+      return;
+    }
+
+    void recordRateLimit(req, options.endpoint, current.count, false);
+    next();
+  };

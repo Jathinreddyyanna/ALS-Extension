@@ -39,16 +39,16 @@ if (existsSync(popupSrc)) {
   console.log('  ✓ /dist/popup.html (moved from src/popup/index.html)')
 }
 
-// Fix settings.html path — vite outputs to dist/src/settings/index.html
-// Chrome needs it at dist/settings.html
-const settingsSrc  = resolve(dist, 'src/settings/index.html')
-const settingsDest = resolve(dist, 'settings.html')
-if (existsSync(settingsSrc)) {
-  let html = readFileSync(settingsSrc, 'utf-8')
+// Fix dashboard.html path — vite outputs to dist/src/dashboard/index.html
+// Chrome needs it at dist/dashboard.html
+const dashboardSrc  = resolve(dist, 'src/dashboard/index.html')
+const dashboardDest = resolve(dist, 'dashboard.html')
+if (existsSync(dashboardSrc)) {
+  let html = readFileSync(dashboardSrc, 'utf-8')
   html = html.replace(/\.\.\/\.\.\/assets\//g, 'assets/')
   html = html.replace(/\.\.\/assets\//g, 'assets/')
-  writeFileSync(settingsDest, html)
-  console.log('  ✓ /dist/settings.html (moved from src/settings/index.html)')
+  writeFileSync(dashboardDest, html)
+  console.log('  ✓ /dist/dashboard.html (moved from src/dashboard/index.html)')
 }
 
 console.log('\n✅ dist/ is ready to load in Chrome!\n')
@@ -57,7 +57,7 @@ console.log('  dist/manifest.json')
 console.log('  dist/background.js')
 console.log('  dist/content.js')
 console.log('  dist/popup.html')
-console.log('  dist/settings.html')
+console.log('  dist/dashboard.html')
 console.log('  dist/popup.js')
 console.log('  dist/icon48.png')
 console.log('  dist/icon128.png')

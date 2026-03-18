@@ -1,0 +1,7 @@
+
+> ai-browser-shield-backend@2.0.0 dev
+> tsx watch src/index.ts
+
+{"level":50,"time":1773777308145,"port":3001,"msg":"port already in use. choose a different PORT."}
+1:25:54 am [tsx] Return key Rerunning...
+c{"level":50,"time":1773777358116,"port":3001,"msg":"port already in use. choose a different PORT."}

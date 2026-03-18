@@ -1,0 +1,29 @@
+
+> ai-browser-shield-backend@2.0.0 dev
+> tsx watch src/index.ts
+
+{"level":30,"time":1773774892507,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+12:55:10 am [tsx] change in ./src\app.ts Rerunning...
+c{"level":50,"time":1773775513261,"port":3001,"msg":"port already in use. choose a different PORT."}
+1:00:21 am [tsx] change in ./src\controllers\scan.controller.ts Rerunning...
+c{"level":50,"time":1773775825072,"port":3001,"msg":"port already in use. choose a different PORT."}
+1:00:34 am [tsx] change in ./src\routes\scan.routes.ts Rerunning...
+c{"level":50,"time":1773775839325,"port":3001,"msg":"port already in use. choose a different PORT."}
+1:00:44 am [tsx] change in ./src\config\index.ts Rerunning...
+c{"level":50,"time":1773775850961,"port":3001,"msg":"port already in use. choose a different PORT."}
+1:02:38 am [tsx] change in ./src\controllers\scan.controller.ts Rerunning...
+c{"level":50,"time":1773775964798,"port":3001,"msg":"port already in use. choose a different PORT."}
+1:14:00 am [tsx] change in ./src\services\ai.service.ts Rerunning...
+c{"level":30,"time":1773776643362,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+1:14:10 am [tsx] change in ./src\config\index.ts Restarting...
+c{"level":30,"time":1773776655351,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+{"level":40,"time":1773776857955,"requestId":"668688a7-ab19-4a61-9010-c9666921fffc","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773776857999,"requestId":"ec04f8df-37a5-4f38-bdd0-edef70d89509","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773776858033,"requestId":"53761fb5-1e26-4859-9eda-0b8d63a9d8c7","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773776858041,"requestId":"a324f04e-77d7-4ac0-89f8-f5b3c7662a03","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773776858048,"requestId":"cc3215cd-01fb-4e83-8e01-033615e2e88c","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773776858053,"requestId":"fd473bbe-74ad-40df-8a58-a6ea1dcc9d0c","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773776858065,"requestId":"5b092332-b314-4b8e-9371-7e51be70f0be","code":"unauthorized","msg":"invalid api key"}
+{"level":40,"time":1773776867634,"err":{"type":"GoogleGenerativeAIFetchError","message":"[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: [403 Forbidden] Your API key was reported as leaked. Please use another API key.","stack":"Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: [403 Forbidden] Your API key was reported as leaked. Please use another API key.\n    at handleResponseNotOk (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@google\\generative-ai\\dist\\index.js:434:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async makeRequest (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@google\\generative-ai\\dist\\index.js:403:9)\n    at async generateContent (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\node_modules\\@google\\generative-ai\\dist\\index.js:867:22)\n    at async analyzeWithGemini (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\ai.service.ts:178:24)\n    at async performUrlScan (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\services\\scan.service.ts:122:7)\n    at async scanUrlController (c:\\Users\\jathi\\Downloads\\ai-browser-shield-v2-FINAL\\ai-browser-shield\\backend\\src\\controllers\\scan.controller.ts:34:18)","status":403,"statusText":"Forbidden"},"requestId":"0bd643ca-fbea-4c0b-8eb7-aab4f798fbcf","msg":"gemini failed"}
+
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend>

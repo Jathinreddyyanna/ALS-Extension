@@ -1,0 +1,33 @@
+
+> ai-browser-shield-backend@2.0.0 dev
+> tsx watch src/index.ts
+
+{"level":30,"time":1773775076142,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+{"level":40,"time":1773775292588,"requestId":"2c6f9b02-eac6-467b-b768-cbe423d716f1","code":"cors_forbidden","msg":"origin forbidden"}
+{"level":40,"time":1773775293495,"requestId":"dce1af6d-213c-44e4-9441-69fd5376c057","code":"cors_forbidden","msg":"origin forbidden"}
+{"level":40,"time":1773775293500,"requestId":"6b4edd51-86ac-409d-9ac1-5a22b89fab60","code":"cors_forbidden","msg":"origin forbidden"}
+{"level":40,"time":1773775293503,"requestId":"5a52410d-ddab-44b7-8a89-d7f4face4d97","code":"cors_forbidden","msg":"origin forbidden"}
+{"level":40,"time":1773775293506,"requestId":"509d7414-9e99-4ad0-865d-a61d9f15a6c6","code":"cors_forbidden","msg":"origin forbidden"}
+{"level":40,"time":1773775293511,"requestId":"e2019afb-ff64-46a1-bb20-8dac420c3a12","code":"cors_forbidden","msg":"origin forbidden"}
+{"level":40,"time":1773775293513,"requestId":"7a9e5a6b-f30e-4d8f-a06e-a386340da79e","code":"cors_forbidden","msg":"origin forbidden"}
+{"level":40,"time":1773775293518,"requestId":"99ca638e-a73d-4f3d-a0b8-0d389c2661b5","code":"cors_forbidden","msg":"origin forbidden"}
+{"level":40,"time":1773775293522,"requestId":"99e7fe11-9eab-49e0-b659-e778a8054713","code":"cors_forbidden","msg":"origin forbidden"}
+{"level":40,"time":1773775296208,"requestId":"f81d2d3a-1eb9-495a-8195-54a29ffdf5f1","code":"cors_forbidden","msg":"origin forbidden"}
+{"level":40,"time":1773775302624,"requestId":"2a0f578c-38b0-4b1f-9e70-07394f0e0a83","code":"cors_forbidden","msg":"origin forbidden"}
+{"level":40,"time":1773775329446,"requestId":"c0b5ddea-49f1-4d57-a280-43b0ff6f83cd","code":"cors_forbidden","msg":"origin forbidden"}
+12:55:10 am [tsx] change in ./src\app.ts Rerunning...
+c{"level":50,"time":1773775513266,"port":3001,"msg":"port already in use. choose a different PORT."}
+1:00:21 am [tsx] change in ./src\controllers\scan.controller.ts Rerunning...
+c{"level":50,"time":1773775825092,"port":3001,"msg":"port already in use. choose a different PORT."}
+1:00:34 am [tsx] change in ./src\routes\scan.routes.ts Rerunning...
+c{"level":30,"time":1773775839338,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+1:00:44 am [tsx] change in ./src\config\index.ts Restarting...
+c{"level":30,"time":1773775850962,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+1:02:38 am [tsx] change in ./src\controllers\scan.controller.ts Restarting...
+c{"level":30,"time":1773775964794,"port":3001,"msg":"ai browser shield backend listening on 3001"}
+1:14:00 am [tsx] change in ./src\services\ai.service.ts Rerunning...
+c{"level":50,"time":1773776643448,"port":3001,"msg":"port already in use. choose a different PORT."}
+1:14:10 am [tsx] change in ./src\config\index.ts Rerunning...
+c{"level":50,"time":1773776655352,"port":3001,"msg":"port already in use. choose a different PORT."}
+
+c:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend>

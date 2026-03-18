@@ -7,7 +7,7 @@ import type {
   SignalMap,
   ThreatEvent,
 } from '../types'
-import { getEffectiveApiBaseUrl } from '../config'
+import { getEffectiveApiBaseUrl, getEffectiveApiKey, getEffectiveGeminiKey } from '../config'
 
 const BASE_URL =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL) ||
@@ -19,6 +19,18 @@ async function resolveBaseUrl(): Promise<string> {
     return await getEffectiveApiBaseUrl()
   } catch {
     return BASE_URL
+  }
+}
+
+async function buildHeaders(extra: HeadersInit = {}): Promise<HeadersInit> {
+  const apiKey = await getEffectiveApiKey()
+  const geminiKey = await getEffectiveGeminiKey()
+  return {
+    'Content-Type': 'application/json',
+    'X-Extension-Version': '1.0.0',
+    ...(apiKey ? { 'x-api-key': apiKey } : {}),
+    ...(geminiKey ? { 'x-gemini-key': geminiKey } : {}),
+    ...extra,
   }
 }
 
@@ -35,13 +47,14 @@ function normalizeSignals(signals: SignalMap): SignalMap {
   }
 }
 
-async function post<T>(path: string, body: unknown): Promise<T | null> {
+async function post<T>(path: string, body: unknown, init?: RequestInit): Promise<T | null> {
   try {
     const baseUrl = await resolveBaseUrl()
     const res = await fetch(`${baseUrl}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Extension-Version': '1.0.0' },
+      headers: await buildHeaders(init?.headers),
       body: JSON.stringify(body),
+      ...init,
     })
     if (!res.ok) return null
     return await res.json()
@@ -54,7 +67,7 @@ async function get<T>(path: string): Promise<T | null> {
   try {
     const baseUrl = await resolveBaseUrl()
     const res = await fetch(`${baseUrl}${path}`, {
-      headers: { 'X-Extension-Version': '1.0.0' },
+      headers: await buildHeaders(),
     })
     if (!res.ok) return null
     return await res.json()
@@ -91,9 +104,9 @@ async function clearDomainMiss(domain: string): Promise<void> {
   }
 }
 
-export async function scanUrl(url: string, signals: SignalMap): Promise<UrlScanResult | null> {
+export async function scanUrl(url: string, signals: SignalMap, init?: RequestInit): Promise<UrlScanResult | null> {
   if (!url || !signals) return null
-  return post<UrlScanResult>('/scan/url', { url, signals: normalizeSignals(signals) })
+  return post<UrlScanResult>('/scan/url', { url, signals: normalizeSignals(signals) }, init)
 }
 
 export async function scanFile(data: {

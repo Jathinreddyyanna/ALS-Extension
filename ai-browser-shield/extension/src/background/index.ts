@@ -326,7 +326,11 @@ async function analyzeUrl(tabId: number, url: string) {
   }
 
   try {
-    const result = await scanUrl(url, signals)
+    const result = await scanUrl(url, signals, {
+      headers: {
+        'x-api-key': import.meta.env.VITE_API_KEY!,
+      },
+    })
     if (!result) {
       await setDomainScore(hostname, local.score)
       siteRiskByTab.set(tabId, {

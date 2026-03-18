@@ -1,97 +1,105 @@
-import { prisma } from '../db/client'
-import { cacheDel, cacheGetJSON, cacheSetJSON, keys } from './cache.service'
-import type { ReportInput } from '../schemas'
+import { prisma } from '../db/client';
+import { DatabaseError } from '../errors';
+import { parseAndNormalizeUrl } from '../detection/urlParser';
+import { cacheKeys, cacheService } from './cache.service';
+import { hashIp } from '../utils/ip';
+import { invalidateDomainCaches, recalculateDomainScore } from './domain.service';
 
-export async function createReport(data: ReportInput, ipHash: string, userAgent?: string) {
-  let domain = ''
-  try { domain = new URL(data.url).hostname } catch { domain = data.url }
+export const createThreatReport = async (input: {
+  url: string;
+  category: 'phishing' | 'scam' | 'malware' | 'redirect' | 'popup_abuse' | 'ad_abuse' | 'data_exfil' | 'crypto_mining' | 'other';
+  description: string;
+  signals?: Record<string, number>;
+  sessionId?: string;
+  ip: string;
+  userAgent?: string;
+}) => {
+  const parsed = parseAndNormalizeUrl(input.url);
+  const ipHash = hashIp(input.ip);
 
-  const report = await prisma.threatReport.create({
-    data: {
-      url: data.url,
-      domain,
-      category: data.category,
-      description: data.description,
-      signals: data.signals as any,
-      ipHash,
-      userAgent,
+  try {
+    const existing = await prisma.threatReport.findFirst({
+      where: {
+        url: input.url,
+        ipHash,
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }
+    });
+    if (existing) {
+      return {
+        id: existing.id,
+        status: 'already_reported' as const,
+        message: 'Report already submitted in the last 24 hours.'
+      };
     }
-  })
 
-  // Update domain score
-  const existing = await prisma.domainScore.findUnique({ where: { domain } })
-  if (existing) {
-    await prisma.domainScore.update({
-      where: { domain },
+    const report = await prisma.threatReport.create({
       data: {
-        reportCount: { increment: 1 },
-        riskScore: Math.min(100, existing.riskScore + 3),
-        categories: existing.categories.includes(data.category)
-          ? existing.categories
-          : [...existing.categories, data.category],
+        url: input.url,
+        domain: parsed.domain,
+        category: input.category,
+        description: input.description,
+        signals: input.signals ?? {},
+        ipHash,
+        userAgent: input.userAgent,
+        sessionId: input.sessionId
       }
-    })
-  } else {
-    await prisma.domainScore.create({
-      data: {
-        domain,
-        riskScore: 50,
-        reportCount: 1,
-        categories: [data.category],
-      }
-    })
+    });
+
+    const distinctReporterCount = await prisma.threatReport.findMany({
+      where: { domain: parsed.domain },
+      select: { ipHash: true },
+      distinct: ['ipHash']
+    });
+    if (distinctReporterCount.length >= 3) {
+      await prisma.domainScore.upsert({
+        where: { domain: parsed.domain },
+        update: { isConfirmed: true },
+        create: { domain: parsed.domain, isConfirmed: true }
+      });
+      await prisma.adminLog.create({
+        data: {
+          action: 'auto_confirm_reports',
+          targetType: 'domain',
+          targetId: parsed.domain,
+          adminId: 'system',
+          notes: `Auto-confirmed after ${distinctReporterCount.length} distinct reports`
+        }
+      });
+    }
+
+    await Promise.all([
+      cacheService.del(cacheKeys.reportsRecent),
+      cacheService.del(cacheKeys.domain(parsed.domain)),
+      cacheService.del(cacheKeys.urlScan(parsed.normalizedUrl)),
+      invalidateDomainCaches(parsed.domain)
+    ]);
+    void recalculateDomainScore(parsed.domain);
+
+    return {
+      id: report.id,
+      status: 'pending' as const,
+      message: 'Threat report received.'
+    };
+  } catch (error) {
+    throw new DatabaseError('Database temporarily unavailable', error);
   }
+};
 
-  // EVENT-DRIVEN SCORING: Lock in a high risk score for the exact URL
-  await prisma.detectionEvent.create({
-    data: {
-      eventType: 'url_threat',
-      domain,
-      url: data.url,
-      riskScore: 85, // Immediately flag reported URLs as high risk
-      riskLevel: 'HIGH',
-      aiExplanation: `This URL was reported by the community as ${data.category}. ${data.description || ''}`,
-    }
-  }).catch(() => {}) // non-blocking
-
-  // Invalidate caches
-  await Promise.all([
-    cacheDel(keys.domainScore(domain)),
-    cacheDel(keys.threatFeed()),
-    cacheDel(keys.urlScan(data.url)), // Clear URL scan cache so next scan incorporates the new report instantly
-  ])
-
-  return report
-}
-
-export async function getRecentFeed(limit = 20) {
-  const cached = await cacheGetJSON(keys.threatFeed())
-  if (cached) return cached
-
-  const results = await prisma.threatReport.groupBy({
-    by: ['domain', 'category'],
-    _count: { id: true },
-    orderBy: { _count: { id: 'desc' } },
-    take: limit,
-    where: {
-      deletedAt: null,
-      createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-    }
-  })
-
-  // Enrich with domain scores
-  const domains = [...new Set(results.map(r => r.domain))]
-  const scores = await prisma.domainScore.findMany({ where: { domain: { in: domains } } })
-  const scoreMap = Object.fromEntries(scores.map(s => [s.domain, s.riskScore]))
-
-  const feed = results.map(r => ({
-    domain: r.domain,
-    category: r.category,
-    reports: r._count.id,
-    riskScore: scoreMap[r.domain] || 50,
-    lastSeen: new Date().toISOString(),
-  }))
-
-  await cacheSetJSON(keys.threatFeed(), feed, 300) // 5 min TTL
-  return feed
-}
+export const getRecentConfirmedReports = async () => {
+  const cached = await cacheService.get<Awaited<ReturnType<typeof prisma.threatReport.findMany>>>(cacheKeys.reportsRecent);
+  if (cached) {
+    return cached;
+  }
+  try {
+    const result = await prisma.threatReport.findMany({
+      where: { status: 'confirmed' },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+    await cacheService.set(cacheKeys.reportsRecent, result, 120);
+    return result;
+  } catch (error) {
+    throw new DatabaseError('Database temporarily unavailable', error);
+  }
+};

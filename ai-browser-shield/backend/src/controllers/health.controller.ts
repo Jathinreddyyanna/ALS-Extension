@@ -1,0 +1,68 @@
+import { z } from 'zod';
+import type { Request, Response } from 'express';
+import { env } from '../config';
+import { cacheKeys, cacheService } from '../services/cache.service';
+import { pingGemini } from '../services/ai.service';
+import { prisma } from '../db/client';
+import { getAppStats } from '../services/stats.service';
+import { logger } from '../utils/logger';
+
+const healthSchema = z.object({
+  status: z.enum(['ok', 'degraded']),
+  db: z.boolean(),
+  redis: z.boolean(),
+  ai: z.boolean(),
+  uptime: z.number(),
+  version: z.string(),
+  env: z.string()
+});
+
+export const healthController = async (req: Request, res: Response): Promise<void> => {
+  const cached = await cacheService.get<z.infer<typeof healthSchema>>(cacheKeys.health);
+  if (cached) {
+    res.json(cached);
+    return;
+  }
+
+  let db = false;
+  let redis = false;
+  let ai = false;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    db = true;
+  } catch {
+    db = false;
+  }
+  try {
+    redis = await cacheService.ping();
+  } catch {
+    redis = false;
+  }
+  try {
+    ai = await pingGemini();
+  } catch {
+    ai = false;
+  }
+
+  const result = {
+    status: db && redis && ai ? 'ok' as const : 'degraded' as const,
+    db,
+    redis,
+    ai,
+    uptime: process.uptime(),
+    version: process.env.npm_package_version ?? '2.0.0',
+    env: env.NODE_ENV
+  };
+  const parsed = healthSchema.safeParse(result);
+  if (!parsed.success) {
+    logger.error({ requestId: req.requestId, issues: parsed.error.issues }, 'invalid health response schema');
+    res.status(500).json({ error: 'internal_schema_error' });
+    return;
+  }
+  await cacheService.set(cacheKeys.health, parsed.data, 30);
+  res.status(200).json(parsed.data);
+};
+
+export const statsController = async (_req: Request, res: Response): Promise<void> => {
+  res.json(await getAppStats());
+};

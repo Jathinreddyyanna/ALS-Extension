@@ -1,5 +1,4 @@
-import { getEffectiveApiBaseUrl } from '../config';
-import { createWebThreatPayload } from './threatAnalysis';
+import { getEffectiveApiBaseUrl, getEffectiveApiKey } from '../config';
 
 /**
  * Calls the AI explanation service to analyze a URL and its signals.
@@ -9,17 +8,23 @@ import { createWebThreatPayload } from './threatAnalysis';
 export async function explainThreat(url: string, signals: any, popupAnalysis?: any) {
   try {
     const baseUrl = await getEffectiveApiBaseUrl();
+    const apiKey = await getEffectiveApiKey();
 
-    const payload = createWebThreatPayload(url, signals, popupAnalysis);
     const version = (import.meta as any).env.VITE_EXTENSION_VERSION || '1.0.0';
 
-    const res = await fetch(`${baseUrl}/ai/explainThreat`, {
+    const res = await fetch(`${baseUrl}/ai/explain`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Extension-Version': version,
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        url,
+        signals,
+        popupRedirect: popupAnalysis,
+        force: true,
+      }),
     });
 
     if (!res.ok) {

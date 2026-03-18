@@ -1,4 +1,7 @@
 const DEFAULT_API_BASE_URL = 'http://localhost:3001/api/v1'
+const DEFAULT_API_KEY =
+  (typeof import.meta !== 'undefined' && (import.meta as ImportMeta).env?.VITE_API_KEY) ||
+  ''
 
 type LegacyKey = 'apiBaseUrl' | 'backendUrl' | 'fastApiBaseUrl'
 
@@ -71,5 +74,22 @@ export async function getEffectiveApiBaseUrl(): Promise<string> {
   return configured || DEFAULT_API_BASE_URL
 }
 
-export { DEFAULT_API_BASE_URL }
+export async function getEffectiveApiKey(): Promise<string> {
+  return new Promise(resolve => {
+    chrome.storage.sync.get(['apiKey'], (result) => {
+      const configured = typeof result.apiKey === 'string' ? result.apiKey.trim() : ''
+      resolve(configured || DEFAULT_API_KEY)
+    })
+  })
+}
 
+export async function getEffectiveGeminiKey(): Promise<string | null> {
+  return new Promise(resolve => {
+    chrome.storage.sync.get(['geminiApiKey'], (result) => {
+      const key = typeof result.geminiApiKey === 'string' ? result.geminiApiKey.trim() : ''
+      resolve(key || null)
+    })
+  })
+}
+
+export { DEFAULT_API_BASE_URL, DEFAULT_API_KEY }
