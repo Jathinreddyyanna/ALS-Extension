@@ -17,16 +17,22 @@ from datetime import datetime
 from urllib import request as urllib_request
 from urllib import error as urllib_error
 
-try:
-    import google.generativeai as genai
-except Exception:
-    genai = None
-
 # Add parent directory to path to import ML model
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 
-from train_email_model import classify_email
-from explain_phishing import get_quick_explanation, format_explanation
+try:
+    from train_email_model import classify_email
+    from explain_phishing import get_quick_explanation, format_explanation
+    _ML_AVAILABLE = True
+except ImportError as e:
+    print(f"[WARNING] ML modules not available: {e}")
+    _ML_AVAILABLE = False
+    def classify_email(*args, **kwargs):
+        return {'prediction': 0, 'probability': 0.5}
+    def get_quick_explanation(*args, **kwargs):
+        return "ML model unavailable"
+    def format_explanation(*args, **kwargs):
+        return "ML model unavailable"
 
 app = Flask(__name__)
 
@@ -43,9 +49,11 @@ GEMINI_KEYS = [
         os.getenv('GEMINI_API_KEY_3') or os.getenv('LLM_API_KEY_3'),
     ] if k
 ]
-GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest']
+GEMINI_MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro']
+GEMINI_TIMEOUT = 4
 _llm_call_count = 0
 LLM_DAILY_LIMIT = int(os.getenv('LLM_DAILY_LIMIT', '80'))
+KEY_MODEL_MAP = {}
 _last_llm_fallback_reason = 'unavailable'
 
 
@@ -120,12 +128,67 @@ def parse_llm_response(content):
     }
 
 
+def get_available_models(api_key):
+    url = f'https://generativelanguage.googleapis.com/v1beta/models?key={api_key}'
+    try:
+        resp = requests.get(url, timeout=5)
+        if resp.status_code == 200:
+            models = resp.json().get('models', [])
+            return [
+                str(m.get('name', '')).replace('models/', '')
+                for m in models
+                if 'generateContent' in (m.get('supportedGenerationMethods') or [])
+            ]
+        print(f"[STARTUP] Model list HTTP {resp.status_code} for key ...{api_key[-6:]}")
+    except Exception as e:
+        print(f"[STARTUP] Model list error for key ...{api_key[-6:]}: {e}")
+    return []
+
+
+def build_key_model_map():
+    for key in GEMINI_KEYS:
+        available = get_available_models(key)
+        KEY_MODEL_MAP[key] = [m for m in GEMINI_MODELS if m in available]
+        print(f"[STARTUP] Key ...{key[-6:]}: {KEY_MODEL_MAP[key]}")
+
+
+def call_gemini_http(api_key, model, prompt):
+    url = (
+        f'https://generativelanguage.googleapis.com'
+        f'/v1beta/models/{model}:generateContent?key={api_key}'
+    )
+    payload = {
+        'contents': [{'parts': [{'text': prompt}]}],
+        'generationConfig': {'temperature': 0.1, 'maxOutputTokens': 512}
+    }
+    try:
+        resp = requests.post(url, json=payload, timeout=GEMINI_TIMEOUT)
+        print(f"[LLM STATUS CODE]: {resp.status_code} | key=...{api_key[-6:]} | model: {model}")
+
+        if resp.status_code == 200:
+            try:
+                content = resp.json()['candidates'][0]['content']['parts'][0]['text']
+            except Exception:
+                print('[LLM ERROR RESPONSE]:', (resp.text or '')[:300])
+                return {'success': False, 'text': None, 'status': 200, 'error': 'parse'}
+            return {'success': True, 'text': content, 'status': 200, 'error': None}
+
+        print('[LLM ERROR RESPONSE]:', (resp.text or '')[:300])
+        return {'success': False, 'text': None, 'status': resp.status_code, 'error': (resp.text or '')[:200]}
+    except requests.exceptions.Timeout:
+        print(f"[LLM] Timeout after {GEMINI_TIMEOUT}s | model={model}")
+        return {'success': False, 'text': None, 'status': None, 'error': 'timeout'}
+    except Exception as e:
+        print('[LLM ERROR RESPONSE]:', str(e)[:300])
+        return {'success': False, 'text': None, 'status': None, 'error': str(e)}
+
+
 def classify_with_llm(prompt):
     global _llm_call_count, _last_llm_fallback_reason
 
-    if genai is None:
+    if not GEMINI_KEYS:
         _last_llm_fallback_reason = 'unavailable'
-        print('[LLM ERROR RESPONSE]: google-generativeai package not available')
+        print('[LLM] No API keys configured')
         return None
 
     if _llm_call_count >= LLM_DAILY_LIMIT:
@@ -134,44 +197,58 @@ def classify_with_llm(prompt):
         return None
 
     for key in GEMINI_KEYS:
-        for model_name in GEMINI_MODELS:
-            try:
-                genai.configure(api_key=key)
-                model = genai.GenerativeModel(model_name)
-                response = model.generate_content(prompt)
+        models_for_key = KEY_MODEL_MAP.get(key) or GEMINI_MODELS
+        if not models_for_key:
+            print(f"[LLM] No available models for key ...{key[-6:]}, skipping")
+            continue
+
+        for model_name in models_for_key:
+            result = call_gemini_http(key, model_name, prompt)
+
+            if result.get('success'):
                 _llm_call_count += 1
-
-                content = str(getattr(response, 'text', '') or '').strip()
-                print('[LLM STATUS CODE]:', 200, '| model:', model_name)
+                content = str(result.get('text') or '').replace('```json', '').replace('```', '').strip()
                 print('[LLM RAW RESPONSE]:', content)
-
-                content = content.replace('```json', '').replace('```', '').strip()
                 parsed = parse_llm_response(content)
                 if parsed:
                     _last_llm_fallback_reason = ''
                     print(f"[LLM] Success - model={model_name}, calls_today={_llm_call_count}")
                     return parsed
-            except Exception as e:
-                err = str(e)
-                if '429' in err or 'quota' in err.lower():
-                    _last_llm_fallback_reason = 'quota_exceeded'
-                    print('[LLM STATUS CODE]:', 429, '| model:', model_name)
-                    print('[LLM ERROR RESPONSE]:', err[:300])
-                    time.sleep(0.4)
-                    break
-                if '404' in err or 'not found' in err.lower():
-                    print('[LLM STATUS CODE]:', 404, '| model:', model_name)
-                    print('[LLM ERROR RESPONSE]:', err[:300])
-                    continue
+                print('[LLM] Parse failed on valid response - trying next')
+                continue
 
+            status = result.get('status')
+            error = str(result.get('error') or '')
+
+            if status == 429:
+                _last_llm_fallback_reason = 'quota_exceeded'
+                print(f"[LLM] 429 on key ...{key[-6:]} - rotating to next key")
+                time.sleep(0.4)
+                break
+            if status == 404:
+                print(f"[LLM] 404 for model={model_name} - trying next model")
+                continue
+            if status == 400:
                 _last_llm_fallback_reason = 'unavailable'
-                print('[LLM ERROR RESPONSE]:', err[:300])
+                print('[LLM] 400 bad request - aborting LLM for this call')
                 return None
+            if error == 'timeout':
+                print(f"[LLM] Timeout on model={model_name} - trying next")
+                continue
 
-    if not _last_llm_fallback_reason:
+            _last_llm_fallback_reason = 'unavailable'
+            print(f"[LLM] Unknown error status={status} - aborting")
+            return None
+
+    if _llm_call_count >= LLM_DAILY_LIMIT:
+        _last_llm_fallback_reason = 'daily_limit'
+    elif _last_llm_fallback_reason not in {'quota_exceeded', 'daily_limit'}:
         _last_llm_fallback_reason = 'unavailable'
-    print('[LLM] All keys and models exhausted - falling back to ML')
+    print('[LLM] All keys/models exhausted - ML fallback')
     return None
+
+
+build_key_model_map()
 
 
 def call_llm_analysis(email_text, sender_email, links, ml_score):
@@ -839,8 +916,17 @@ def analyze_email():
 
 @app.route('/warmup', methods=['GET'])
 def warmup():
-    test = classify_with_llm('Test. Reply with: {"llm_risk_score": 0, "intent": "legitimate", "reasons": ["ok"], "language": "english"}')
-    return jsonify({'llm_available': test is not None})
+    test = classify_with_llm('Return ONLY this exact JSON: {"llm_risk_score": 0, "intent": "legitimate", "reasons": ["test"], "language": "english"}')
+    llm_ok = test is not None
+    key_map = {f"...{k[-6:]}": v for k, v in KEY_MODEL_MAP.items()}
+    return jsonify({
+        'llm_available': llm_ok,
+        'keys_configured': len(GEMINI_KEYS),
+        'calls_today': _llm_call_count,
+        'daily_limit': LLM_DAILY_LIMIT,
+        'key_model_map': key_map,
+        'recommendation': 'Ready for demo' if llm_ok else 'LLM down - will use ML-only mode'
+    })
 
 
 @app.route('/batch-analyze', methods=['POST'])
