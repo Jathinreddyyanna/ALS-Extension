@@ -25,3 +25,14 @@ export const FileScanSchema = z.object({
 export type ReportInput   = z.infer<typeof ReportSchema>
 export type UrlScanInput  = z.infer<typeof UrlScanSchema>
 export type FileScanInput = z.infer<typeof FileScanSchema>
+
+export const EmailScanSchema = z.object({
+  sender: z.string().max(255),
+  subject: z.string().max(255),
+  body: z.string().max(10000),
+  links: z.array(z.string()).optional().default([]),
+  localSignals: z.array(z.string()).optional().default([]),
+})
+
+export type EmailScanInput = z.infer<typeof EmailScanSchema>
+

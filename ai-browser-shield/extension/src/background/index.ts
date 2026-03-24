@@ -1,9 +1,64 @@
-import { scoreUrl } from '../detection/urlScorer'
-import { trackRedirect, resetTab } from '../detection/redirectTracker'
+import { scoreUrlCached } from '../detection/urlScorer'
+import { trackRedirect, resetTab, getRedirectRiskForUrl } from '../detection/redirectTracker'
 import { checkDownload } from '../detection/downloadChecker'
 import { saveThreatEvent, setDomainScore } from './storage'
-import { scanUrl, scanFile } from '../api/client'
+import { scanUrl, scanFile, scanEmail } from '../api/client'
+import { scoreEmail } from '../detection/emailScorer'
+import { logWarn } from '../common/logger'
 import type { ThreatEvent } from '../types'
+
+type EmailRiskLabel = 'safe' | 'suspicious' | 'dangerous'
+type EmailStatus = 'waiting' | 'analyzing' | 'ready' | 'deep_scanning'
+
+type EmailAnalysisState = {
+  emailText: string
+  riskScore: number
+  riskLabel: EmailRiskLabel
+  status: EmailStatus
+  explanation?: string
+  attackType?: string
+  confidence?: number
+  isSpamFolder?: boolean
+  signals?: Array<{ name: string; score: number }>
+  detectedPatterns?: string[]
+}
+
+const MAX_EMAIL_STATE_TEXT_CHARS = 8000
+
+const DEFAULT_EMAIL_STATE: EmailAnalysisState = {
+  emailText: '',
+  riskScore: 0,
+  riskLabel: 'safe',
+  status: 'waiting',
+  explanation: '',
+  attackType: 'None',
+  confidence: 0,
+  isSpamFolder: false,
+  signals: [],
+  detectedPatterns: [],
+}
+
+function setEmailAnalysisState(state: EmailAnalysisState, tabId?: number) {
+  chrome.storage.local.set({ emailAnalysisState: state })
+
+  if (typeof tabId === 'number') {
+    chrome.tabs.sendMessage(tabId, { type: 'EMAIL_STATE_UPDATED', payload: state }).catch(() => {})
+  } else {
+    chrome.tabs.query({ url: '*://mail.google.com/*' }, (tabs) => {
+      for (const tab of tabs) {
+        if (tab.id) chrome.tabs.sendMessage(tab.id, { type: 'EMAIL_STATE_UPDATED', payload: state }).catch(() => {})
+      }
+    })
+  }
+}
+
+function resetEmailState() {
+  setEmailAnalysisState({ ...DEFAULT_EMAIL_STATE })
+}
+
+function isGmailUrl(url?: string): boolean {
+  return Boolean(url && url.startsWith('https://mail.google.com/'))
+}
 
 // ── URL Analysis ──────────────────────────────────────────────────────────────
 async function analyzeUrl(tabId: number, url: string) {
@@ -11,7 +66,31 @@ async function analyzeUrl(tabId: number, url: string) {
   let hostname = ''
   try { hostname = new URL(url).hostname } catch { return }
 
-  const { score, signals, riskLevel } = scoreUrl(url)
+  let score = 0
+  let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW'
+  let signals: Record<string, number> = {}
+  try {
+    const urlResult = scoreUrlCached(url)
+    score = urlResult.score
+    riskLevel = urlResult.riskLevel
+    signals = urlResult.signals as Record<string, number>
+  } catch (error) {
+    logWarn('URL', 'URL scoring failed:', error)
+    score = 0
+    riskLevel = 'LOW'
+    signals = {}
+  }
+
+  try {
+    const redirectRisk = getRedirectRiskForUrl(url)
+    if (redirectRisk.score > 0) {
+      score = Math.min(100, score + redirectRisk.score)
+      riskLevel = score >= 80 ? 'CRITICAL' : score >= 60 ? 'HIGH' : score >= 40 ? 'MEDIUM' : 'LOW'
+      signals.redirectAbuse = redirectRisk.score
+    }
+  } catch (error) {
+    logWarn('REDIRECT', 'Redirect contribution failed:', error)
+  }
 
   const colors: Record<string, string> = { LOW: '#166534', MEDIUM: '#B45309', HIGH: '#DC2626', CRITICAL: '#7F1D1D' }
   chrome.action.setBadgeBackgroundColor({ color: colors[riskLevel], tabId })
@@ -51,14 +130,25 @@ function getFallbackExplanation(score: number): string {
 // ── Navigation Listeners ──────────────────────────────────────────────────────
 chrome.webNavigation.onBeforeNavigate.addListener(({ tabId, url, frameId }) => {
   if (frameId !== 0) return
-  resetTab(tabId)
+  try { resetTab(tabId) } catch (error) { logWarn('REDIRECT', 'Redirect reset failed:', error) }
   analyzeUrl(tabId, url)
 })
 
 chrome.webNavigation.onCommitted.addListener(({ tabId, url, frameId, transitionQualifiers }) => {
   if (frameId !== 0) return
   if (transitionQualifiers.includes('server_redirect') || transitionQualifiers.includes('client_redirect')) {
-    const { exceeded, count, urls } = trackRedirect(tabId, url)
+    let exceeded = false
+    let count = 0
+    let urls: string[] = []
+    try {
+      const result = trackRedirect(tabId, url, { isAutomatic: true })
+      exceeded = result.exceeded
+      count = result.count
+      urls = result.urls
+    } catch (error) {
+      logWarn('REDIRECT', 'Redirect tracking failed:', error)
+    }
+
     if (exceeded) {
       chrome.tabs.sendMessage(tabId, { type: 'REDIRECT_WARNING', payload: { count, urls, url } }).catch(() => {})
       saveThreatEvent({
@@ -77,7 +167,13 @@ chrome.webNavigation.onCommitted.addListener(({ tabId, url, frameId, transitionQ
 
 // ── Download Intercept (before file is written) ───────────────────────────────
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
-  const risk = checkDownload(item.filename, item.mime, item.url)
+  let risk = { level: 'safe' as const, reason: 'No obvious threats detected' }
+  try {
+    risk = checkDownload(item.filename, item.mime, item.url)
+  } catch (error) {
+    logWarn('DOWNLOAD', 'Download checker failed:', error)
+  }
+
   if (risk.level === 'safe') { suggest({}); return }
 
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -151,6 +247,105 @@ chrome.downloads.onChanged.addListener(async (delta) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const senderDomain = (() => { try { return new URL(sender.url || '').hostname } catch { return 'unknown' } })()
 
+  if (message.type === 'EMAIL_CONTENT') {
+    const emailText = String(message.payload?.emailText || '').trim().slice(0, MAX_EMAIL_STATE_TEXT_CHARS)
+    const senderEmail = String(message.payload?.senderEmail || '').trim()
+    const isSpamFolder = Boolean(message.payload?.isSpamFolder)
+    const tabId = sender.tab?.id
+
+    if (!emailText || emailText.length <= 50) {
+      setEmailAnalysisState({ ...DEFAULT_EMAIL_STATE }, tabId)
+      return true
+    }
+
+    setEmailAnalysisState({
+      emailText,
+      riskScore: 0,
+      riskLabel: 'safe',
+      status: 'analyzing',
+      explanation: 'Analyzing email...',
+    }, tabId)
+
+    let analysis
+    try {
+      analysis = scoreEmail(emailText, senderEmail, isSpamFolder)
+    } catch (error) {
+      logWarn('EMAIL', 'Email scoring failed:', error)
+      setEmailAnalysisState({
+        ...DEFAULT_EMAIL_STATE,
+        emailText,
+        status: 'ready',
+        explanation: 'Email analysis failed. Please retry.',
+      }, tabId)
+      return true
+    }
+
+    setEmailAnalysisState({
+      emailText,
+      riskScore: analysis.riskScore,
+      riskLabel: analysis.riskLabel,
+      status: 'ready',
+      explanation: analysis.explanation || analysis.attackType || '',
+      attackType: analysis.attackType,
+      confidence: analysis.confidence || 0,
+      isSpamFolder: analysis.isSpamFolder || false,
+      signals: analysis.signals || [],
+      detectedPatterns: analysis.detectedSignals || [],
+    }, tabId)
+
+    return true
+  }
+
+    if (message.type === 'RESET_EMAIL_STATE') {
+    resetEmailState()
+    return true
+  }
+
+  if (message.type === 'DEEP_SCAN_EMAIL') {
+    const tabId = sender.tab?.id
+    const { emailText, senderEmail, subject, links, localSignals } = message.payload
+
+    setEmailAnalysisState({
+      emailText,
+      riskScore: 30, // Base score for suspecting
+      riskLabel: 'suspicious',
+      status: 'deep_scanning',
+      explanation: '🤖 Gemini AI is performing deep forensic analysis...',
+    }, tabId)
+
+    scanEmail({
+      sender: senderEmail,
+      subject: subject || 'No Subject',
+      body: emailText,
+      links: links || [],
+      localSignals: localSignals || [],
+    }).then(result => {
+      if (!result) throw new Error('AI analysis failed')
+
+      setEmailAnalysisState({
+        emailText,
+        riskScore: result.verdict === 'DANGEROUS' ? 95 : result.verdict === 'SUSPICIOUS' ? 55 : 10,
+        riskLabel: result.verdict === 'DANGEROUS' ? 'dangerous' : result.verdict === 'SUSPICIOUS' ? 'suspicious' : 'safe',
+        status: 'ready',
+        explanation: `🤖 **AI VERDICT: ${result.verdict}**\n\n${result.explanation}`,
+        attackType: result.attackType,
+        confidence: result.confidence,
+        signals: [{ name: 'AI Depth Analysis', score: result.confidence * 100 }],
+        detectedPatterns: [result.attackType, `AI confidence: ${Math.round(result.confidence * 100)}%`]
+      }, tabId)
+    }).catch(err => {
+      setEmailAnalysisState({
+        emailText,
+        riskScore: 0,
+        riskLabel: 'safe',
+        status: 'ready',
+        explanation: 'Deep scan failed. Please check your connection or try again later.',
+      }, tabId)
+    })
+
+    return true
+  }
+
   // Popup abuse reported by content script
   if (message.type === 'POPUP_ATTEMPT') {
     saveThreatEvent({
@@ -185,3 +380,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // ── Tab Cleanup ───────────────────────────────────────────────────────────────
 chrome.tabs.onRemoved.addListener((tabId) => resetTab(tabId))
+
+chrome.tabs.onRemoved.addListener((_tabId) => {
+  chrome.tabs.query({ url: '*://mail.google.com/*' }, (tabs) => {
+    if (tabs.length === 0) resetEmailState()
+  })
+})
+
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  chrome.tabs.get(tabId, (tab) => {
+    if (chrome.runtime.lastError) return
+    if (!isGmailUrl(tab.url)) {
+      resetEmailState()
+      chrome.tabs.query({ url: '*://mail.google.com/*' }, (tabs) => {
+        for (const gmailTab of tabs) {
+          if (gmailTab.id) chrome.tabs.sendMessage(gmailTab.id, { type: 'RESET_EMAIL_STATE' }).catch(() => {})
+        }
+      })
+    }
+  })
+})
+
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && !isGmailUrl(tab.url)) {
+    resetEmailState()
+    chrome.tabs.query({ url: '*://mail.google.com/*' }, (tabs) => {
+      for (const gmailTab of tabs) {
+        if (gmailTab.id) chrome.tabs.sendMessage(gmailTab.id, { type: 'RESET_EMAIL_STATE' }).catch(() => {})
+      }
+    })
+  }
+})

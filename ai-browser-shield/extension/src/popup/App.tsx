@@ -3,12 +3,15 @@ import { useStore } from './store'
 import { TrustScore } from './components/TrustScore'
 import { ThreatHistory } from './components/ThreatHistory'
 import { CommunityFeed } from './components/CommunityFeed'
+
+import { EmailAnalyser } from './components/EmailAnalyzer'
 import { ReportForm } from './components/ReportForm'
 
-type Tab = 'score' | 'history' | 'feed' | 'report'
+type Tab = 'score' | 'email' | 'history' | 'feed' | 'report'
 
 const TABS: { id: Tab; emoji: string; label: string }[] = [
   { id: 'score',   emoji: '🛡️', label: 'Shield'  },
+  { id: 'email',   emoji: '📧', label: 'Email'   },
   { id: 'history', emoji: '📜', label: 'History' },
   { id: 'feed',    emoji: '🌐', label: 'Feed'    },
   { id: 'report',  emoji: '🚩', label: 'Report'  },
@@ -48,10 +51,13 @@ export default function App() {
 
   return (
     <div style={{
-      width: '400px', minHeight: '560px',
+      width: '400px',
+      height: '600px',
+      maxHeight: '600px',
       background: '#080C14',
       display: 'flex', flexDirection: 'column',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+      overflow: 'hidden',
     }}>
       {/* ── Header ── */}
       <div style={{
@@ -143,9 +149,12 @@ export default function App() {
       </div>
 
       {/* ── Content ── */}
-      <div style={{ flex: 1, overflowY: 'auto', background: '#080C14' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: '#080C14' }}>
         {activeTab === 'score' && (
           <TrustScore score={currentScore} domain={currentDomain} isLoading={isLoading} />
+        )}
+        {activeTab === 'email' && (
+          <EmailAnalyser />
         )}
         {activeTab === 'history' && (
           <ThreatHistory history={history} onClear={clearAll} />

@@ -1,0 +1,4 @@
+flask==3.0.0
+flask-cors==4.0.0
+flask-compress==1.14
+google-generativeai>=0.8.3

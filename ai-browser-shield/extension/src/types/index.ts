@@ -1,5 +1,5 @@
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-export type Verdict = 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS'
+export type Verdict = 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS' | 'DANGEROUS'
 export type ThreatCategory = 'phishing' | 'scam' | 'malware' | 'redirect' | 'popup_abuse' | 'other'
 export type EventType = 'url_threat' | 'redirect_chain' | 'popup_abuse' | 'download_intercept' | 'file_scan' | 'ad_block'
 
@@ -31,6 +31,14 @@ export interface UrlScanResult {
   cached: boolean
 }
 
+export interface EmailScanResult {
+  verdict: 'SAFE' | 'SUSPICIOUS' | 'DANGEROUS'
+  confidence: number
+  explanation: string
+  attackType: string
+  recommendedAction: 'ignore' | 'report' | 'delete'
+}
+
 export interface ThreatReport {
   url: string
   category: ThreatCategory
@@ -55,14 +63,18 @@ export interface CommunityReport {
 }
 
 export interface SignalMap {
-  typosquatScore: number
-  suspiciousTLD: number
+  trustedDomain: number
   ipAsHostname: number
-  longSubdomains: number
+  typosquatting: number
+  suspiciousTLD: number
+  tooManySubdomains: number
   suspiciousKeywords: number
-  encodedChars: number
-  pathEntropy: number
-  portAnomaly: number
+  brandImpersonation?: number
+  keywordCluster?: number
+  deepPath?: number
+  longUrl?: number
+  redirectAbuse?: number
+  piracyRisk?: number
 }
 
 // Chrome runtime message types

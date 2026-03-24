@@ -80,3 +80,36 @@ Return:
   "recommendation": "avoid" | "caution" | "safe"
 }`
 }
+
+export function buildEmailScanPrompt(data: {
+  sender: string;
+  subject: string;
+  body: string;
+  links: string[];
+  localSignals: string[];
+}): string {
+  return `You are a forensic email security analyst. Analyze this email for phishing, social engineering, and fraud.
+
+Email Details:
+- From: ${data.sender}
+- Subject: ${data.subject}
+- Body Snippet: ${data.body.substring(0, 1000)}
+- Links Found: ${data.links.join(', ')}
+- Local Heuristics Flagged: ${data.localSignals.join(', ')}
+
+Evaluate based on:
+1. Sender Authenticity (CRITICAL): Does the sender email address (${data.sender}) look like a legitimate corporate account or a free/disguised one? Is it consistent with the content?
+2. Social Engineering / Money Bait: Are they promising specific amounts of money (e.g., ₹5000, $1000) or rewards for clicking links?
+3. Link Maliciousness: Are links hidden, shortened, or pointing to suspicious TLDs?
+
+If the sender is a known legitimate service (like Internshala, LinkedIn) and the content is a standard notification, MARK IT AS SAFE.
+
+Return ONLY valid JSON (no markdown):
+{
+  "verdict": "SAFE" | "SUSPICIOUS" | "DANGEROUS",
+  "confidence": <float 0.0 to 1.0>,
+  "explanation": "1-2 sentences in plain English explaining the decision.",
+  "attackType": "Phishing" | "Scam" | "Malware" | "Spam" | "None",
+  "recommendedAction": "ignore" | "report" | "delete"
+}`;
+}

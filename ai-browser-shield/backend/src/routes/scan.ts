@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { validate, scanLimiter, fileLimiter } from '../middleware'
-import { UrlScanSchema, FileScanSchema } from '../schemas'
-import { scanUrl, scanFile, getDomainScore } from '../services/scan.service'
+import { UrlScanSchema, FileScanSchema, EmailScanSchema } from '../schemas'
+import { scanUrl, scanFile, scanEmail, getDomainScore } from '../services/scan.service'
 
 const router = Router()
 
@@ -16,6 +16,13 @@ router.post('/url', scanLimiter, validate(UrlScanSchema), async (req: Request, r
 router.post('/file', fileLimiter, validate(FileScanSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     res.json(await scanFile(req.body))
+  } catch (err) { next(err) }
+})
+
+// POST /api/v1/scan/email — Deep AI-powered phishing analysis (New Level 2)
+router.post('/email', scanLimiter, validate(EmailScanSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json(await scanEmail(req.body))
   } catch (err) { next(err) }
 })
 

@@ -4,6 +4,7 @@ interface Props {
   score: number | null
   domain: string
   isLoading?: boolean
+  signals?: Record<string, number>
 }
 
 const RISK_LEVELS = {
@@ -14,21 +15,55 @@ const RISK_LEVELS = {
   UNKNOWN:  { label: 'UNSCORED',  color: '#64748B', glow: '#64748B22', bg: '#1E293B', ring: '#334155', emoji: '🔍', msg: 'No data available for this site yet.' },
 }
 
+// Signal descriptions and icons
+const SIGNAL_DESCRIPTIONS: Record<string, { label: string; icon: string; description: string }> = {
+  // Heuristic signals
+  ipAsHostname: { label: 'IP Address', icon: '🖥️', description: 'URL uses IP address instead of domain name' },
+  typosquatting: { label: 'Brand Typo', icon: '📝', description: 'Domain name mimics a known brand with subtle typos' },
+  suspiciousTLD: { label: 'Suspicious Extension', icon: '🌐', description: 'Domain uses questionable top-level domain' },
+  tooManySubdomains: { label: 'Too Many Subdomains', icon: '🔗', description: 'Excessive subdomain nesting detected' },
+  suspiciousKeywords: { label: 'Suspicious Keywords', icon: '⚡', description: 'URL contains common phishing keywords (login, verify, secure, etc.)' },
+  
+  // ML signals
+  ml_url_length: { label: 'Long URL', icon: '📏', description: 'URL length exceeds typical patterns' },
+  ml_dots: { label: 'Excessive Dots', icon: '◆', description: 'Too many dots in domain structure' },
+  ml_hyphens: { label: 'Domain Hyphens', icon: '➖', description: 'Hyphens in domain name (typo attack indicator)' },
+  ml_slashes: { label: 'Excessive Slashes', icon: '❌', description: 'Complex URL path with many slashes' },
+  ml_subdomains: { label: 'Subdomain Abuse', icon: '🎯', description: 'Multiple subdomains indicate possible subdomain takeover' },
+  ml_signals: { label: 'ML Pattern Match', icon: '🤖', description: 'Machine learning model detected phishing patterns' },
+  ml_ip: { label: 'IP Usage', icon: '🔲', description: 'Direct IP address in URL' },
+}
+
 function getRisk(score: number | null) {
   if (score === null) return RISK_LEVELS.UNKNOWN
-  if (score >= 80) return RISK_LEVELS.CRITICAL
-  if (score >= 60) return RISK_LEVELS.HIGH
-  if (score >= 30) return RISK_LEVELS.MEDIUM
+  if (score >= 81) return RISK_LEVELS.CRITICAL
+  if (score >= 56) return RISK_LEVELS.HIGH
+  if (score >= 26) return RISK_LEVELS.MEDIUM
   return RISK_LEVELS.LOW
 }
 
-export function TrustScore({ score, domain, isLoading }: Props) {
+// Get triggered signals
+function getTriggeredSignals(signals: Record<string, number> | undefined): Array<{ key: string; value: number; info: typeof SIGNAL_DESCRIPTIONS['ipAsHostname'] }> {
+  if (!signals) return []
+  
+  return Object.entries(signals)
+    .filter(([_, value]) => value > 0) // Only show triggered signals
+    .map(([key, value]) => ({
+      key,
+      value,
+      info: SIGNAL_DESCRIPTIONS[key as keyof typeof SIGNAL_DESCRIPTIONS] || { label: key, icon: '⚠️', description: 'Unknown signal' },
+    }))
+    .sort((a, b) => b.value - a.value) // Sort by importance
+}
+
+export function TrustScore({ score, domain, isLoading, signals }: Props) {
   const [animatedScore, setAnimatedScore] = useState(0)
   const risk = getRisk(score)
   const pct = score ?? 0
   const R = 52
   const circumference = 2 * Math.PI * R
   const offset = circumference - (animatedScore / 100) * circumference
+  const triggeredSignals = getTriggeredSignals(signals)
 
   useEffect(() => {
     if (score === null) return
@@ -160,6 +195,55 @@ export function TrustScore({ score, domain, isLoading }: Props) {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
             <span style={{ color: '#22C55E', fontSize: '10px' }}>Safe</span>
             <span style={{ color: '#EF4444', fontSize: '10px' }}>Critical</span>
+          </div>
+        </div>
+      )}
+
+      {/* Detected Signals */}
+      {triggeredSignals.length > 0 && (
+        <div style={{ marginTop: '16px' }}>
+          <div style={{ color: '#475569', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
+            {triggeredSignals.length === 1 ? 'Signal Detected' : 'Signals Detected'}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {triggeredSignals.map(({ key, value, info }) => (
+              <div
+                key={key}
+                style={{
+                  background: '#0F172A',
+                  border: `1px solid ${risk.color}22`,
+                  borderRadius: '10px',
+                  padding: '10px 12px',
+                  fontSize: '12px',
+                  cursor: 'help',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                }}
+                title={info.description}
+              >
+                {/* Signal header with icon and label */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '14px' }}>{info.icon}</span>
+                  <span style={{ fontWeight: 600, color: '#E2E8F0' }}>{info.label}</span>
+                  <span style={{
+                    marginLeft: 'auto',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    background: `${risk.color}22`,
+                    color: risk.color,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    textTransform: 'uppercase',
+                  }}>
+                    +{Math.round(value)}
+                  </span>
+                </div>
+                {/* Signal description */}
+                <div style={{ fontSize: '11px', color: '#94A3B8', lineHeight: '1.4' }}>
+                  {info.description}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

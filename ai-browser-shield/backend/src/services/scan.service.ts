@@ -1,7 +1,9 @@
 ﻿import { prisma } from '../db/client'
 import { cacheGetJSON, cacheSetJSON, keys } from './cache.service'
-import { analyzeUrl, analyzeFile } from '../ai/client'
-import type { UrlScanInput, FileScanInput } from '../schemas'
+import { analyzeUrl, analyzeFile, analyzeEmail } from '../ai/client'
+import type { UrlScanInput, FileScanInput, EmailScanInput } from '../schemas'
+
+const isNoDb = () => process.env.NO_DB === 'true'
 
 export async function scanUrl(data: UrlScanInput) {
   const cacheKey = keys.urlScan(data.url)
@@ -14,12 +16,14 @@ export async function scanUrl(data: UrlScanInput) {
   let domain = ''
   try { domain = new URL(data.url).hostname } catch { domain = data.url }
 
-  // Check database for known malicious sites
-  const dbRecord = await prisma.detectionEvent.findFirst({
-    where: { domain },
-    orderBy: { createdAt: 'desc' },
-    take: 1,
-  }).catch(() => null)
+  // Check database for known malicious sites (skip in NO_DB mode)
+  const dbRecord = isNoDb()
+    ? null
+    : await prisma.detectionEvent.findFirst({
+        where: { domain },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      }).catch(() => null)
 
   // If found in database and recently flagged, use that data
   if (dbRecord && dbRecord.riskLevel !== 'LOW') {
@@ -49,17 +53,19 @@ export async function scanUrl(data: UrlScanInput) {
   await cacheSetJSON(cacheKey, aiResult, 3600)
 
   // Save to database for future lookups
-  await prisma.detectionEvent.create({
-    data: {
-      eventType: 'url_threat',
-      domain,
-      url: data.url,
-      riskScore,
-      riskLevel: aiResult.riskLevel,
-      signals: signals as any,
-      aiExplanation: aiResult.explanation,
-    }
-  }).catch(() => {}) // non-blocking
+  if (!isNoDb()) {
+    await prisma.detectionEvent.create({
+      data: {
+        eventType: 'url_threat',
+        domain,
+        url: data.url,
+        riskScore,
+        riskLevel: aiResult.riskLevel,
+        signals: signals as any,
+        aiExplanation: aiResult.explanation,
+      }
+    }).catch(() => {}) // non-blocking
+  }
 
   return { ...aiResult, cached: false, source: 'ai' }
 }
@@ -70,19 +76,49 @@ export async function scanFile(data: FileScanInput) {
   let domain = ''
   try { domain = new URL(data.sourceUrl).hostname } catch { domain = data.sourceUrl }
 
-  await prisma.fileScan.create({
-    data: {
-      filename: data.filename,
-      extension: data.extension,
-      mimeType: data.mimeType,
-      sizeBytes: BigInt(data.sizeBytes),
-      sourceUrl: data.sourceUrl,
-      verdict: result.verdict,
-      confidence: result.confidence,
-      aiExplanation: result.explanation,
-      indicators: result.indicators,
-    }
-  }).catch(() => {})
+  if (!isNoDb()) {
+    await prisma.fileScan.create({
+      data: {
+        filename: data.filename,
+        extension: data.extension,
+        mimeType: data.mimeType,
+        sizeBytes: BigInt(data.sizeBytes),
+        sourceUrl: data.sourceUrl,
+        verdict: result.verdict,
+        confidence: result.confidence,
+        aiExplanation: result.explanation,
+        indicators: result.indicators,
+      }
+    }).catch(() => {})
+  }
+
+  return result
+}
+
+export async function scanEmail(data: EmailScanInput) {
+  const result = await analyzeEmail(data)
+
+  // Record phishing attempt if detected to help build the reputation database
+  if (!isNoDb() && (result.verdict === 'DANGEROUS' || result.verdict === 'SUSPICIOUS')) {
+    let domain = ''
+    try { domain = data.sender.split('@')[1] } catch { domain = data.sender }
+
+    await prisma.detectionEvent.create({
+      data: {
+        eventType: 'email_threat',
+        domain,
+        url: data.sender, // Using sender as the "URL" identifier here
+        riskScore: result.verdict === 'DANGEROUS' ? 90 : 45,
+        riskLevel: result.verdict === 'DANGEROUS' ? 'CRITICAL' : 'MEDIUM',
+        aiExplanation: `[AI Verdict: ${result.verdict}] ${result.explanation}`,
+        signals: { 
+          attackType: result.attackType, 
+          subject: data.subject,
+          localSignals: data.localSignals
+        } as any,
+      }
+    }).catch(() => {})
+  }
 
   return result
 }
@@ -91,6 +127,19 @@ export async function getDomainScore(domain: string) {
   const cacheKey = keys.domainScore(domain)
   const cached = await cacheGetJSON(cacheKey)
   if (cached) return cached
+
+  if (isNoDb()) {
+    const result = {
+      domain,
+      riskScore: 15,
+      trustLevel: 'trusted' as const,
+      detectionEvents: 0,
+      fileScanFlags: 0,
+      lastUpdated: new Date(),
+    }
+    await cacheSetJSON(cacheKey, result, 600)
+    return result
+  }
 
   // First check detection events
   const detectionCount = await prisma.detectionEvent.count({
@@ -107,7 +156,7 @@ export async function getDomainScore(domain: string) {
     where: { domain } 
   }).catch(() => null)
 
-  const riskScore = score?.riskScore ?? (detectionCount > 0 ? 50 : 100)
+  const riskScore = score?.riskScore ?? (detectionCount > 0 ? 50 : 15)
   const trustLevel = riskScore >= 60 ? 'untrusted' : riskScore >= 30 ? 'caution' : 'trusted'
 
   const result = {

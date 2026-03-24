@@ -1,5 +1,5 @@
 // Hover preview — shows risk tooltip before user clicks any link
-import { scoreUrl } from '../detection/urlScorer'
+import { scoreUrlCached } from '../detection/urlScorer'
 
 const RISK_COLORS: Record<string, { bg: string; text: string; emoji: string }> = {
   CRITICAL: { bg: '#450A0A', text: '#FCA5A5', emoji: '🚨' },
@@ -69,7 +69,7 @@ export function initHoverPreview() {
     if (fullUrl.startsWith(window.location.origin)) return
 
     hoverTimeout = setTimeout(() => {
-      const { score, riskLevel } = scoreUrl(fullUrl)
+      const { score, riskLevel } = scoreUrlCached(fullUrl)
       // Only show tooltip for non-LOW risk
       if (score >= 30) {
         createTooltip(e.clientX, e.clientY, fullUrl, score, riskLevel)

@@ -1,0 +1,39 @@
+{
+  "model_type": "RandomForestClassifier",
+  "n_features": 19,
+  "feature_names": [
+    "email_length",
+    "word_count",
+    "capital_ratio",
+    "special_char_ratio",
+    "urgency_score",
+    "money_signal",
+    "url_count",
+    "has_url",
+    "has_ip_url",
+    "has_shortened_url",
+    "suspicious_tld",
+    "url_domain_mismatch",
+    "sender_has_numbers",
+    "free_email_provider",
+    "sender_display_mismatch",
+    "brand_mismatch",
+    "has_attachments",
+    "attachment_suspicious",
+    "html_to_text_ratio"
+  ],
+  "metrics": {
+    "accuracy": 0.9651385519090793,
+    "precision": 0.9723247232472325,
+    "recall": 0.9649805447470817,
+    "f1_score": 0.9686387133831131,
+    "fpr": 0.03466204506065858,
+    "confusion_matrix": {
+      "tn": 3342,
+      "fp": 120,
+      "fn": 153,
+      "tp": 4216
+    }
+  },
+  "training_date": "2026-03-24T13:33:46.134911"
+}

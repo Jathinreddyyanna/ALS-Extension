@@ -1,5 +1,5 @@
 ﻿import { GoogleGenerativeAI } from '@google/generative-ai'
-import { buildUrlScanPrompt, buildFileScanPrompt } from './prompts'
+import { buildUrlScanPrompt, buildFileScanPrompt, buildEmailScanPrompt } from './prompts'
 
 let genAI: GoogleGenerativeAI | null = null
 
@@ -117,3 +117,42 @@ function getFallbackFileResult(): FileScanResult {
     indicators: ['Analysis service temporarily unavailable'],
   }
 }
+
+// ── Email Phishing Analysis ───────────────────────────────────────────────────
+export interface EmailScanResult {
+  verdict: 'SAFE' | 'SUSPICIOUS' | 'DANGEROUS'
+  confidence: number
+  explanation: string
+  attackType: string
+  recommendedAction: 'ignore' | 'report' | 'delete'
+}
+
+export async function analyzeEmail(data: {
+  sender: string
+  subject: string
+  body: string
+  links: string[]
+  localSignals: string[]
+}): Promise<EmailScanResult> {
+  try {
+    const prompt = buildEmailScanPrompt(data)
+    const raw = await callGemini(prompt)
+    const parsed = safeParseJSON<EmailScanResult>(raw)
+    if (!parsed?.verdict) return getFallbackEmailResult()
+    return parsed
+  } catch (err) {
+    console.error('[AI] Email analysis failed:', (err as Error).message)
+    return getFallbackEmailResult()
+  }
+}
+
+function getFallbackEmailResult(): EmailScanResult {
+  return {
+    verdict: 'SUSPICIOUS',
+    confidence: 0.5,
+    explanation: 'Deep scanning is currently unavailable. This email shows some suspicious patterns locally. Please verify the sender carefully.',
+    attackType: 'Phishing Attempt',
+    recommendedAction: 'report',
+  }
+}
+
