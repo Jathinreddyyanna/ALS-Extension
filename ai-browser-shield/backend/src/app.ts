@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { allowedOrigins, isProduction } from './config';
 import { errorHandler } from './middleware/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId';
+import { requestLoggingMiddleware } from './middleware/requestLogging';
 import scanRoutes from './routes/scan.routes';
 import reportsRoutes from './routes/reports.routes';
 import downloadsRoutes from './routes/downloads.routes';
@@ -49,11 +50,23 @@ export const createApp = () => {
   const app = express();
   app.set('trust proxy', 1);
   app.use(requestIdMiddleware);
-  app.use(helmet({ hsts: isProduction }));
+  app.use(requestLoggingMiddleware);
+  app.use(helmet({ hsts: isProduction, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.options(/.*/, cors(corsOptions));
   app.use(cors(corsOptions));
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(express.json({
+    limit: '10mb',
+    verify: (req, _res, buffer) => {
+      (req as express.Request).rawBody = buffer.toString('utf8');
+    }
+  }));
+  app.use(express.urlencoded({
+    extended: true,
+    limit: '10mb',
+    verify: (req, _res, buffer) => {
+      (req as express.Request).rawBody = buffer.toString('utf8');
+    }
+  }));
   app.use((err: { type?: string } | null, _req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (err?.type === 'entity.too.large') {
       res.status(413).json({ error: 'payload_too_large', maxBytes: 10485760 });

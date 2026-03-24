@@ -35,7 +35,7 @@ async function buildHeaders(extra: HeadersInit = {}): Promise<HeadersInit> {
 }
 
 function normalizeSignals(signals: SignalMap): SignalMap {
-  return {
+  const normalized: SignalMap = {
     typosquatScore: signals?.typosquatScore ?? 0,
     suspiciousTLD: signals?.suspiciousTLD ?? 0,
     ipAsHostname: signals?.ipAsHostname ?? 0,
@@ -45,16 +45,25 @@ function normalizeSignals(signals: SignalMap): SignalMap {
     pathEntropy: signals?.pathEntropy ?? 0,
     portAnomaly: signals?.portAnomaly ?? 0,
   }
+
+  for (const [key, value] of Object.entries(signals ?? {})) {
+    if (typeof value === 'number' && !(key in normalized)) {
+      normalized[key] = value
+    }
+  }
+
+  return normalized
 }
 
 async function post<T>(path: string, body: unknown, init?: RequestInit): Promise<T | null> {
+  if (body === undefined || body === null) return null
   try {
     const baseUrl = await resolveBaseUrl()
     const res = await fetch(`${baseUrl}${path}`, {
+      ...init,
       method: 'POST',
       headers: await buildHeaders(init?.headers),
       body: JSON.stringify(body),
-      ...init,
     })
     if (!res.ok) return null
     return await res.json()
@@ -105,7 +114,8 @@ async function clearDomainMiss(domain: string): Promise<void> {
 }
 
 export async function scanUrl(url: string, signals: SignalMap, init?: RequestInit): Promise<UrlScanResult | null> {
-  if (!url || !signals) return null
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) return null
+  if (!signals || typeof signals !== 'object') return null
   return post<UrlScanResult>('/scan/url', { url, signals: normalizeSignals(signals) }, init)
 }
 

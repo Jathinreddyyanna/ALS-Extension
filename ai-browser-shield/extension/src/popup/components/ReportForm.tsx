@@ -9,13 +9,14 @@ const options = [
   { value: 'phishing', label: 'Fake login page' },
   { value: 'scam', label: 'Scam' },
   { value: 'malware', label: 'Malware' },
+  { value: 'piracy', label: 'Piracy / streaming trap' },
   { value: 'ad_abuse', label: 'Unwanted ads' },
   { value: 'redirect', label: 'Redirect tricks' },
   { value: 'other', label: 'Other' }
 ] as const;
 
 export const ReportForm = ({ compact = false, url }: { compact?: boolean; url: string }) => {
-  const { reportStatus, setReportStatus } = useExtensionStore();
+  const { reportStatus, setReportStatus, currentTabId, scanResult } = useExtensionStore();
   const [category, setCategory] = useState<typeof options[number]['value']>('phishing');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +26,32 @@ export const ReportForm = ({ compact = false, url }: { compact?: boolean; url: s
     setReportStatus('submitting');
     setError(null);
     try {
-      await api.reportSite({ url, category, description });
+      const currentDomain = (() => {
+        try {
+          return new URL(url).hostname;
+        } catch {
+          return url;
+        }
+      })();
+
+      await api.reportSite({
+        url,
+        category,
+        description: description.trim() || `User reported ${categoryLabels[category] ?? category} on ${currentDomain}`
+      });
+      try {
+        chrome.runtime.sendMessage({
+          type: 'REPORT_SITE',
+          url,
+          domain: currentDomain,
+          tabId: currentTabId,
+          riskScore: scanResult?.riskScore ?? 80,
+        }, () => {
+          void chrome.runtime.lastError;
+        });
+      } catch {
+        // Background reputation updates are best-effort.
+      }
       setReportStatus('success');
     } catch (submissionError) {
       setReportStatus('error');

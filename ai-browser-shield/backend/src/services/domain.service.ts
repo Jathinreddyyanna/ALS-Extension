@@ -149,14 +149,28 @@ export const recalculateDomainScore = async (domain: string): Promise<void> => {
   const distinctReporterCount = new Set(reports.map((report) => report.ipHash)).size;
 
   try {
-    await prisma.domainScore.update({
-      where: { id: existing.id },
-      data: {
+    await prisma.domainScore.upsert({
+      where: { domain },
+      create: {
+        domain,
+        isWhitelisted: existing.isWhitelisted,
+        trustScore: Math.max(0, Math.min(100, existing.isWhitelisted ? 95 : 100 - Math.round(nextRiskScore * 0.7))),
         riskScore: Math.min(100, nextRiskScore),
         reportCount,
         categories: Object.keys(categoryCounts),
         categoryCounts,
         isConfirmed: distinctReporterCount >= 3 ? true : existing.isConfirmed,
+        lastReportAt: new Date(),
+        lastUpdated: new Date(),
+      },
+      update: {
+        riskScore: Math.min(100, nextRiskScore),
+        reportCount,
+        categories: Object.keys(categoryCounts),
+        categoryCounts,
+        isConfirmed: distinctReporterCount >= 3 ? true : existing.isConfirmed,
+        lastReportAt: new Date(),
+        lastUpdated: new Date(),
         trustScore: Math.max(0, Math.min(100, existing.isWhitelisted ? 95 : 100 - Math.round(nextRiskScore * 0.7)))
       }
     });

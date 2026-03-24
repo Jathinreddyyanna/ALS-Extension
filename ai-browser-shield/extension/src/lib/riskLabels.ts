@@ -59,6 +59,7 @@ export const categoryLabels: Record<string, string> = {
   redirect: 'Redirect tricks',
   popup_abuse: 'Popup abuse',
   ad_abuse: 'Unwanted ads',
+  piracy: 'Piracy / streaming trap',
   data_exfil: 'Data theft',
   crypto_mining: 'Crypto mining',
   clean: 'Looks clean',

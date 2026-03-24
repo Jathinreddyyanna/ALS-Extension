@@ -26,3 +26,5 @@
 {"level":30,"time":1773812566321,"configuredModel":"gemini-flash-lite-latest","modelUsed":"gemini-flash-latest","msg":"Gemini connected"}
 11:14:30 am [tsx] change in ./src\services\ai.service.ts Rerunning...
 c{"level":50,"time":1773812676283,"port":3001,"msg":"port already in use. choose a different PORT."}
+
+C:\Users\jathi\Downloads\ai-browser-shield-v2-FINAL\ai-browser-shield\backend>

@@ -26,12 +26,7 @@ const runStartupChecks = async () => {
   }
 
   try {
-    const debugResult = await getGeminiDebugResult();
-    if (debugResult.sample.source === 'gemini') {
-      logger.info({ configuredModel: env.GEMINI_MODEL, modelUsed: debugResult.sample.modelUsed ?? env.GEMINI_MODEL }, 'Gemini connected');
-      return;
-    }
-    logger.warn({ configuredModel: env.GEMINI_MODEL }, 'Gemini startup check failed - heuristic fallback active');
+    logger.info('Skipping Gemini startup check to prevent burning rate limit tokens');
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown Gemini error';
     logger.warn({ err: message, configuredModel: env.GEMINI_MODEL }, 'Gemini startup check failed - fallback chain will activate');

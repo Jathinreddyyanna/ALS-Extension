@@ -104,6 +104,24 @@ export class CacheService {
     }
   }
 
+  public async increment(key: string, windowMs: number): Promise<{ count: number; expiresAt: number }> {
+    const now = Date.now();
+    if (await this.connect()) {
+      try {
+        const count = await this.redis!.incr(key);
+        let ttl = await this.redis!.pttl(key);
+        if (ttl <= 0) {
+          await this.redis!.pexpire(key, windowMs).catch(() => undefined);
+          ttl = windowMs;
+        }
+        return { count, expiresAt: now + ttl };
+      } catch {
+        return this.incrementMemory(key, windowMs);
+      }
+    }
+    return this.incrementMemory(key, windowMs);
+  }
+
   private getMemory<T>(key: string): T | null {
     const value = memoryCache.get(key);
     if (!value) {
@@ -114,6 +132,19 @@ export class CacheService {
       return null;
     }
     return value.value as T;
+  }
+
+  private incrementMemory(key: string, windowMs: number): { count: number; expiresAt: number } {
+    const now = Date.now();
+    const current = memoryCache.get(key) as CacheRecord<number> | undefined;
+    if (!current || current.expiresAt <= now) {
+      const expiresAt = now + windowMs;
+      memoryCache.set(key, { value: 1, expiresAt });
+      return { count: 1, expiresAt };
+    }
+    const next = (current.value as number) + 1;
+    memoryCache.set(key, { value: next, expiresAt: current.expiresAt });
+    return { count: next, expiresAt: current.expiresAt };
   }
 }
 
@@ -142,4 +173,12 @@ export const getScanTtlSeconds = (riskScore: number, isWhitelisted: boolean, url
     return 15 * 60;
   }
   return env.SCAN_CACHE_TTL_LOW;
+};
+
+export const keys = cacheKeys;
+
+export const cacheGetJSON = async <T>(key: string): Promise<T | null> => cacheService.get<T>(key);
+
+export const cacheSetJSON = async <T>(key: string, value: T, ttlSeconds: number): Promise<void> => {
+  await cacheService.set(key, value, ttlSeconds);
 };

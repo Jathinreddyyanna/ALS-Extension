@@ -78,7 +78,8 @@ vi.mock('../src/db/client', () => ({
     }
   },
   connectDatabase: vi.fn().mockResolvedValue(true),
-  disconnectDatabase: vi.fn().mockResolvedValue(undefined)
+  disconnectDatabase: vi.fn().mockResolvedValue(undefined),
+  isDatabaseAvailable: vi.fn().mockReturnValue(false)
 }));
 
 beforeEach(async () => {

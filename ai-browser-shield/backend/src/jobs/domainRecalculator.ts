@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { isDatabaseAvailable, prisma } from '../db/client';
 import { recalculateDomainScore } from '../services/domain.service';
+import { logger } from '../utils/logger';
 
 export const startDomainRecalculatorJob = () => cron.schedule('*/5 * * * *', async () => {
   if (!isDatabaseAvailable()) {
@@ -11,5 +12,12 @@ export const startDomainRecalculatorJob = () => cron.schedule('*/5 * * * *', asy
     orderBy: { createdAt: 'desc' },
     select: { domain: true }
   }).catch(() => []);
-  await Promise.all(domains.map((item) => recalculateDomainScore(item.domain)));
+  for (const item of domains) {
+    try {
+      await recalculateDomainScore(item.domain);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    } catch (err) {
+      logger.warn({ err, domain: item.domain }, 'failed writing recalculated domain score');
+    }
+  }
 });

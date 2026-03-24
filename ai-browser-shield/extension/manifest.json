@@ -39,7 +39,8 @@
     "declarativeNetRequest",
     "declarativeNetRequestFeedback",
     "notifications",
-    "activeTab"
+    "activeTab",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "<all_urls>",

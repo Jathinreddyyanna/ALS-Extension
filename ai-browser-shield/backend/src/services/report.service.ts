@@ -7,7 +7,7 @@ import { invalidateDomainCaches, recalculateDomainScore } from './domain.service
 
 export const createThreatReport = async (input: {
   url: string;
-  category: 'phishing' | 'scam' | 'malware' | 'redirect' | 'popup_abuse' | 'ad_abuse' | 'data_exfil' | 'crypto_mining' | 'other';
+  category: 'phishing' | 'scam' | 'malware' | 'redirect' | 'popup_abuse' | 'ad_abuse' | 'data_exfil' | 'crypto_mining' | 'piracy' | 'other';
   description: string;
   signals?: Record<string, number>;
   sessionId?: string;
@@ -16,6 +16,7 @@ export const createThreatReport = async (input: {
 }) => {
   const parsed = parseAndNormalizeUrl(input.url);
   const ipHash = hashIp(input.ip);
+  const persistedCategory = input.category === 'piracy' ? 'other' : input.category;
 
   try {
     const existing = await prisma.threatReport.findFirst({
@@ -37,7 +38,7 @@ export const createThreatReport = async (input: {
       data: {
         url: input.url,
         domain: parsed.domain,
-        category: input.category,
+        category: persistedCategory,
         description: input.description,
         signals: input.signals ?? {},
         ipHash,
@@ -54,18 +55,29 @@ export const createThreatReport = async (input: {
     if (distinctReporterCount.length >= 3) {
       await prisma.domainScore.upsert({
         where: { domain: parsed.domain },
-        update: { isConfirmed: true },
-        create: { domain: parsed.domain, isConfirmed: true }
-      });
-      await prisma.adminLog.create({
-        data: {
-          action: 'auto_confirm_reports',
-          targetType: 'domain',
-          targetId: parsed.domain,
-          adminId: 'system',
-          notes: `Auto-confirmed after ${distinctReporterCount.length} distinct reports`
+        update: {
+          reportCount: distinctReporterCount.length,
+          riskScore: distinctReporterCount.length >= 5 ? 80 : 55,
+          isConfirmed: distinctReporterCount.length >= 5
+        },
+        create: {
+          domain: parsed.domain,
+          reportCount: distinctReporterCount.length,
+          riskScore: distinctReporterCount.length >= 5 ? 80 : 55,
+          isConfirmed: distinctReporterCount.length >= 5
         }
       });
+      if (distinctReporterCount.length >= 5) {
+        await prisma.adminLog.create({
+          data: {
+            action: 'auto_confirm_reports',
+            targetType: 'domain',
+            targetId: parsed.domain,
+            adminId: 'system',
+            notes: `Auto-confirmed after ${distinctReporterCount.length} distinct reports`
+          }
+        });
+      }
     }
 
     await Promise.all([

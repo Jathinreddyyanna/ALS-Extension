@@ -1,4 +1,4 @@
-import type { FileScanResult, ThreatReport, UrlScanResult } from '@/types/index';
+import type { FileScanResult, ThreatReport, UrlScanResult, SignalMap } from '@/types/index';
 import { getEffectiveGeminiKey } from '@/config';
 
 export interface AppStatsResponse {
@@ -68,12 +68,37 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   }
 };
 
+const normalizeSignals = (signals?: Partial<SignalMap> | null): SignalMap => ({
+  typosquatScore: signals?.typosquatScore ?? 0,
+  suspiciousTLD: signals?.suspiciousTLD ?? 0,
+  ipAsHostname: signals?.ipAsHostname ?? 0,
+  longSubdomains: signals?.longSubdomains ?? 0,
+  suspiciousKeywords: signals?.suspiciousKeywords ?? 0,
+  encodedChars: signals?.encodedChars ?? 0,
+  pathEntropy: signals?.pathEntropy ?? 0,
+  portAnomaly: signals?.portAnomaly ?? 0
+});
+
 export const api = {
   setBaseUrl: (url: string) => {
     localStorage.setItem('shield-api-base-url', url.replace(/\/+$/, ''));
   },
-  scanUrl: (payload: { url: string; tabId?: number; sessionId?: string }) =>
-    buildHeaders().then((headers) => request<UrlScanResult>('/scan/url', { method: 'POST', headers, body: JSON.stringify(payload) })),
+  scanUrl: (payload: { url: string; signals?: Partial<SignalMap> | null; tabId?: number; sessionId?: string }) => {
+    if (!payload?.url || typeof payload.url !== 'string') {
+      return Promise.reject({ message: 'Missing URL', status: 400 } as ApiErrorShape);
+    }
+
+    const body = {
+      url: payload.url,
+      signals: normalizeSignals(payload.signals),
+      ...(typeof payload.tabId === 'number' ? { tabId: payload.tabId } : {}),
+      ...(payload.sessionId ? { sessionId: payload.sessionId } : {})
+    };
+
+    return buildHeaders().then((headers) =>
+      request<UrlScanResult>('/scan/url', { method: 'POST', headers, body: JSON.stringify(body) })
+    );
+  },
   explainUrl: (payload: { url: string; force?: boolean }) =>
     buildHeaders().then((headers) => request<UrlScanResult>('/ai/explain', { method: 'POST', headers, body: JSON.stringify(payload) })),
   reportSite: (payload: ThreatReport) =>

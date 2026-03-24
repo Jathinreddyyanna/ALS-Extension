@@ -1,9 +1,15 @@
 import { z } from 'zod';
+import { env } from '../config';
 
 const signalsSchema = z.record(z.number());
+const httpUrlSchema = z.string()
+  .trim()
+  .min(1)
+  .max(env.MAX_URL_LENGTH)
+  .refine((value) => /^https?:\/\//i.test(value), 'URL must use http or https');
 
 export const scanUrlSchema = z.object({
-  url: z.string().min(1),
+  url: httpUrlSchema,
   signals: signalsSchema.optional(),
   sessionId: z.string().min(1).max(128).optional(),
   tabId: z.number().int().optional(),
@@ -25,10 +31,11 @@ export const scanFileJsonSchema = z.object({
 }).strip();
 
 export const reportSchema = z.object({
-  url: z.string().min(1),
-  category: z.enum(['phishing', 'scam', 'malware', 'redirect', 'popup_abuse', 'ad_abuse', 'data_exfil', 'crypto_mining', 'other']),
-  description: z.string().min(1).max(2000),
+  url: httpUrlSchema,
+  category: z.enum(['phishing', 'scam', 'malware', 'redirect', 'popup_abuse', 'ad_abuse', 'data_exfil', 'crypto_mining', 'piracy', 'other']),
+  description: z.string().optional().default(''),
   signals: signalsSchema.optional(),
+  domain: z.string().optional(),
   sessionId: z.string().optional()
 }).strip();
 
@@ -38,7 +45,7 @@ export const downloadActionSchema = z.object({
 }).strip();
 
 export const aiExplainSchema = z.object({
-  url: z.string().min(1),
+  url: httpUrlSchema,
   signals: signalsSchema.optional(),
   popupRedirect: z.object({
     popupCount: z.number().int().nonnegative(),

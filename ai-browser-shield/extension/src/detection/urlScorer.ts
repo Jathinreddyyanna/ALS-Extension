@@ -103,7 +103,11 @@ export function scoreUrl(rawUrl: string): ScoreResult {
       portAnomaly: checkPort(parsedUrl.port),
     }
 
-    const score = Math.min(100, Object.values(signals).reduce((a, b) => a + b, 0))
+    let total = 0
+    for (const value of Object.values(signals)) {
+      total += typeof value === 'number' ? value : 0
+    }
+    const score = Math.min(100, total)
     const riskLevel: RiskLevel =
       score >= 75 ? 'CRITICAL'
       : score >= 50 ? 'HIGH'

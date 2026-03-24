@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getStorageSync, setStorageSync } from '@/lib/chrome';
 import { useExtensionStore } from '@/store/useExtensionStore';
+import { useVaultStore } from '../../store/useVaultStore';
 
 const entries = [
   { key: 'protectionEnabled', title: 'Enable protection', description: 'Keeps scans running quietly in the background.' },
@@ -12,6 +13,7 @@ const entries = [
 
 export const SettingsTab = () => {
   const { settings, updateSettings } = useExtensionStore();
+  const { unlocked, lockVault } = useVaultStore();
   const [geminiKey, setGeminiKey] = useState('');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
@@ -83,6 +85,28 @@ export const SettingsTab = () => {
           </button>
         </div>
         {saveMessage && <p className="caption text-safe-600">{saveMessage}</p>}
+      </div>
+      <div className="surface-card space-y-3 p-4">
+        <div>
+          <p className="subheading">VaultShield Vault</p>
+          <p className="caption mt-1">Manage your encrypted password vault.</p>
+        </div>
+        {unlocked ? (
+          <button
+            type="button"
+            onClick={() => void lockVault()}
+            className="w-full rounded-xl border border-[var(--border)] py-2 text-sm text-[var(--text-secondary)] transition hover:border-[#EF4444] hover:text-[#EF4444]"
+          >
+            Lock Vault Now
+          </button>
+        ) : (
+          <p className="caption text-[var(--text-secondary)]">Vault is locked.</p>
+        )}
+        <p className="caption text-[var(--text-secondary)]">
+          Vault auto-locks after 15 minutes of inactivity.
+          All passwords are encrypted with AES-256-GCM locally.
+          Your master password never leaves your device.
+        </p>
       </div>
     </div>
   );

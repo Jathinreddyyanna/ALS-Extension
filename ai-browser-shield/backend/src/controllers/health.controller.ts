@@ -5,6 +5,7 @@ import { cacheKeys, cacheService } from '../services/cache.service';
 import { pingGemini } from '../services/ai.service';
 import { prisma } from '../db/client';
 import { getAppStats } from '../services/stats.service';
+import { renderPrometheusMetrics } from '../services/metrics.service';
 import { logger } from '../utils/logger';
 
 const healthSchema = z.object({
@@ -65,4 +66,32 @@ export const healthController = async (req: Request, res: Response): Promise<voi
 
 export const statsController = async (_req: Request, res: Response): Promise<void> => {
   res.json(await getAppStats());
+};
+
+export const readinessController = async (_req: Request, res: Response): Promise<void> => {
+  let db = false;
+  let redis = false;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    db = true;
+  } catch {
+    db = false;
+  }
+  try {
+    redis = await cacheService.ping();
+  } catch {
+    redis = false;
+  }
+
+  if (!db) {
+    res.status(503).json({ status: 'not_ready', db, redis });
+    return;
+  }
+
+  res.json({ status: redis ? 'ready' : 'degraded', db, redis });
+};
+
+export const metricsController = async (_req: Request, res: Response): Promise<void> => {
+  res.setHeader('content-type', 'text/plain; version=0.0.4');
+  res.send(renderPrometheusMetrics());
 };

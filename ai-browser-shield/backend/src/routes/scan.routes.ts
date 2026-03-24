@@ -3,6 +3,7 @@ import multer from 'multer';
 import { createThreatEventController, getDomainController, getLegacyDomainScoreController, getThreatEventsController, scanFileController, scanUrlController } from '../controllers/scan.controller';
 import { apiKeyAuth } from '../middleware/apiKeyAuth';
 import { createRateLimiter } from '../middleware/rateLimiter';
+import { optionalRequestSignature } from '../middleware/requestSignature';
 import { validateBody } from '../middleware/validateBody';
 import { AppError } from '../errors';
 import { scanFileJsonSchema, scanUrlSchema } from '../schemas';
@@ -27,8 +28,8 @@ const multipartFileMiddleware = (req: Request, res: Response, next: NextFunction
   });
 };
 
-router.post('/url', apiKeyAuth, createRateLimiter({ endpoint: 'scan_url_ip', limit: 60, windowMs: 60_000 }), createRateLimiter({ endpoint: 'scan_url_key', limit: 300, windowMs: 60_000, scope: 'apiKey' }), validateBody(scanUrlSchema), scanUrlController);
-router.post('/file', apiKeyAuth, createRateLimiter({ endpoint: 'scan_file_ip', limit: 10, windowMs: 60_000 }), multipartFileMiddleware, (req: Request, res: Response, next: NextFunction) => {
+router.post('/url', apiKeyAuth, optionalRequestSignature, createRateLimiter({ endpoint: 'scan_url_ip', limit: 60, windowMs: 60_000 }), createRateLimiter({ endpoint: 'scan_url_key', limit: 300, windowMs: 60_000, scope: 'apiKey' }), validateBody(scanUrlSchema), scanUrlController);
+router.post('/file', apiKeyAuth, optionalRequestSignature, createRateLimiter({ endpoint: 'scan_file_ip', limit: 10, windowMs: 60_000 }), multipartFileMiddleware, (req: Request, res: Response, next: NextFunction) => {
   if (!req.is('multipart/form-data')) {
     validateBody(scanFileJsonSchema)(req, res, next);
     return;

@@ -39,14 +39,14 @@ export const getRegistrableDomain = (hostname: string): string => {
   if (labels.length <= 2) {
     return labels.join('.');
   }
-  const multiPartTlds = ['co.uk', 'ac.uk', 'edu.in'];
+  const multiPartTlds = [
+    'co.in', 'gov.in', 'net.in', 'org.in', 'ac.in',
+    'bank.in', 'fin.in', 'nic.in', 'edu.in', 'res.in',
+    'co.uk', 'ac.uk', 'org.uk', 'com.au', 'co.nz', 'com.ro'
+  ];
   const tail = labels.slice(-2).join('.');
-  const tailThree = labels.slice(-3).join('.');
   if (multiPartTlds.includes(tail)) {
     return labels.slice(-3).join('.');
-  }
-  if (multiPartTlds.includes(tailThree)) {
-    return labels.slice(-4).join('.');
   }
   return labels.slice(-2).join('.');
 };

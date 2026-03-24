@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { isDatabaseAvailable, prisma } from '../db/client';
 import { RateLimitError } from '../errors';
+import { cacheService } from '../services/cache.service';
 import { hashIp } from '../utils/ip';
 
 type Scope = 'ip' | 'apiKey';
@@ -11,8 +12,6 @@ interface RateLimitOptions {
   windowMs: number;
   scope?: Scope;
 }
-
-const counters = new Map<string, { count: number; expiresAt: number }>();
 
 const getKey = (req: Request, endpoint: string, scope: Scope): string => {
   if (scope === 'apiKey') {
@@ -42,18 +41,15 @@ export const createRateLimiter = (options: RateLimitOptions) =>
     const scope = options.scope ?? 'ip';
     const key = getKey(req, options.endpoint, scope);
     const now = Date.now();
-    const current = counters.get(key);
-    if (!current || current.expiresAt <= now) {
-      counters.set(key, { count: 1, expiresAt: now + options.windowMs });
-      void recordRateLimit(req, options.endpoint, 1, false);
-      next();
-      return;
-    }
-
-    current.count += 1;
+    const current = await cacheService.increment(`ratelimit:${key}`, options.windowMs);
     const remaining = Math.max(0, options.limit - current.count);
+    _res.setHeader('x-ratelimit-limit', String(options.limit));
+    _res.setHeader('x-ratelimit-remaining', String(remaining));
+    _res.setHeader('x-ratelimit-reset', String(Math.ceil(current.expiresAt / 1000)));
+
     if (current.count > options.limit) {
       const retryAfterMs = current.expiresAt - now;
+      _res.setHeader('retry-after', String(Math.max(1, Math.ceil(retryAfterMs / 1000))));
       void recordRateLimit(req, options.endpoint, current.count, true);
       next(new RateLimitError('rate limit exceeded', {
         retryAfterMs,

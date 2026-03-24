@@ -29,6 +29,8 @@ export type Category =
   | 'unknown'
   | 'other';
 
+export type ContentCategory = 'streaming' | 'download' | 'adult' | 'financial' | 'login' | 'unknown';
+
 export interface UrlScoreSignals {
   typosquat: number;
   suspiciousTLD: number;
@@ -148,6 +150,8 @@ export interface UrlScanResult {
   explanation: string;
   aiExplanation?: string;
   keyIndicators: string[];
+  positives?: string[];
+  warnings?: string[];
   recommendedAction: RecommendedAction;
   confidence: number;
   category: Category;
@@ -159,10 +163,28 @@ export interface UrlScanResult {
   cached: boolean;
   aiDegraded?: boolean;
   aiSource?: 'gemini' | 'heuristic';
+  aiUsed?: boolean;
   modelUsed?: string;
   processedMs: number;
   urlType: UrlType;
   source?: string;
+  sources?: string[];
+  confidenceLevel?: 'high' | 'medium' | 'low';
+  threatSource?: 'google' | 'internal' | 'multi';
+  analysisDepth?: 'fast' | 'full';
+  safeBrowsingMatched?: boolean;
+  safeBrowsingThreatTypes?: string[];
+  signalsUsed?: string[];
+  trustSignals?: string[];
+  contentCategory?: ContentCategory;
+  behaviorRisk?: number;
+  runtimeRisk?: number;
+  domRisk?: number;
+  interactionRisk?: number;
+  warningsEnhanced?: string[];
+  allowlisted?: boolean;
+  reputationStatus?: 'known_safe' | 'known_threat' | 'unknown' | 'community_flagged';
+  decisionBasis?: string;
   skip?: boolean;
   reason?: string;
 }
@@ -174,6 +196,8 @@ export const UrlScanResponseSchema = z.object({
   riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
   explanation: z.string(),
   keyIndicators: z.array(z.string()),
+  positives: z.array(z.string()).optional(),
+  warnings: z.array(z.string()).optional(),
   recommendedAction: z.enum(['allow', 'warn', 'block', 'quarantine']),
   confidence: z.number().min(0).max(1),
   category: z.string(),
@@ -185,11 +209,29 @@ export const UrlScanResponseSchema = z.object({
   cached: z.boolean(),
   aiDegraded: z.boolean().optional(),
   aiSource: z.enum(['gemini', 'heuristic']).optional(),
+  aiUsed: z.boolean().optional(),
   modelUsed: z.string().optional(),
   aiExplanation: z.string().optional(),
   processedMs: z.number(),
   urlType: z.string(),
   source: z.string().optional(),
+  sources: z.array(z.string()).optional(),
+  confidenceLevel: z.enum(['high', 'medium', 'low']).optional(),
+  threatSource: z.enum(['google', 'internal', 'multi']).optional(),
+  analysisDepth: z.enum(['fast', 'full']).optional(),
+  safeBrowsingMatched: z.boolean().optional(),
+  safeBrowsingThreatTypes: z.array(z.string()).optional(),
+  signalsUsed: z.array(z.string()).optional(),
+  trustSignals: z.array(z.string()).optional(),
+  contentCategory: z.enum(['streaming', 'download', 'adult', 'financial', 'login', 'unknown']).optional(),
+  behaviorRisk: z.number().min(0).max(100).optional(),
+  runtimeRisk: z.number().min(0).max(100).optional(),
+  domRisk: z.number().min(0).max(100).optional(),
+  interactionRisk: z.number().min(0).max(100).optional(),
+  warningsEnhanced: z.array(z.string()).optional(),
+  allowlisted: z.boolean().optional(),
+  reputationStatus: z.enum(['known_safe', 'known_threat', 'unknown', 'community_flagged']).optional(),
+  decisionBasis: z.string().optional(),
   skip: z.boolean().optional(),
   reason: z.string().optional()
 });

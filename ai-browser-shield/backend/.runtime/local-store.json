@@ -16,7 +16,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T04:58:13.867Z",
       "lastReportAt": "2026-03-18T04:58:13.880Z",
-      "lastUpdated": "2026-03-18T17:10:11.219Z",
+      "lastUpdated": "2026-03-19T06:40:12.167Z",
       "scanCount": 1
     },
     "5movierulz.codes": {
@@ -31,7 +31,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T05:50:16.705Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.162Z",
+      "lastUpdated": "2026-03-19T06:40:12.062Z",
       "scanCount": 0
     },
     "google.com": {
@@ -46,7 +46,7 @@
       "isWhitelisted": true,
       "firstSeen": "2026-03-18T05:50:16.724Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.261Z",
+      "lastUpdated": "2026-03-19T06:40:12.185Z",
       "scanCount": 0
     },
     "example.com": {
@@ -61,7 +61,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T05:50:16.751Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.255Z",
+      "lastUpdated": "2026-03-19T06:40:12.171Z",
       "scanCount": 0
     },
     "trc.taboola.com": {
@@ -76,7 +76,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:17.989Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.186Z",
+      "lastUpdated": "2026-03-19T06:40:12.140Z",
       "scanCount": 0
     },
     "www.yex.io": {
@@ -91,7 +91,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.008Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.266Z",
+      "lastUpdated": "2026-03-19T06:40:12.179Z",
       "scanCount": 0
     },
     "static.chartbeat.com": {
@@ -106,7 +106,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.016Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.214Z",
+      "lastUpdated": "2026-03-19T06:40:12.148Z",
       "scanCount": 0
     },
     "c2.taboola.com": {
@@ -121,7 +121,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.025Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.204Z",
+      "lastUpdated": "2026-03-19T06:40:12.144Z",
       "scanCount": 0
     },
     "www.gadgets360.com": {
@@ -136,7 +136,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.036Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.209Z",
+      "lastUpdated": "2026-03-19T06:40:12.152Z",
       "scanCount": 0
     },
     "sb.scorecardresearch.com": {
@@ -151,7 +151,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.051Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:05:14.853Z",
+      "lastUpdated": "2026-03-19T06:40:12.033Z",
       "scanCount": 0
     },
     "securepubads.g.doubleclick.net": {
@@ -166,7 +166,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.059Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:05:14.757Z",
+      "lastUpdated": "2026-03-19T06:40:12.072Z",
       "scanCount": 0
     },
     "www.google.com": {
@@ -181,7 +181,7 @@
       "isWhitelisted": true,
       "firstSeen": "2026-03-18T06:10:18.070Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.112Z",
+      "lastUpdated": "2026-03-19T06:40:12.111Z",
       "scanCount": 0
     },
     "claude.ai": {
@@ -196,7 +196,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.078Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:05:14.847Z",
+      "lastUpdated": "2026-03-19T06:40:12.014Z",
       "scanCount": 0
     },
     "www.5movierulz.codes": {
@@ -211,7 +211,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.092Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.233Z",
+      "lastUpdated": "2026-03-19T06:40:12.155Z",
       "scanCount": 0
     },
     "test.com": {
@@ -226,7 +226,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.109Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.224Z",
+      "lastUpdated": "2026-03-24T06:53:44.920Z",
       "scanCount": 0
     },
     "live-test.com": {
@@ -241,7 +241,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.134Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.228Z",
+      "lastUpdated": "2026-03-24T06:54:36.841Z",
       "scanCount": 0
     },
     "salesforce.com": {
@@ -256,7 +256,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.183Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.238Z",
+      "lastUpdated": "2026-03-19T06:40:12.181Z",
       "scanCount": 0
     },
     "indiatimes.com": {
@@ -271,7 +271,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:10:18.195Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.242Z",
+      "lastUpdated": "2026-03-19T06:40:12.175Z",
       "scanCount": 0
     },
     "ti.prakritfemes.qpon": {
@@ -286,7 +286,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:15:12.423Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.197Z",
+      "lastUpdated": "2026-03-19T06:40:12.137Z",
       "scanCount": 0
     },
     "kisskh.ws": {
@@ -301,7 +301,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:25:13.607Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.144Z",
+      "lastUpdated": "2026-03-19T06:40:12.087Z",
       "scanCount": 0
     },
     "filmyzilla34.com": {
@@ -316,7 +316,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:35:33.061Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.149Z",
+      "lastUpdated": "2026-03-19T06:40:12.122Z",
       "scanCount": 1
     },
     "podicalgear.qpon": {
@@ -331,7 +331,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:40:12.211Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.192Z",
+      "lastUpdated": "2026-03-19T06:40:12.133Z",
       "scanCount": 0
     },
     "pagead2.googlesyndication.com": {
@@ -346,7 +346,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T06:45:12.534Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:05:14.763Z",
+      "lastUpdated": "2026-03-19T06:40:12.028Z",
       "scanCount": 0
     },
     "com.ro": {
@@ -365,7 +365,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T07:00:10.984Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.180Z",
+      "lastUpdated": "2026-03-19T06:40:12.128Z",
       "scanCount": 1
     },
     "kisskh.do": {
@@ -380,7 +380,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T08:40:13.053Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.174Z",
+      "lastUpdated": "2026-03-19T06:40:12.103Z",
       "scanCount": 0
     },
     "grid-bidder.criteo.com": {
@@ -395,7 +395,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:05:14.746Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.071Z",
+      "lastUpdated": "2026-03-19T06:40:12.083Z",
       "scanCount": 0
     },
     "beacon.bidder.taboola.com": {
@@ -410,7 +410,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:05:14.752Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.137Z",
+      "lastUpdated": "2026-03-19T06:40:12.068Z",
       "scanCount": 0
     },
     "analytics.google.com": {
@@ -425,7 +425,7 @@
       "isWhitelisted": true,
       "firstSeen": "2026-03-18T17:05:14.780Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.131Z",
+      "lastUpdated": "2026-03-19T06:40:12.098Z",
       "scanCount": 0
     },
     "hbopenbid.pubmatic.com": {
@@ -440,7 +440,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:05:14.787Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.106Z",
+      "lastUpdated": "2026-03-19T06:40:12.048Z",
       "scanCount": 0
     },
     "leetcode.com": {
@@ -455,7 +455,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:05:14.809Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.156Z",
+      "lastUpdated": "2026-03-19T06:40:12.095Z",
       "scanCount": 0
     },
     "v2006.com": {
@@ -470,7 +470,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:10:11.078Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.078Z",
+      "lastUpdated": "2026-03-19T06:40:12.019Z",
       "scanCount": 0
     },
     "fastlane.rubiconproject.com": {
@@ -485,7 +485,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:10:11.084Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.084Z",
+      "lastUpdated": "2026-03-19T06:40:12.116Z",
       "scanCount": 0
     },
     "display.bidder.taboola.com": {
@@ -500,7 +500,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:10:11.091Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.091Z",
+      "lastUpdated": "2026-03-19T06:40:12.091Z",
       "scanCount": 0
     },
     "ib.adnxs.com": {
@@ -515,7 +515,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:10:11.099Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.099Z",
+      "lastUpdated": "2026-03-19T06:40:12.044Z",
       "scanCount": 0
     },
     "static.doubleclick.net": {
@@ -530,7 +530,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:10:11.118Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.118Z",
+      "lastUpdated": "2026-03-19T06:40:11.977Z",
       "scanCount": 0
     },
     "rtb.openx.net": {
@@ -545,7 +545,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:10:11.124Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.124Z",
+      "lastUpdated": "2026-03-19T06:40:12.053Z",
       "scanCount": 0
     },
     "googleads.g.doubleclick.net": {
@@ -560,7 +560,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:10:11.167Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.167Z",
+      "lastUpdated": "2026-03-19T06:40:11.997Z",
       "scanCount": 0
     },
     "cineby.gd": {
@@ -575,7 +575,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:10:11.249Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.249Z",
+      "lastUpdated": "2026-03-19T06:40:12.080Z",
       "scanCount": 0
     },
     "netmirror.gg": {
@@ -590,7 +590,142 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:10:11.272Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-18T17:10:11.272Z",
+      "lastUpdated": "2026-03-19T06:40:12.106Z",
+      "scanCount": 0
+    },
+    "flickystream.ru": {
+      "id": "26b69ca3-9b7f-4291-86bd-dac3a2365169",
+      "domain": "flickystream.ru",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-18T17:20:11.124Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-19T06:40:12.037Z",
+      "scanCount": 0
+    },
+    "connect.facebook.net": {
+      "id": "612a3d85-ebc9-4593-b07a-7c7600d82f61",
+      "domain": "connect.facebook.net",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-18T17:20:11.211Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-19T06:40:12.009Z",
+      "scanCount": 0
+    },
+    "lalluram.com": {
+      "id": "3f0d4a9c-b239-4b42-ad90-64171ad93263",
+      "domain": "lalluram.com",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-18T17:20:11.221Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-19T06:40:12.003Z",
+      "scanCount": 0
+    },
+    "support.claude.com": {
+      "id": "fa035d3f-3ec3-4f21-a739-753a45e9a015",
+      "domain": "support.claude.com",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-18T18:05:11.017Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-19T06:40:12.076Z",
+      "scanCount": 0
+    },
+    "ad.doubleclick.net": {
+      "id": "aaa32eec-a650-4f77-a890-b37c625e65a5",
+      "domain": "ad.doubleclick.net",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-19T06:30:11.302Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-19T06:40:11.983Z",
+      "scanCount": 0
+    },
+    "trailhead.salesforce.com": {
+      "id": "bc981deb-c94a-4a67-87c9-13e5ff24a7d8",
+      "domain": "trailhead.salesforce.com",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-19T06:40:11.970Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-19T06:40:11.970Z",
+      "scanCount": 0
+    },
+    "tpc.googlesyndication.com": {
+      "id": "c1da4c74-9403-41a3-9ecc-d57fa876d9c0",
+      "domain": "tpc.googlesyndication.com",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-19T06:40:11.991Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-19T06:40:11.991Z",
+      "scanCount": 0
+    },
+    "youtube.com": {
+      "id": "17f95f6f-34c7-4822-9952-22bac37ce8d7",
+      "domain": "youtube.com",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 90,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": true,
+      "firstSeen": "2026-03-19T06:40:12.024Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-19T06:40:12.024Z",
+      "scanCount": 0
+    },
+    "claude.com": {
+      "id": "770ab18b-3f3d-4b5a-a548-10bb267d1d71",
+      "domain": "claude.com",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-24T08:15:06.336Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-24T08:15:06.336Z",
       "scanCount": 0
     }
   },
@@ -1158,6 +1293,237 @@
       "sessionId": "175ec28c-0de4-44d3-afc4-a6020de9b356",
       "id": "388ee6ec-5214-4a29-a250-4987856e81e1",
       "createdAt": "2026-03-18T17:06:09.586Z"
+    },
+    {
+      "eventType": "popup_abuse",
+      "domain": "www.google.com",
+      "url": "https://www.google.com/search?q=movierulz&rlz=1C1RXQR_enIN1124IN1124&oq=mo&gs_lcrp=EgZjaHJvbWUqBggAEEUYOzIGCAAQRRg7MgYIARBFGDkyDQgCEAAYgwEYsQMYgAQyDQgDEAAYgwEYsQMYgAQyBggEEEUYPDIGCAUQRRg8MgYIBhBFGDwyBggHEEUYPNIBCDE4NzNqMGo3qAIAsAIA&sourceid=chrome&ie=UTF-8",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "2 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-18T17:36:44.349Z",
+      "id": "6fd4f2dc-b0d2-44fb-bd11-924cd59139df"
+    },
+    {
+      "eventType": "popup_abuse",
+      "domain": "www.google.com",
+      "url": "https://www.google.com/search?q=movierulz&rlz=1C1RXQR_enIN1124IN1124&oq=mo&gs_lcrp=EgZjaHJvbWUqBggAEEUYOzIGCAAQRRg7MgYIARBFGDkyDQgCEAAYgwEYsQMYgAQyDQgDEAAYgwEYsQMYgAQyBggEEEUYPDIGCAUQRRg8MgYIBhBFGDwyBggHEEUYPNIBCDE4NzNqMGo3qAIAsAIA&sourceid=chrome&ie=UTF-8",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "High popup count: 3 popups | 3 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-18T17:36:44.350Z",
+      "id": "20a37142-540d-443a-86da-2cc3b12c3201"
+    },
+    {
+      "eventType": "popup_abuse",
+      "domain": "www.google.com",
+      "url": "https://www.google.com/search?q=movierulz&rlz=1C1RXQR_enIN1124IN1124&oq=mo&gs_lcrp=EgZjaHJvbWUqBggAEEUYOzIGCAAQRRg7MgYIARBFGDkyDQgCEAAYgwEYsQMYgAQyDQgDEAAYgwEYsQMYgAQyBggEEEUYPDIGCAUQRRg8MgYIBhBFGDwyBggHEEUYPNIBCDE4NzNqMGo3qAIAsAIA&sourceid=chrome&ie=UTF-8",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "High popup count: 4 popups | 4 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-18T17:36:44.352Z",
+      "id": "8a102305-b1f0-464b-b6b3-b71e080a194d"
+    },
+    {
+      "eventType": "popup_abuse",
+      "domain": "www.5movierulz.codes",
+      "url": "https://www.5movierulz.codes/",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "1 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-18T17:36:45.750Z",
+      "id": "9574359b-8ada-41ae-a47b-534eafa125a4"
+    },
+    {
+      "eventType": "popup_abuse",
+      "domain": "www.google.com",
+      "url": "https://www.google.com/search?q=yt&rlz=1C1RXQR_enIN1124IN1124&oq=yt&gs_lcrp=EgZjaHJvbWUqBwgAEAAYjwIyBwgAEAAYjwIyDQgBEC4YgwEYsQMYgAQyDQgCEAAYgwEYsQMYgAQyCggDEAAYsQMYgAQyCggEEAAYsQMYgAQyBggFEAUYQDIGCAYQRRg8MgYIBxBFGDzSAQgxNDYwajBqN6gCALACAA&sourceid=chrome&ie=UTF-8",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "1 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-18T18:01:40.457Z",
+      "id": "8cd772ff-cc6c-42c6-9b76-13e631e50c6d"
+    },
+    {
+      "eventType": "popup_abuse",
+      "domain": "www.google.com",
+      "url": "https://www.google.com/search?q=yt&rlz=1C1RXQR_enIN1124IN1124&oq=yt&gs_lcrp=EgZjaHJvbWUqBwgAEAAYjwIyBwgAEAAYjwIyDQgBEC4YgwEYsQMYgAQyDQgCEAAYgwEYsQMYgAQyCggDEAAYsQMYgAQyCggEEAAYsQMYgAQyBggFEAUYQDIGCAYQRRg8MgYIBxBFGDzSAQgxNDYwajBqN6gCALACAA&sourceid=chrome&ie=UTF-8",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "2 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-18T18:01:40.466Z",
+      "id": "13623ba0-39ae-4cd0-b207-a8e1af7175cd"
+    },
+    {
+      "eventType": "popup_abuse",
+      "domain": "www.google.com",
+      "url": "https://www.google.com/search?q=yt&rlz=1C1RXQR_enIN1124IN1124&oq=yt&gs_lcrp=EgZjaHJvbWUqBwgAEAAYjwIyBwgAEAAYjwIyDQgBEC4YgwEYsQMYgAQyDQgCEAAYgwEYsQMYgAQyCggDEAAYsQMYgAQyCggEEAAYsQMYgAQyBggFEAUYQDIGCAYQRRg8MgYIBxBFGDzSAQgxNDYwajBqN6gCALACAA&sourceid=chrome&ie=UTF-8",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "High popup count: 4 popups | 4 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-18T18:01:40.475Z",
+      "id": "2ef6ef05-7b3c-44d0-b64a-55cfd8952392"
+    },
+    {
+      "eventType": "popup_abuse",
+      "domain": "www.google.com",
+      "url": "https://www.google.com/search?q=yt&rlz=1C1RXQR_enIN1124IN1124&oq=yt&gs_lcrp=EgZjaHJvbWUqBwgAEAAYjwIyBwgAEAAYjwIyDQgBEC4YgwEYsQMYgAQyDQgCEAAYgwEYsQMYgAQyCggDEAAYsQMYgAQyCggEEAAYsQMYgAQyBggFEAUYQDIGCAYQRRg8MgYIBxBFGDzSAQgxNDYwajBqN6gCALACAA&sourceid=chrome&ie=UTF-8",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "Popup threshold exceeded: 6 popups (limit: 5) | 6 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-18T18:01:40.493Z",
+      "id": "fb0faf01-cb68-4bf1-a2e9-f64943cb9b29"
+    },
+    {
+      "eventType": "popup_abuse",
+      "domain": "www.google.com",
+      "url": "https://www.google.com/search?q=yt&rlz=1C1RXQR_enIN1124IN1124&oq=yt&gs_lcrp=EgZjaHJvbWUqBwgAEAAYjwIyBwgAEAAYjwIyDQgBEC4YgwEYsQMYgAQyDQgCEAAYgwEYsQMYgAQyCggDEAAYsQMYgAQyCggEEAAYsQMYgAQyBggFEAUYQDIGCAYQRRg8MgYIBxBFGDzSAQgxNDYwajBqN6gCALACAA&sourceid=chrome&ie=UTF-8",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "High popup count: 5 popups | 5 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-18T18:01:40.478Z",
+      "id": "9aa68861-a1c5-432d-9cd8-2abcb23cada4"
+    },
+    {
+      "eventType": "popup_abuse",
+      "domain": "www.google.com",
+      "url": "https://www.google.com/search?q=yt&rlz=1C1RXQR_enIN1124IN1124&oq=yt&gs_lcrp=EgZjaHJvbWUqBwgAEAAYjwIyBwgAEAAYjwIyDQgBEC4YgwEYsQMYgAQyDQgCEAAYgwEYsQMYgAQyCggDEAAYsQMYgAQyCggEEAAYsQMYgAQyBggFEAUYQDIGCAYQRRg8MgYIBxBFGDzSAQgxNDYwajBqN6gCALACAA&sourceid=chrome&ie=UTF-8",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "High popup count: 3 popups | 3 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-18T18:01:40.471Z",
+      "id": "accb37fd-9b9d-492d-97b2-91ff1b896494"
+    },
+    {
+      "eventType": "url_threat",
+      "domain": "5movierulz.codes",
+      "url": "https://www.5movierulz.codes/",
+      "riskScore": 49,
+      "riskLevel": "MEDIUM",
+      "signals": {
+        "typosquat": 0,
+        "suspiciousTLD": 0,
+        "ipAsHostname": 0,
+        "longSubdomains": 0,
+        "suspiciousKeywords": 6,
+        "encodedChars": 0,
+        "pathEntropy": 0,
+        "portAnomaly": 0,
+        "credentialInUrl": 0,
+        "idnHomoglyph": 0,
+        "excessiveDots": 0,
+        "numericSubdomain": 0,
+        "tldMismatch": 0,
+        "repeatingSegments": 0,
+        "queryParamCount": 0,
+        "redirectParam": 0,
+        "category": "other",
+        "requestSignals": {},
+        "tabId": 447537405
+      },
+      "aiExplanation": "The domain name contains keywords often associated with unauthorized streaming or pirated content ('movie', 'rulz'), which frequently host malicious advertisements or redirects. The heuristic score indicates suspicious keyword usage, suggesting potential association with high-risk content distribution.",
+      "ipHash": "38a902bfb49bebaf97a03439bbf093923fcbb6a85f1866016e3d1e54d1d6831a",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "sessionId": "1bf4ea8b-92e8-44c8-8d78-26a8c4fa0e2c",
+      "domainScoreId": "4c10eb5b-0979-4fa0-a264-af48b640e467",
+      "id": "d6513cd7-0298-446a-bbfc-47f2bbb45126",
+      "createdAt": "2026-03-19T06:30:56.715Z"
+    },
+    {
+      "eventType": "redirect_chain",
+      "domain": "tbid.digital.salesforce.com",
+      "url": "https://tbid.digital.salesforce.com/oauth2/aus5v9466wdqLdY0O697/v1/authorize?response_type=code&response_mode=query&nonce=0ceb4f11-8337-427a-8385-184b01662a74&client_id=0oa5v93ebgAGqkFSn697&redirect_uri=https%3A%2F%2Fiis.digital.salesforce.com%2Fservices%2Foauth2%2Fcallback&state=eyJpaXNTdGF0ZSI6ImMwNmJkMDIzMGQ4OTcyZDk0NDI2NDViZDpqUGF4ckE5SVhCUGUvOHlrMjBDc2hnc0J2cHkzWUtMcS9uT3p4RzlNcFRsdW5QSmRDaWVDazZ2clZsc1NiS1ZOWVRNYlF5ZjcvczZIQ2JQemZEY21BaEhmQzlzeDFOamVEYk1EZUx3YVRBa29rdTRKVElscDlOdnUwelJ6UmRVREZwY1N2MmU5ZGs5MzI2NWFOUStUU0dCYkQ0b0d2aUxvMC96NEZrYnU0bDRCNXZNZkQ5a3lLTGdiRkVuc000bld6eGc9Om14QWErVmxGYzdHL1lrWmwrcWcvbHc9PSIsInJlZmVycmVyIjoiaHR0cHM6Ly90cmFpbGhlYWQuc2FsZXNmb3JjZS5jb20vc2Vzc2lvbnMvZGUvbmV3IiwiY2xpZW50SWQiOiIzTVZHOWc5cmJzVGtLbkFYUlVfaE9MdkhSWWo3SFMxY3NOMExsaE9TZUJSdjVOcDJteFB1cmNJZmZBNVYwem44LnVJRHRibVh5U1dteHFfWGRBOHd4IiwiY29ycmVsYXRpb25JZCI6IjY1MWU0ZjVkLTNjZmItNDdiMC1iNGFkLTcwZjI2ODI5MjhiNiIsInN0YXJ0VGltZSI6MTc3MzkwMjM2MDc1MywiaWRwcyI6WyJJZFAgLSBHb29nbGUiLCJJZFAgLSBTYWxlc2ZvcmNlIiwiSWRQIC0gTXVsZXNvZnQtVVMiLCJJZFAgLSBNdWxlc29mdC1FVSIsIklkUCAtIE11bGVzb2Z0LUNBTiIsIklkUCAtIE11bGVzb2Z0LUpQIiwiSWRQIC0gVGFibGVhdSIsIklkUCAtIE1hcmtldGluZ0Nsb3VkIiwiSWRQIC0gTGlua2VkaW4iLCJJZFAgLSBBcHBsZSIsIm90cCJdLCJ0YmlkQ29uZmlnSWQiOiJzdGFuZGFyZCJ9&scope=openid+email+profile&intent=login",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "Domain switching detected in redirect chain | 2 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-19T06:39:23.239Z",
+      "id": "a9c23edc-7d80-4f37-b0ca-18392cd58399"
+    },
+    {
+      "eventType": "redirect_chain",
+      "domain": "tbid.digital.salesforce.com",
+      "url": "https://tbid.digital.salesforce.com/oauth2/v1/authorize/callback?state=cGZRNmFpWm43K1o4dWVkcVZpOGQyNStJQ09zdkliSUJvbytmNWR3UnplTmNFWGtwdDdzWW85c25haUx6N29iVA&iss=https%3A%2F%2Faccounts.google.com&code=4%2F0AfrIepBXW5x7W3eKZK8pgfYj-1a6EoK77YwlqpSqAVOPklR8gWc1E9u0AN10A-55cDPc2Q&scope=email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+openid+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&authuser=0&hd=vnrvjiet.in&prompt=none",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "1 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-19T06:39:28.140Z",
+      "id": "0afd4d86-de90-453e-8427-def31c595ce9"
+    },
+    {
+      "eventType": "redirect_chain",
+      "domain": "tbid.digital.salesforce.com",
+      "url": "https://tbid.digital.salesforce.com/oauth2/v1/authorize/callback?state=cGZRNmFpWm43K1o4dWVkcVZpOGQyNStJQ09zdkliSUJvbytmNWR3UnplTmNFWGtwdDdzWW85c25haUx6N29iVA&iss=https%3A%2F%2Faccounts.google.com&code=4%2F0AfrIepBXW5x7W3eKZK8pgfYj-1a6EoK77YwlqpSqAVOPklR8gWc1E9u0AN10A-55cDPc2Q&scope=email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+openid+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&authuser=0&hd=vnrvjiet.in&prompt=none",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "2 suspicious events blocked",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-19T06:39:28.141Z",
+      "id": "c7f4b767-ec65-490c-81f0-06c15885f579"
+    },
+    {
+      "eventType": "redirect_chain",
+      "domain": "trailhead.salesforce.com",
+      "url": "https://trailhead.salesforce.com/auth/salesforce?prompt=login&host=https://trailhead.salesforce.com",
+      "riskScore": 75,
+      "riskLevel": "HIGH",
+      "aiExplanation": "Domain switching detected in redirect chain",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-19T06:40:45.352Z",
+      "id": "e2e0a0a1-fe52-4609-8e14-68e78d11242f"
     }
   ]
 }

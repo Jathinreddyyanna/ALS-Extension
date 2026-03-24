@@ -32,6 +32,7 @@ const threatEventUpsertSchema = z.object({
 }).strip();
 
 export const scanUrlController = async (req: Request, res: Response): Promise<void> => {
+  const started = Date.now();
   const result = await performUrlScan({
     ...req.body,
     ip: req.ip,
@@ -45,6 +46,13 @@ export const scanUrlController = async (req: Request, res: Response): Promise<vo
     res.status(500).json({ error: 'internal_schema_error' });
     return;
   }
+  logger.info({
+    requestId: req.requestId,
+    latencyMs: Date.now() - started,
+    decisionBasis: parsed.data.decisionBasis,
+    threatSource: parsed.data.threatSource,
+    riskLevel: parsed.data.riskLevel
+  }, 'url scan completed');
   res.json(parsed.data);
 };
 

@@ -1,10 +1,19 @@
+import { timingSafeEqual } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { env } from '../config';
 import { AppError } from '../errors';
 
+const isValidApiKey = (provided: string | undefined, expected: string): boolean => {
+  if (!provided || !expected) return false;
+  const providedBuffer = Buffer.from(provided.trim());
+  const expectedBuffer = Buffer.from(expected);
+  if (providedBuffer.length !== expectedBuffer.length) return false;
+  return timingSafeEqual(providedBuffer, expectedBuffer);
+};
+
 export const apiKeyAuth = (req: Request, _res: Response, next: NextFunction): void => {
   const apiKey = req.header('x-api-key');
-  if (apiKey !== env.API_KEY) {
+  if (!isValidApiKey(apiKey, env.API_KEY)) {
     next(new AppError(401, 'unauthorized', 'invalid api key'));
     return;
   }
@@ -20,7 +29,7 @@ export const adminKeyAuth = (req: Request, _res: Response, next: NextFunction): 
     next(new AppError(503, 'admin_disabled', 'admin features disabled'));
     return;
   }
-  if (req.header('x-admin-key') !== env.ADMIN_KEY) {
+  if (!isValidApiKey(req.header('x-admin-key'), env.ADMIN_KEY)) {
     next(new AppError(401, 'unauthorized', 'invalid admin key'));
     return;
   }

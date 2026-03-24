@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { FileScanResult, UrlScanResult } from '@/types/index';
 
-export type PopupTab = 'shield' | 'history' | 'report' | 'settings';
+export type PopupTab = 'shield' | 'history' | 'report' | 'vault' | 'generator' | 'security' | 'settings';
 
 interface ExtensionSettings {
   protectionEnabled: boolean;
@@ -30,7 +30,7 @@ interface ExtensionStore {
   setCurrentLocation: (url: string, domain: string, tabId: number | null) => void;
   setIsScanning: (value: boolean) => void;
   setScanStage: (value: number) => void;
-  setScanResult: (result: UrlScanResult | null) => void;
+  setScanResult: (result: UrlScanResult | null | ((current: UrlScanResult | null) => UrlScanResult | null)) => void;
   setScanError: (value: string | null) => void;
   setReportStatus: (value: ExtensionStore['reportStatus']) => void;
   setDashboardPage: (value: ExtensionStore['dashboardPage']) => void;
@@ -61,11 +61,13 @@ export const useExtensionStore = create<ExtensionStore>((set, get) => ({
   dashboardPage: 'overview',
   settings: defaultSettings,
   downloadOverlay: { open: false, result: null },
-  setCurrentTab: (tab) => set({ direction: ['shield', 'history', 'report', 'settings'].indexOf(tab) > ['shield', 'history', 'report', 'settings'].indexOf(get().currentTab) ? 1 : -1, currentTab: tab }),
+  setCurrentTab: (tab) => set({ direction: ['shield', 'history', 'report', 'vault', 'generator', 'security', 'settings'].indexOf(tab) > ['shield', 'history', 'report', 'vault', 'generator', 'security', 'settings'].indexOf(get().currentTab) ? 1 : -1, currentTab: tab }),
   setCurrentLocation: (url, domain, tabId) => set({ currentUrl: url, currentDomain: domain, currentTabId: tabId }),
   setIsScanning: (value) => set({ isScanning: value }),
   setScanStage: (value) => set({ scanStage: value }),
-  setScanResult: (result) => set({ scanResult: result }),
+  setScanResult: (result) => set((state) => ({
+    scanResult: typeof result === 'function' ? result(state.scanResult) : result
+  })),
   setScanError: (value) => set({ scanError: value }),
   setReportStatus: (value) => set({ reportStatus: value }),
   setDashboardPage: (value) => set({ dashboardPage: value }),
