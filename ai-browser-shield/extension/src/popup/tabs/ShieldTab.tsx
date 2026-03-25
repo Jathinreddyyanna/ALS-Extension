@@ -107,6 +107,8 @@ export const ShieldTab = () => {
   );
 
   const riskTone = getRiskTone(scanResult?.riskLevel ?? 'LOW');
+  const trustedDomain = Boolean(scanResult?.trustedDomain || scanResult?.categories?.includes('verified_safe_domain') || scanResult?.decisionBasis === 'trusted_domain_override');
+  const shouldCalmTrustedWarnings = trustedDomain && (scanResult?.riskScore ?? 0) < 20;
   const modelLabel =
     scanResult?.modelStatus === 'active'
       ? `AI active${scanResult.modelUsed ? ` · ${scanResult.modelUsed}` : ''}`
@@ -194,6 +196,12 @@ export const ShieldTab = () => {
   }
 
   const activeResult = scanResult;
+  const riskySignals = [
+    ...(activeResult.warnings ?? []),
+    ...(activeResult.keyIndicators ?? []),
+  ]
+    .filter((value, index, array) => Boolean(value) && array.indexOf(value) === index)
+    .slice(0, 3)
   const trend = activeResult.history && activeResult.history.length >= 3
     ? activeResult.history[0].riskScore > activeResult.history[1].riskScore && activeResult.history[1].riskScore > activeResult.history[2].riskScore
       ? 'rising'
@@ -216,6 +224,11 @@ export const ShieldTab = () => {
             <p className="mt-1 truncate font-mono text-[12px] text-slate-400">{currentUrl || activeResult.url}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-medium text-slate-200">{modelLabel}</span>
+              {trustedDomain ? (
+                <span className="rounded-full bg-[rgba(16,185,129,0.16)] px-3 py-1 text-[11px] font-medium text-[#a7f3d0]">
+                  Trusted domain
+                </span>
+              ) : null}
               <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-medium text-slate-200">
                 Confidence {formatPercentage(activeResult.confidence)}
               </span>
@@ -242,9 +255,64 @@ export const ShieldTab = () => {
             <p className="mt-2 data-text text-sm text-slate-100">{activeResult.processedMs || 0}ms</p>
           </div>
         </div>
+
+        {activeResult.redirectChain && activeResult.redirectChain.length > 1 ? (
+          <div className="mt-4 rounded-2xl border border-[rgba(148,163,184,0.16)] bg-white/5 p-3">
+            <p className="text-[11px] uppercase tracking-[0.12em] text-slate-400">Resolved destination</p>
+            <p className="mt-2 text-[12px] text-slate-200">
+              {activeResult.redirectChain
+                .map((entry) => {
+                  try {
+                    return new URL(entry).hostname.replace(/^www\./, '');
+                  } catch {
+                    return entry;
+                  }
+                })
+                .join(' → ')}
+            </p>
+          </div>
+        ) : null}
       </motion.div>
 
       {scanError ? <ErrorBanner message={scanError} /> : null}
+
+      {(trustedDomain || (activeResult.trustSignals?.length ?? 0) > 0) ? (
+        <div className="surface-card rounded-[18px] p-4">
+          <div className="flex items-center gap-2 text-[var(--text-secondary)]">
+            <ShieldCheck className="h-4 w-4 text-[var(--safe)]" />
+            <span className="text-[12px] font-medium">Why this page looks legitimate</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(activeResult.trustSignals?.slice(0, 4) ?? []).map((signal) => (
+              <span
+                key={signal}
+                className="rounded-full border border-[rgba(16,185,129,0.22)] bg-[rgba(16,185,129,0.12)] px-3 py-1 text-[11px] font-medium text-[#a7f3d0]"
+              >
+                {signal}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {!trustedDomain && riskySignals.length > 0 ? (
+        <div className="surface-card rounded-[18px] border border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)] p-4">
+          <div className="flex items-center gap-2 text-[var(--text-secondary)]">
+            <ShieldAlert className="h-4 w-4 text-[var(--warning)]" />
+            <span className="text-[12px] font-medium">Why this page may be risky</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {riskySignals.map((signal) => (
+              <span
+                key={signal}
+                className="rounded-full border border-[rgba(245,158,11,0.24)] bg-[rgba(245,158,11,0.12)] px-3 py-1 text-[11px] font-medium text-[#fde68a]"
+              >
+                {signal}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {activeResult.sensitiveDataRisk?.detected ? (
         <div className={`rounded-[18px] border px-4 py-4 ${
@@ -325,14 +393,14 @@ export const ShieldTab = () => {
           <SignalCard
             title="Hidden iframes"
             value={runtimeSignals.hiddenIframeCount}
-            detail={runtimeSignals.hiddenIframeCount > 0 ? 'Possible click hijacking surface' : 'No hidden iframe activity'}
+            detail={runtimeSignals.hiddenIframeCount > 0 ? 'Hidden iframe activity detected and being monitored' : 'No hidden iframe activity'}
             icon={EyeOff}
             tone={getSignalTone(runtimeSignals.hiddenIframeCount, 'iframe')}
           />
           <SignalCard
             title="Suspicious forms"
             value={runtimeSignals.suspiciousFormCount}
-            detail={runtimeSignals.suspiciousFormCount > 0 ? 'Credential collection risk' : 'No risky forms detected'}
+            detail={runtimeSignals.suspiciousFormCount > 0 ? 'Unexpected credential-style form detected' : 'No risky forms detected'}
             icon={FormInput}
             tone={getSignalTone(runtimeSignals.suspiciousFormCount, 'form')}
           />
@@ -365,7 +433,7 @@ export const ShieldTab = () => {
         explanation={activeResult.aiExplanation || activeResult.explanation}
         signals={activeResult.keyIndicators}
         positives={activeResult.positives}
-        warnings={activeResult.warnings}
+        warnings={shouldCalmTrustedWarnings ? [] : activeResult.warnings}
         confidence={activeResult.confidence}
         reports={activeResult.dbReportCount}
         aiUsed={activeResult.aiUsed}

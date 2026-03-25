@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Clock3, Flag, KeyRound, LockKeyhole, Settings, Shield, ShieldCheck } from 'lucide-react';
+import { Flag, LockKeyhole, Settings, Shield } from 'lucide-react';
 import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useCurrentTab } from '@/hooks/useCurrentTab';
@@ -9,14 +9,11 @@ import { formatDomainDisplay } from '@/lib/formatters';
 import { useExtensionStore } from '@/store/useExtensionStore';
 import { DownloadWarningOverlay } from './components/DownloadWarningOverlay';
 import { ThemeToggle } from './components/ThemeToggle';
-import { HistoryTab } from './tabs/HistoryTab';
 import { ReportTab } from './tabs/ReportTab';
 import { SettingsTab } from './tabs/SettingsTab';
 import { ShieldTab } from './tabs/ShieldTab';
 import { UnlockTab } from './tabs/UnlockTab';
 import { VaultTab } from './tabs/VaultTab';
-import { GeneratorTab } from './tabs/GeneratorTab';
-import { VaultDashboardTab } from './tabs/VaultDashboardTab';
 import { useVaultStore } from '../store/useVaultStore';
 import '@/styles/globals.css';
 
@@ -24,11 +21,8 @@ const queryClient = new QueryClient();
 
 const tabs = [
   { id: 'shield', label: 'Shield', icon: Shield },
-  { id: 'history', label: 'History', icon: Clock3 },
   { id: 'report', label: 'Report', icon: Flag },
   { id: 'vault', label: 'Vault', icon: LockKeyhole },
-  { id: 'generator', label: 'Generate', icon: KeyRound },
-  { id: 'security', label: 'Security', icon: ShieldCheck },
   { id: 'settings', label: 'Settings', icon: Settings }
 ] as const;
 
@@ -78,17 +72,14 @@ const PopupShell = () => {
             transition={{ duration: 0.2, ease: 'easeOut' }}
           >
             {currentTab === 'shield' && <ShieldTab />}
-            {currentTab === 'history' && <HistoryTab />}
             {currentTab === 'report' && <ReportTab />}
             {currentTab === 'vault' && (unlocked ? <VaultTab /> : <UnlockTab />)}
-            {currentTab === 'generator' && <GeneratorTab />}
-            {currentTab === 'security' && (unlocked ? <VaultDashboardTab /> : <UnlockTab />)}
             {currentTab === 'settings' && <SettingsTab />}
           </motion.div>
         </AnimatePresence>
       </main>
 
-      <nav className="mt-auto grid grid-cols-7 gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2">
+      <nav className="mt-auto grid grid-cols-4 gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2">
         {tabs.map((item) => {
           const Icon = item.icon;
           const active = currentTab === item.id;

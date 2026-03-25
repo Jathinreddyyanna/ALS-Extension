@@ -2,8 +2,18 @@ const DEFAULT_API_BASE_URL = 'http://localhost:3001/api/v1'
 const DEFAULT_API_KEY =
   (typeof import.meta !== 'undefined' && (import.meta as ImportMeta).env?.VITE_API_KEY) ||
   ''
+const DEFAULT_REQUEST_SIGNATURE_SECRET =
+  (typeof import.meta !== 'undefined' && (import.meta as ImportMeta).env?.VITE_REQUEST_SIGNATURE_SECRET) ||
+  ''
 
 type LegacyKey = 'apiBaseUrl' | 'backendUrl' | 'fastApiBaseUrl'
+
+/**
+ * Returns true when the URL points to a loopback development server.
+ */
+function isLocalDevelopmentUrl(value: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(value)
+}
 
 /**
  * Normalize a base URL and ensure it includes the `/api/v1` suffix.
@@ -15,6 +25,7 @@ export function normalizeApiBaseUrl(input: string | null | undefined): string | 
 
   let base = raw.replace(/\/+$/, '')
   if (!/\/api\/v1$/i.test(base)) base = `${base}/api/v1`
+  if (!isLocalDevelopmentUrl(base) && !/^https:\/\//i.test(base)) return null
   return base
 }
 
@@ -88,6 +99,20 @@ export async function getEffectiveGeminiKey(): Promise<string | null> {
     chrome.storage.sync.get(['geminiApiKey'], (result) => {
       const key = typeof result.geminiApiKey === 'string' ? result.geminiApiKey.trim() : ''
       resolve(key || null)
+    })
+  })
+}
+
+/**
+ * Returns the shared request-signing secret when the extension is configured for signed API calls.
+ */
+export async function getEffectiveRequestSignatureSecret(): Promise<string | null> {
+  return new Promise(resolve => {
+    chrome.storage.sync.get(['requestSignatureSecret'], (result) => {
+      const configured = typeof result.requestSignatureSecret === 'string'
+        ? result.requestSignatureSecret.trim()
+        : ''
+      resolve(configured || DEFAULT_REQUEST_SIGNATURE_SECRET || null)
     })
   })
 }

@@ -2,6 +2,8 @@ import { env } from '../config';
 import { cacheGetJSON, cacheSetJSON } from './cache.service';
 import { checkGoogleSafeBrowsing, type ThreatIntelProviderResult } from './safeBrowsing.service';
 import { runResilientTask } from './resilience.service';
+import { checkVirusTotal } from './virusTotal.service';
+import { resolveFinalUrl } from './urlResolver.service';
 import { logger } from '../utils/logger';
 
 export interface ThreatIntelAggregateResult {
@@ -14,38 +16,84 @@ export interface ThreatIntelAggregateResult {
 }
 
 const AUX_CACHE_TTL_SECONDS = 600;
+let openPhishCache: Set<string> | null = null;
+let openPhishCacheExpiry = 0;
 
-function toUrlId(url: string): string {
-  return Buffer.from(url).toString('base64url');
-}
+const OPENPHISH_REFRESH_INTERVAL_MS = 3600000; // 1 hour
 
-async function fetchVirusTotal(url: string): Promise<ThreatIntelProviderResult | null> {
-  if (!env.VIRUSTOTAL_API_KEY) return null;
+async function fetchOpenPhishFeed(): Promise<Set<string>> {
+  const now = Date.now();
+
+  // Return cached feed if still valid
+  if (openPhishCache && now < openPhishCacheExpiry) {
+    return openPhishCache;
+  }
 
   try {
-    const response = await runResilientTask(() => fetch(`https://www.virustotal.com/api/v3/urls/${toUrlId(url)}`, {
-      headers: { 'x-apikey': env.VIRUSTOTAL_API_KEY }
-    }), { name: 'virustotal', retries: 1, timeoutMs: env.PROVIDER_TIMEOUT_MS, baseDelayMs: 200 });
-    if (!response.ok) return null;
+    logger.debug('Fetching OpenPhish feed...');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const data = await response.json() as {
-      data?: { attributes?: { last_analysis_stats?: { malicious?: number; suspicious?: number } } };
-    };
-    const stats = data.data?.attributes?.last_analysis_stats;
-    const malicious = Number(stats?.malicious ?? 0);
-    const suspicious = Number(stats?.suspicious ?? 0);
+    const response = await runResilientTask(
+      () => fetch('https://openphish.com/feed.txt', {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'ai-browser-shield' }
+      }),
+      { name: 'openphish_feed', retries: 1, timeoutMs: 10000, baseDelayMs: 500 }
+    );
 
-    return {
-      provider: 'virustotal',
-      isMalicious: malicious > 0 || suspicious > 2,
-      threatTypes: malicious > 0 ? ['VIRUSTOTAL_MALICIOUS'] : suspicious > 2 ? ['VIRUSTOTAL_SUSPICIOUS'] : [],
-      source: 'virustotal',
-      confidenceLevel: malicious > 0 ? 'high' : suspicious > 2 ? 'medium' : 'low'
-    };
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      logger.warn({ status: response.status }, 'OpenPhish feed fetch failed');
+      return openPhishCache || new Set();
+    }
+
+    const text = await response.text();
+    const domains = new Set<string>();
+
+    // Extract domains from URLs (one per line)
+    for (const line of text.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const url = new URL(trimmed);
+        domains.add(url.hostname);
+      } catch {
+        // Skip malformed URLs
+      }
+    }
+
+    openPhishCache = domains;
+    openPhishCacheExpiry = now + OPENPHISH_REFRESH_INTERVAL_MS;
+    logger.info({ count: domains.size }, 'OpenPhish feed updated');
+    return domains;
   } catch (error) {
-    logger.debug({ err: error, url }, 'virustotal lookup failed');
-    return null;
+    logger.debug({ err: error }, 'OpenPhish feed fetch error');
+    return openPhishCache || new Set();
   }
+}
+
+async function checkOpenPhish(url: string): Promise<ThreatIntelProviderResult | null> {
+  try {
+    const parsed = new URL(url);
+    const openPhishDomains = await fetchOpenPhishFeed();
+
+    if (openPhishDomains.has(parsed.hostname)) {
+      logger.warn({ url, hostname: parsed.hostname }, '[OpenPhish] URL matched OpenPhish feed');
+      return {
+        provider: 'openphish',
+        isMalicious: true,
+        threatTypes: ['OPENPHISH_PHISHING'],
+        source: 'openphish',
+        confidenceLevel: 'high'
+      };
+    }
+  } catch (error) {
+    logger.debug({ err: error, url }, 'OpenPhish check failed');
+  }
+
+  return null;
 }
 
 async function fetchPhishTank(url: string): Promise<ThreatIntelProviderResult | null> {
@@ -112,21 +160,38 @@ function summarizeThreatIntel(results: ThreatIntelProviderResult[]): ThreatIntel
 }
 
 export async function aggregateThreatIntel(url: string): Promise<ThreatIntelAggregateResult> {
+  const resolvedUrl = resolveFinalUrl(url).finalUrl;
+
+  logger.debug({ url: resolvedUrl }, '[GSB] Checking URL against threat intel providers');
+
   const providers: Array<Promise<ThreatIntelProviderResult | null>> = [
-    checkGoogleSafeBrowsing(url),
-    fetchVirusTotal(url),
-    fetchPhishTank(url)
+    checkGoogleSafeBrowsing(resolvedUrl),
+    checkVirusTotal(resolvedUrl),
+    fetchPhishTank(resolvedUrl),
+    checkOpenPhish(resolvedUrl)
   ];
 
   const google = await providers[0];
+
+  logger.debug({
+    url: resolvedUrl,
+    googleResult: google,
+    isMalicious: google?.isMalicious ?? false,
+    threatTypes: google?.threatTypes ?? []
+  }, '[GSB] Google Safe Browsing result');
+
   if (!google) {
-    return summarizeThreatIntel([]);
-  }
-  if (google.isMalicious) {
+    logger.warn({ url: resolvedUrl }, '[GSB] Google Safe Browsing returned null - API may be down or quota exceeded');
+    // Continue to check other providers including OpenPhish fallback
+  } else if (google.isMalicious) {
+    logger.warn({ url: resolvedUrl, threatTypes: google.threatTypes }, '[GSB] THREAT DETECTED by Google Safe Browsing');
     return summarizeThreatIntel([google]);
   }
 
   const others = await Promise.all(providers.slice(1));
-  const normalized = [google, ...others.filter((item): item is ThreatIntelProviderResult => item !== null)];
+  const filtered: ThreatIntelProviderResult[] = others.length > 0
+    ? others.filter((item): item is ThreatIntelProviderResult => item !== null)
+    : [];
+  const normalized = google ? [google, ...filtered] : filtered;
   return summarizeThreatIntel(normalized);
 }

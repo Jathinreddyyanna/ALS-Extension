@@ -1,3 +1,6 @@
+/**
+ * Boots the isolated runtime monitor for the active page.
+ */
 export function initRuntimeMonitor() {
   // PHASE 3: initialize the isolated runtime protection engine once per page
   if ((window as Window & { __absRuntimeMonitorInitialized?: boolean }).__absRuntimeMonitorInitialized) {
@@ -39,6 +42,8 @@ export function initRuntimeMonitor() {
       creditCardFieldCount: 0,
       autoSubmitCount: 0,
       earlyUnloadCount: 0,
+      jsRedirectCount: 0,
+      metaRefreshCount: 0,
       runtimeScore: 0,
       startTime: Date.now(),
       blocked: false,
@@ -55,6 +60,8 @@ export function initRuntimeMonitor() {
       earlyUnload: 18,
       passwordField: 12,
       creditCardField: 16,
+      jsRedirect: 18,
+      metaRefresh: 18,
     } as const
 
     // PHASE 3: use a fixed phishing phrase list for one-time intent scanning
@@ -77,20 +84,35 @@ export function initRuntimeMonitor() {
       'wire transfer',
     ] as const
 
+    const SIGNAL_FLUSH_DEBOUNCE_MS = 900
+    const SIGNAL_FLUSH_INTERVAL_MS = 6000
+    const MONITORING_INTERVAL_MS = 3000
+    const NOTIFICATION_COOLDOWN_MS = 15000
     let lastBackgroundSendAt = 0
+    let lastNotificationAt = 0
+    let signalFlushTimer: number | null = null
     let phishingScanComplete = false
+    let metaRefreshDetected = false
+    let inlineJsRedirectDetected = false
+    const PAGE_EVENT_TYPE = 'ABS_PAGE_DANGEROUS_API'
 
     // PHASE 3: centralize score updates and cap runtime risk at 100
     function addScore(points: number) {
       runtimeState.runtimeScore = Math.min(100, runtimeState.runtimeScore + points)
     }
 
+    /**
+     * Returns true when the current page looks like a sensitive workflow.
+     */
     function isSensitivePath() {
       return /login|signin|auth|account|verify|secure|checkout|payment|billing|wallet/i.test(
         `${window.location.pathname} ${document.title}`
       )
     }
 
+    /**
+     * Recomputes runtime risk from the current signal bundle.
+     */
     function applyAdaptiveRisk() {
       let score = 0
 
@@ -101,6 +123,8 @@ export function initRuntimeMonitor() {
       score += runtimeState.scriptInjectionCount * WEIGHTS.scriptInjection
       score += runtimeState.suspiciousFormCount * WEIGHTS.suspiciousForm
       score += runtimeState.earlyUnloadCount * WEIGHTS.earlyUnload
+      score += runtimeState.jsRedirectCount * WEIGHTS.jsRedirect
+      score += runtimeState.metaRefreshCount * WEIGHTS.metaRefresh
 
       const onSensitivePath = isSensitivePath()
       if (runtimeState.passwordFieldCount > 0) {
@@ -158,6 +182,8 @@ export function initRuntimeMonitor() {
               passwordFieldCount: runtimeState.passwordFieldCount,
               creditCardFieldCount: runtimeState.creditCardFieldCount,
               earlyUnloadCount: runtimeState.earlyUnloadCount,
+              jsRedirectCount: runtimeState.jsRedirectCount,
+              metaRefreshCount: runtimeState.metaRefreshCount,
             },
           },
         }, () => {
@@ -168,9 +194,144 @@ export function initRuntimeMonitor() {
       }
     }
 
+    /**
+     * Debounces background updates during noisy mutation bursts.
+     */
+    function scheduleSignalsToBackground() {
+      if (signalFlushTimer !== null) {
+        window.clearTimeout(signalFlushTimer)
+      }
+      signalFlushTimer = window.setTimeout(() => {
+        signalFlushTimer = null
+        lastBackgroundSendAt = Date.now()
+        sendSignalsToBackground()
+      }, SIGNAL_FLUSH_DEBOUNCE_MS)
+    }
+
+    function reportDangerousApiCall(kind: string, target: string) {
+      try {
+        chrome.runtime.sendMessage({
+          type: 'DANGEROUS_API_CALL',
+          payload: {
+            kind,
+            target,
+            url: window.location.href,
+            timestamp: Date.now(),
+          },
+        }, () => {
+          void chrome.runtime.lastError
+        })
+      } catch {
+        // Ignore extension messaging failures.
+      }
+    }
+
+    /**
+     * Returns true when inline script content looks like a client-side redirect.
+     */
+    function looksLikeJsRedirect(source: string) {
+      return /(window\.location|location\.(assign|replace|href)|top\.location|document\.location)\s*(=|\()/.test(source)
+    }
+
+    /**
+     * Records a suspicious redirect-style signal and updates runtime risk.
+     */
+    function recordRedirectStyleSignal(kind: 'js' | 'meta') {
+      if (kind === 'js') {
+        if (inlineJsRedirectDetected) return
+        inlineJsRedirectDetected = true
+        runtimeState.jsRedirectCount += 1
+        runtimeState.redirectCount += 1
+        addScore(WEIGHTS.jsRedirect)
+      } else {
+        if (metaRefreshDetected) return
+        metaRefreshDetected = true
+        runtimeState.metaRefreshCount += 1
+        runtimeState.redirectCount += 1
+        addScore(WEIGHTS.metaRefresh)
+      }
+      reportDangerousApiCall(kind === 'js' ? 'js_redirect' : 'meta_refresh', window.location.href)
+      applyAdaptiveRisk()
+      scheduleSignalsToBackground()
+    }
+
+    /**
+     * Detects meta refresh redirects on initial load and during DOM mutation.
+     */
+    function inspectMetaRefresh(root: ParentNode) {
+      const metaRefreshNodes = root.querySelectorAll?.('meta[http-equiv]') ?? []
+      for (const node of metaRefreshNodes) {
+        const meta = node as HTMLMetaElement
+        if (meta.httpEquiv.toLowerCase() !== 'refresh') continue
+        const content = meta.content || ''
+        const parts = content.split(';')
+        const destination = parts.find((part) => /url\s*=/i.test(part))
+        if (!destination) continue
+        recordRedirectStyleSignal('meta')
+        break
+      }
+    }
+
+    /**
+     * Detects inline event handlers that attempt client-side navigation.
+     */
+    function inspectInlineRedirectHandlers(root: ParentNode) {
+      const selector = '[onclick],[onload],[onerror],[onsubmit]'
+      const candidates = root.querySelectorAll?.(selector) ?? []
+      for (const node of candidates) {
+        const element = node as Element
+        const script =
+          element.getAttribute('onclick') ??
+          element.getAttribute('onload') ??
+          element.getAttribute('onerror') ??
+          element.getAttribute('onsubmit') ??
+          ''
+
+        if (!script) continue
+        if (looksLikeJsRedirect(script)) {
+          recordRedirectStyleSignal('js')
+          break
+        }
+      }
+    }
+
+    /**
+     * Hooks page-context APIs that can trigger redirect or code-execution flows.
+     */
+    function hookDangerousApis() {
+      window.addEventListener('message', (event: MessageEvent) => {
+        if (event.source !== window || !event.data || event.data.type !== PAGE_EVENT_TYPE) return
+        const payload = event.data.payload as { kind?: string; value?: string } | undefined
+        if (!payload?.kind) return
+
+        if (payload.kind === 'eval_redirect' || payload.kind === 'function_redirect') {
+          recordRedirectStyleSignal('js')
+        } else if (payload.kind === 'window_open') {
+          runtimeState.popupCount += 1
+          reportDangerousApiCall(payload.kind, payload.value ?? '')
+          applyAdaptiveRisk()
+          scheduleSignalsToBackground()
+        }
+      })
+
+      try {
+        const script = document.createElement('script')
+        script.src = chrome.runtime.getURL('dangerousApiInjected.js')
+        script.setAttribute('data-shield-injected', '1')
+        script.async = false
+        script.onload = () => script.remove()
+        script.onerror = () => script.remove()
+        ;(document.head || document.documentElement).appendChild(script)
+      } catch {
+        // Ignore page-context hook failures.
+      }
+    }
+
     // PHASE 3: show a single non-blocking runtime warning banner
     function showWarningBanner() {
       if (document.getElementById('abs-warning-banner')) return
+      if (Date.now() - lastNotificationAt < NOTIFICATION_COOLDOWN_MS) return
+      lastNotificationAt = Date.now()
 
       const banner = document.createElement('div')
       banner.id = 'abs-warning-banner'
@@ -266,7 +427,7 @@ export function initRuntimeMonitor() {
             <div style="max-width:720px;width:100%;background:rgba(15,23,42,0.92);border:1px solid rgba(248,250,252,0.1);border-radius:18px;padding:32px;box-shadow:0 24px 60px rgba(0,0,0,0.45);">
               <div style="font-size:30px;font-weight:800;margin-bottom:12px;">AI Browser Shield blocked this page</div>
               <div style="font-size:16px;line-height:1.6;color:#cbd5e1;margin-bottom:24px;">
-                This interaction is dangerous and should be blocked immediately.
+                This page showed multiple high-risk behaviors and was paused to protect your session.
               </div>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px;">
                 <div style="background:#111827;border-radius:12px;padding:14px;">
@@ -295,7 +456,7 @@ export function initRuntimeMonitor() {
                   Go Back
                 </button>
                 <button id="abs-runtime-continue" style="background:transparent;color:#cbd5e1;border:1px solid rgba(203,213,225,0.35);border-radius:10px;padding:12px 18px;font-size:14px;font-weight:700;cursor:pointer;">
-                  I understand the risks, continue anyway
+                  Continue for this session
                 </button>
               </div>
             </div>
@@ -322,12 +483,11 @@ export function initRuntimeMonitor() {
       const wrappedOpen: typeof window.open = function (...args) {
         try {
           runtimeState.popupCount += 1
-          console.debug('[ABS] popup intercepted')
-
-        applyAdaptiveRisk()
-      } catch {
+          applyAdaptiveRisk()
+          scheduleSignalsToBackground()
+        } catch {
         // Ignore scoring failures and still call the original API.
-      }
+        }
 
         try {
           return _originalOpen(...args)
@@ -359,6 +519,7 @@ export function initRuntimeMonitor() {
       const countRedirect = () => {
         runtimeState.redirectCount += 1
         applyAdaptiveRisk()
+        scheduleSignalsToBackground()
       }
 
       history.pushState = function (...args: Parameters<History['pushState']>) {
@@ -375,10 +536,14 @@ export function initRuntimeMonitor() {
         if (Date.now() - runtimeState.startTime < 3000) {
           runtimeState.earlyUnloadCount += 1
           applyAdaptiveRisk()
+          scheduleSignalsToBackground()
         }
       })
     }
 
+    /**
+     * Counts password and payment fields within the provided subtree.
+     */
     function scanSensitiveInputs(root: ParentNode) {
       const passwordInputs = root.querySelectorAll?.('input[type="password"]') ?? []
       if (passwordInputs.length > 0) {
@@ -395,6 +560,9 @@ export function initRuntimeMonitor() {
       if (cardInputs.length > 0) {
         runtimeState.creditCardFieldCount = Math.max(runtimeState.creditCardFieldCount, cardInputs.length)
       }
+      inspectMetaRefresh(root)
+      inspectInlineRedirectHandlers(root)
+      scheduleSignalsToBackground()
     }
 
     // PHASE 3: process mutation targets outside the observer callback to keep it lightweight
@@ -416,12 +584,18 @@ export function initRuntimeMonitor() {
             style.display === 'none' ||
             style.visibility === 'hidden'
 
+          if (!isHidden) {
+            runtimeState.hiddenIframeCount = Math.max(0, runtimeState.hiddenIframeCount - 1)
+          }
           applyAdaptiveRisk()
         }
 
         if (tagName === 'SCRIPT' && Date.now() - runtimeState.startTime > 2000) {
           runtimeState.scriptInjectionCount += 1
           const script = element as HTMLScriptElement
+          if (!script.src && looksLikeJsRedirect(script.textContent ?? '')) {
+            recordRedirectStyleSignal('js')
+          }
           if (script.src) {
             const isExternal = (() => {
               try {
@@ -470,8 +644,13 @@ export function initRuntimeMonitor() {
           }
         }
 
+        if (tagName === 'META') {
+          inspectMetaRefresh(element.parentElement ?? document)
+        }
+
         scanSensitiveInputs(element)
         applyAdaptiveRisk()
+        scheduleSignalsToBackground()
       } catch {
         // Ignore individual node inspection failures.
       }
@@ -538,6 +717,7 @@ export function initRuntimeMonitor() {
             if (scoreContribution > 0) {
               addScore(Math.min(30, scoreContribution))
               applyAdaptiveRisk()
+              scheduleSignalsToBackground()
             }
           } catch {
             // Ignore text scan failures.
@@ -555,6 +735,7 @@ export function initRuntimeMonitor() {
 
     hookWindowOpen()
     hookNavigation()
+    hookDangerousApis()
     startMutationObserver()
     schedulePhishingTextScan()
     scanSensitiveInputs(document)
@@ -583,10 +764,9 @@ export function initRuntimeMonitor() {
 
       applyAdaptiveRisk()
 
-      if (Date.now() - lastBackgroundSendAt >= 4000) {
-        lastBackgroundSendAt = Date.now()
-        sendSignalsToBackground()
+      if (Date.now() - lastBackgroundSendAt >= SIGNAL_FLUSH_INTERVAL_MS) {
+        scheduleSignalsToBackground()
       }
-    }, 2000)
+    }, MONITORING_INTERVAL_MS)
   })()
 }

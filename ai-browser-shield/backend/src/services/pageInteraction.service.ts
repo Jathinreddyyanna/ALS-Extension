@@ -23,9 +23,9 @@ export function computeDomRisk(signals?: Record<string, number>): DomInspectionR
   const signalsUsed: string[] = [];
 
   const hiddenIframes = getSignal(normalized, ['hiddenIframes', 'hiddenIframeChains']);
-  if (hiddenIframes > 0) {
-    domRisk += Math.min(30, hiddenIframes * 12);
-    warnings.push('Hidden iframe chains detected');
+  if (hiddenIframes > 5) {
+    domRisk += Math.min(24, (hiddenIframes - 5) * 4);
+    warnings.push('High volume of hidden iframes detected');
     signalsUsed.push('hidden_iframe_chain');
   }
 

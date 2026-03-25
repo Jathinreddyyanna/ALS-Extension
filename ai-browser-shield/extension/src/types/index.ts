@@ -13,6 +13,8 @@ export interface RuntimeSignalSummary {
   passwordFieldCount?: number;
   creditCardFieldCount?: number;
   earlyUnloadCount?: number;
+  jsRedirectCount?: number;
+  metaRefreshCount?: number;
 }
 
 export interface ActivityFeedItem {
@@ -51,6 +53,8 @@ export interface SensitiveDataRisk {
 
 export interface UrlScanResult {
   url: string;
+  finalUrl?: string;
+  redirectChain?: string[];
   domain: string;
   riskScore: number;
   riskLevel: RiskLevel;
@@ -84,6 +88,7 @@ export interface UrlScanResult {
   interactionRisk?: number;
   warningsEnhanced?: string[];
   allowlisted?: boolean;
+  trustedDomain?: boolean;
   reputationStatus?: 'known_safe' | 'known_threat' | 'unknown' | 'community_flagged';
   decisionBasis?: string;
   skip?: boolean;
@@ -137,6 +142,12 @@ export interface ThreatReport {
   url: string;
   category: 'phishing' | 'scam' | 'malware' | 'redirect' | 'popup_abuse' | 'ad_abuse' | 'data_exfil' | 'crypto_mining' | 'piracy' | 'other';
   description: string;
+}
+
+export interface FeedbackPayload {
+  url: string;
+  verdict: RiskLevel | Verdict | string;
+  userAction: 'allowed' | 'blocked' | 'reported' | 'dismissed' | 'continued';
 }
 
 export type ThreatCategory = ThreatReport['category'];
@@ -246,7 +257,9 @@ export type MessageType =
   | 'ALLOWLIST_DOMAIN'
   | 'RESCAN_TAB'
   | 'REPORT_SITE'
-  | 'SENSITIVE_DATA_RISK';
+  | 'SENSITIVE_DATA_RISK'
+  | 'EARLY_REDIRECT_ATTEMPT'
+  | 'DANGEROUS_API_CALL';
 
 export interface ChromeMessage {
   type: MessageType;

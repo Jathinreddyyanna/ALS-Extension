@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Category, RiskLevel } from '../types/scan.types';
+import { hashUrlForStorage } from '../utils/crypto';
 
 type LocalDomainScore = {
   id: string;
@@ -53,6 +54,16 @@ const emptyStore = (): LocalStore => ({
   domainScores: {},
   detectionEvents: []
 });
+
+/**
+ * Removes raw URL material before writing a detection event to local disk.
+ */
+const redactDetectionEvent = (
+  value: Omit<LocalDetectionEvent, 'id' | 'createdAt'> & { createdAt?: Date }
+): Omit<LocalDetectionEvent, 'id' | 'createdAt'> & { createdAt?: Date } => ({
+  ...value,
+  url: hashUrlForStorage(value.url)
+})
 
 const hydrateDomainScore = (value: LocalStore['domainScores'][string]): LocalDomainScore => ({
   ...value,
@@ -176,10 +187,11 @@ export const localPersistence = {
 
   async createDetectionEvent(input: Omit<LocalDetectionEvent, 'id' | 'createdAt'> & { createdAt?: Date }): Promise<LocalDetectionEvent> {
     return withStore(async (store) => {
+      const redacted = redactDetectionEvent(input);
       const next: LocalDetectionEvent = {
-        ...input,
+        ...redacted,
         id: randomUUID(),
-        createdAt: input.createdAt ?? new Date()
+        createdAt: redacted.createdAt ?? new Date()
       };
       store.detectionEvents.push(dehydrateDetectionEvent(next));
       return next;

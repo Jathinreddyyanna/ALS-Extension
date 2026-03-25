@@ -16,6 +16,7 @@
     "dotenv": "^17.3.1",
     "framer-motion": "^12.6.2",
     "lucide-react": "^0.511.0",
+    "punycode": "^2.3.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^4.5.2"
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@types/chrome": "^0.0.268",
     "@types/node": "^25.5.0",
+    "@types/punycode": "^2.1.4",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

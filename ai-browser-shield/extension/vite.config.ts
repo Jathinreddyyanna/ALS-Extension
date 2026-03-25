@@ -8,6 +8,7 @@ const __dirname = resolve(__filename, '..');
 
 export default defineConfig({
   plugins: [react()],
+  publicDir: 'public',
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src')
@@ -20,6 +21,9 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       input: {
+        earlyGuard: resolve(__dirname, 'src/content/earlyGuard.ts'),
+        earlyGuardInjected: resolve(__dirname, 'src/content/earlyGuardInjected.ts'),
+        dangerousApiInjected: resolve(__dirname, 'src/content/dangerousApiInjected.ts'),
         popup: resolve(__dirname, 'src/popup/index.html'),
         dashboard: resolve(__dirname, 'src/dashboard/index.html'),
         background: resolve(__dirname, 'src/background/index.ts'),

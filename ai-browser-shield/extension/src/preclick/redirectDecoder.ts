@@ -1,9 +1,12 @@
-const MAX_REDIRECT_HOPS = 5
+const MAX_REDIRECT_HOPS = 8
 
 const REDIRECT_PARAM_KEYS = [
   'target',
   'url',
   'goto',
+  'go',
+  'jump',
+  'jump_to',
   'dest',
   'destination',
   'redirect',
@@ -11,11 +14,14 @@ const REDIRECT_PARAM_KEYS = [
   'redirecturi',
   'redirect_uri',
   'redir',
+  'redirect_to',
+  'redirectto',
   'next',
   'continue',
   'return',
   'returnto',
   'returnurl',
+  'return_url',
   'out',
   'to',
   'u',
@@ -25,6 +31,23 @@ const REDIRECT_PARAM_KEYS = [
   'hash',
   'key',
   'data',
+  'q',
+  'path',
+  'forward',
+  'forward_url',
+  'external',
+  'external_url',
+  'view',
+  'checkout_url',
+  'callback',
+  'callback_url',
+  'state_url',
+  'service',
+  'source_url',
+  'landing',
+  'landing_url',
+  'continue_url',
+  'image_url',
 ]
 
 export const TRACKING_PARAM_KEYS = [
@@ -40,10 +63,17 @@ export const TRACKING_PARAM_KEYS = [
   'click_id',
   'clkid',
   'kwid',
+  'mc_cid',
+  'mc_eid',
+  'igshid',
   'aff_id',
   'affiliate_id',
   'aid',
   'ref',
+  'tag',
+  'go',
+  'jump',
+  'jump_to',
   'referrer',
   'partner_id',
   'sid',
@@ -55,6 +85,8 @@ export const TRACKING_PARAM_KEYS = [
   'target',
   'hash',
   'key',
+  'source',
+  'campaign',
 ] as const
 
 export type RedirectIntentType =
@@ -129,6 +161,23 @@ function safeDecodeURIComponent(value: string): string {
   }
 }
 
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&amp;/gi, '&')
+    .replace(/&colon;/gi, ':')
+    .replace(/&sol;/gi, '/')
+    .replace(/&#x3a;/gi, ':')
+    .replace(/&#58;/gi, ':')
+    .replace(/&#x2f;/gi, '/')
+    .replace(/&#47;/gi, '/')
+}
+
+function decodeQuotedPrintable(value: string): string {
+  return value.replace(/=([0-9A-F]{2})/gi, (_, hex: string) =>
+    String.fromCharCode(Number.parseInt(hex, 16))
+  )
+}
+
 function isLikelyBase64(value: string): boolean {
   const normalized = normalizeMaybeBase64(value)
   if (normalized.length < 12 || normalized.length % 4 === 1) return false
@@ -163,8 +212,8 @@ function decodeNestedValue(value: string): {
   let working = value.trim()
   let usedNestedEncoding = false
 
-  for (let index = 0; index < 3; index += 1) {
-    const decoded = safeDecodeURIComponent(working)
+  for (let index = 0; index < 5; index += 1) {
+    const decoded = decodeQuotedPrintable(decodeHtmlEntities(safeDecodeURIComponent(working)))
     if (decoded === working) break
     working = decoded
     usedNestedEncoding = true
@@ -186,6 +235,20 @@ function decodeNestedValue(value: string): {
     usedBase64: false,
     usedNestedEncoding,
   }
+}
+
+function getHashParams(parsed: URL): URLSearchParams | null {
+  const hash = parsed.hash.replace(/^#/, '').trim()
+  if (!hash) return null
+
+  const normalized = hash.startsWith('?')
+    ? hash.slice(1)
+    : hash.includes('?')
+      ? hash.split('?').slice(1).join('?')
+      : hash
+
+  if (!normalized.includes('=')) return null
+  return new URLSearchParams(normalized)
 }
 
 function toHostname(url: string): string {
@@ -223,6 +286,7 @@ export function decodeRedirectChain(rawUrl: string, maxHops = MAX_REDIRECT_HOPS)
   let currentUrl = rawUrl
 
   for (let hop = 0; hop < maxHops; hop += 1) {
+    if (currentUrl.length > 2048) break
     if (!looksLikeUrl(currentUrl) || seen.has(currentUrl)) break
     seen.add(currentUrl)
 
@@ -239,7 +303,15 @@ export function decodeRedirectChain(rawUrl: string, maxHops = MAX_REDIRECT_HOPS)
       decodedFrom: hop === 0 ? 'plain' : chain[chain.length - 1]?.decodedFrom ?? 'plain',
     })
 
+    const hashParams = getHashParams(parsed)
+
     for (const key of parsed.searchParams.keys()) {
+      const normalizedKey = key.toLowerCase()
+      if (TRACKING_PARAM_KEYS.includes(normalizedKey as (typeof TRACKING_PARAM_KEYS)[number])) {
+        trackingParams.add(normalizedKey)
+      }
+    }
+    for (const key of hashParams?.keys() ?? []) {
       const normalizedKey = key.toLowerCase()
       if (TRACKING_PARAM_KEYS.includes(normalizedKey as (typeof TRACKING_PARAM_KEYS)[number])) {
         trackingParams.add(normalizedKey)
@@ -249,19 +321,36 @@ export function decodeRedirectChain(rawUrl: string, maxHops = MAX_REDIRECT_HOPS)
     let nextUrl: string | null = null
     let decodedFrom: RedirectHop['decodedFrom'] = 'plain'
 
-    for (const [key, value] of parsed.searchParams.entries()) {
-      const normalizedKey = key.toLowerCase()
-      if (!REDIRECT_PARAM_KEYS.includes(normalizedKey)) continue
+    const paramSources: URLSearchParams[] = [parsed.searchParams]
+    if (hashParams) paramSources.push(hashParams)
 
-      redirectParams.add(normalizedKey)
-      const decoded = decodeNestedValue(value)
-      usedBase64 = usedBase64 || decoded.usedBase64
-      usedNestedEncoding = usedNestedEncoding || decoded.usedNestedEncoding
+    for (const params of paramSources) {
+      for (const [key, value] of params.entries()) {
+        const normalizedKey = key.toLowerCase()
+        if (!REDIRECT_PARAM_KEYS.includes(normalizedKey)) continue
 
-      if (looksLikeUrl(decoded.value)) {
-        nextUrl = decoded.value
-        decodedFrom = decoded.decodedFrom
-        break
+        redirectParams.add(normalizedKey)
+        const decoded = decodeNestedValue(value)
+        usedBase64 = usedBase64 || decoded.usedBase64
+        usedNestedEncoding = usedNestedEncoding || decoded.usedNestedEncoding
+
+        if (looksLikeUrl(decoded.value)) {
+          nextUrl = decoded.value
+          decodedFrom = decoded.decodedFrom
+          break
+        }
+      }
+
+      if (nextUrl) break
+    }
+
+    if (!nextUrl && parsed.hash) {
+      const decodedHash = decodeNestedValue(parsed.hash.replace(/^#/, ''))
+      usedBase64 = usedBase64 || decodedHash.usedBase64
+      usedNestedEncoding = usedNestedEncoding || decodedHash.usedNestedEncoding
+      if (looksLikeUrl(decodedHash.value)) {
+        nextUrl = decodedHash.value
+        decodedFrom = decodedHash.decodedFrom
       }
     }
 

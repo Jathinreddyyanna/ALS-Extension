@@ -9,6 +9,22 @@ const SUSPICIOUS_TLDS = [
   '.monster', '.bar', '.fin', '.bond',
 ]
 
+/**
+ * Official TLDs that require strict registration and are inherently trustworthy.
+ * Domains using these TLDs should never be flagged as suspicious.
+ */
+const OFFICIAL_TLDS = [
+  '.gov.in', '.nic.in', '.bank.in', '.fin.in', '.edu.in', '.ac.in', '.res.in', '.mil.in',
+  '.gov', '.edu', '.mil', '.bank', '.insurance'
+]
+
+function isOfficialDomain(hostname: string): boolean {
+  const clean = hostname.replace(/^www\./, '').toLowerCase()
+  // Skip IP addresses
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(clean)) return false
+  return OFFICIAL_TLDS.some((tld) => clean.endsWith(tld))
+}
+
 const PHISHING_KEYWORDS = [
   'login', 'signin', 'verify', 'secure', 'account', 'update',
   'banking', 'paypal', 'amazon', 'apple', 'microsoft', 'google',
@@ -91,6 +107,15 @@ const EMPTY_SIGNALS: SignalMap = {
 export function scoreUrl(rawUrl: string): ScoreResult {
   try {
     const parsedUrl = new URL(rawUrl)
+
+    // Fast-path: Official TLDs are inherently safe and should never be flagged
+    if (isOfficialDomain(parsedUrl.hostname)) {
+      return {
+        score: 0,
+        signals: EMPTY_SIGNALS,
+        riskLevel: 'LOW',
+      }
+    }
 
     const signals: SignalMap = {
       typosquatScore: checkTyposquat(parsedUrl.hostname),

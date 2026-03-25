@@ -27,7 +27,8 @@ export const ExplanationCard = ({
   const [open, setOpen] = useState(false);
   const displaySignals = signals.slice(0, 3).map((signal) => plainSignalLabels[signal] ?? signal.replace(/_/g, ' '));
   const displayPositives = (positives ?? []).slice(0, 3);
-  const displayWarnings = (warnings ?? []).slice(0, 3);
+  const shouldSuppressWarnings = (confidence ?? 0) >= 0.9 && (warnings?.length ?? 0) <= 1 && displayPositives.length > 0;
+  const displayWarnings = shouldSuppressWarnings ? [] : (warnings ?? []).slice(0, 3);
 
   return (
     <div className="surface-card space-y-4 p-4">
@@ -67,37 +68,41 @@ export const ExplanationCard = ({
           {aiUsed ? 'AI explanation' : 'Rule-based explanation'}
         </span>
       </div>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-2 text-caption text-safe-600 dark:text-safe-dark"
-        aria-expanded={open}
-      >
-        Technical details
-        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden rounded-md bg-[var(--surface-alt)] p-3 text-caption text-[var(--text-secondary)]"
+      {!(shouldSuppressWarnings && technicalDetails.length === 0) && (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className="flex items-center gap-2 text-caption text-safe-600 dark:text-safe-dark"
+            aria-expanded={open}
           >
-            We compare the domain structure, trust signals, and reputation first. AI only explains the verdict after the decision has already been made.
-            {typeof confidence === 'number' && <div className="mt-2">Detection confidence: {Math.round(confidence * 100)}%</div>}
-            {technicalDetails.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {technicalDetails.map((item) => (
-                  <div key={`${item.label}-${item.value}`}>
-                    <span className="font-semibold text-[var(--text-primary)]">{item.label}:</span> {item.value}
+            Technical details
+            <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+          </button>
+          <AnimatePresence initial={false}>
+            {open && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden rounded-md bg-[var(--surface-alt)] p-3 text-caption text-[var(--text-secondary)]"
+              >
+                We compare the domain structure, trust signals, and reputation first. AI only explains the verdict after the decision has already been made.
+                {typeof confidence === 'number' && <div className="mt-2">Detection confidence: {Math.round(confidence * 100)}%</div>}
+                {technicalDetails.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {technicalDetails.map((item) => (
+                      <div key={`${item.label}-${item.value}`}>
+                        <span className="font-semibold text-[var(--text-primary)]">{item.label}:</span> {item.value}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </motion.div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </AnimatePresence>
+        </>
+      )}
     </div>
   );
 };

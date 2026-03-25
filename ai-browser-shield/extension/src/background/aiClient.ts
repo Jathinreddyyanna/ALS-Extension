@@ -28,24 +28,18 @@ export async function explainThreat(url: string, signals: any, popupAnalysis?: a
     });
 
     if (!res.ok) {
-      let errorBody = '';
       try {
-        errorBody = await res.text();
-      } catch (e) {
-        errorBody = '(failed to read body)';
+        await res.text();
+      } catch {
+        // Ignore failed response body reads.
       }
-      console.warn(`[AI Explain] HTTP ${res.status}:`, errorBody);
       return null;
     }
 
     const data = await res.json();
     return data;
   } catch (err: any) {
-    if (err.name === 'AbortError') {
-      console.warn('[AI Explain] Request timed out');
-    } else {
-      console.warn('[AI Explain] Network error:', err.message || err);
-    }
+    void err
     return null;
   }
 }

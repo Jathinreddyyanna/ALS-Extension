@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { FileScanResult, UrlScanResult } from '@/types/index';
 
-export type PopupTab = 'shield' | 'history' | 'report' | 'vault' | 'generator' | 'security' | 'settings';
+export type PopupTab = 'shield' | 'report' | 'vault' | 'settings';
 
 interface ExtensionSettings {
   protectionEnabled: boolean;
@@ -61,7 +61,10 @@ export const useExtensionStore = create<ExtensionStore>((set, get) => ({
   dashboardPage: 'overview',
   settings: defaultSettings,
   downloadOverlay: { open: false, result: null },
-  setCurrentTab: (tab) => set({ direction: ['shield', 'history', 'report', 'vault', 'generator', 'security', 'settings'].indexOf(tab) > ['shield', 'history', 'report', 'vault', 'generator', 'security', 'settings'].indexOf(get().currentTab) ? 1 : -1, currentTab: tab }),
+  setCurrentTab: (tab) => set({
+    direction: ['shield', 'report', 'vault', 'settings'].indexOf(tab) > ['shield', 'report', 'vault', 'settings'].indexOf(get().currentTab) ? 1 : -1,
+    currentTab: tab
+  }),
   setCurrentLocation: (url, domain, tabId) => set({ currentUrl: url, currentDomain: domain, currentTabId: tabId }),
   setIsScanning: (value) => set({ isScanning: value }),
   setScanStage: (value) => set({ scanStage: value }),

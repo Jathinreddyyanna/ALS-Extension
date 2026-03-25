@@ -12,7 +12,10 @@ export interface HeuristicResult {
 const SUSPICIOUS_TLDS = [
   '.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top',
   '.click', '.loan', '.rest', '.cam', '.icu', '.sbs',
-  '.monster', '.bar', '.cfd', '.cyou'
+  '.monster', '.bar', '.cfd', '.cyou',
+  // High-risk TLDs commonly used for phishing
+  '.digital', '.trade', '.online', '.work', '.party',
+  '.review', '.accountant', '.zip', '.mov', '.phd'
 ];
 
 const TRUSTED_BRANDS = [
@@ -24,7 +27,21 @@ const TRUSTED_BRANDS = [
 const PHISHING_KEYWORDS = [
   'verify', 'suspend', 'confirm', 'credential', 'password',
   'account-update', 'login-verify', 'secure-update', 'kyc-update',
-  'prize', 'winner', 'lottery', 'claim-now', 'free-recharge'
+  'prize', 'winner', 'lottery', 'claim-now', 'free-recharge',
+  // Crypto-related phishing keywords
+  'ledger', 'trezor', 'wallet', 'treasury', 'metamask',
+  'coinbase', 'binance', 'crypto', 'blockchain'
+];
+
+const FREE_HOSTING_DOMAINS = [
+  'pages.dev', 'herokuapp.com', 'xo.je', 'netlify.app',
+  'vercel.app', 'web.app', 'firebaseapp.com', 'github.io',
+  'gitlab.io', 'azurewebsites.net', 'cloudflareaccess.com'
+];
+
+const SUSPICIOUS_PHP_FILES = [
+  'login.php', 'class.php', 'secure.php', 'verify.php',
+  'update.php', 'auth.php', 'account.php', 'banking.php'
 ];
 
 function levenshtein(a: string, b: string): number {
@@ -116,7 +133,7 @@ export function computeHeuristics(rawUrl: string, intel: DomainIntelligence, enr
 
     const distance = levenshtein(normalizedRegisteredLabel, brand);
     if (distance > 0 && distance <= 2) {
-      typosquatScore = Math.min(25, Math.max(typosquatScore, 14 + (3 - distance) * 5));
+      typosquatScore = Math.min(40, Math.max(typosquatScore, 25 + (3 - distance) * 7));
       warnings.push('Possible impersonation');
       signalsUsed.push(`typosquat:${brand}`);
       break;
@@ -124,18 +141,18 @@ export function computeHeuristics(rawUrl: string, intel: DomainIntelligence, enr
   }
   signals.typosquatScore = typosquatScore;
 
-  const suspiciousTldScore = SUSPICIOUS_TLDS.some((suffix) => hostname.endsWith(suffix)) ? 12 : 0;
+  const suspiciousTldScore = SUSPICIOUS_TLDS.some((suffix) => hostname.endsWith(suffix)) ? 25 : 0;
   addSignal(signals, signalsUsed, 'suspiciousTLD', suspiciousTldScore, 'suspicious_tld');
 
-  const ipScore = intel.hasIPHostname ? 20 : 0;
+  const ipScore = intel.hasIPHostname ? 50 : 0;
   addSignal(signals, signalsUsed, 'ipAsHostname', ipScore, 'ip_hostname');
 
-  const subdomainScore = intel.subdomainDepth > 3 ? Math.min(16, 8 + (intel.subdomainDepth - 3) * 2) : 0;
+  const subdomainScore = intel.subdomainDepth > 3 ? Math.min(30, 15 + (intel.subdomainDepth - 3) * 5) : 0;
   addSignal(signals, signalsUsed, 'longSubdomains', subdomainScore, 'excessive_subdomains');
 
   const pathAndQuery = `${parsed.pathname}${parsed.search}`.toLowerCase();
   const keywordMatches = PHISHING_KEYWORDS.filter((keyword) => pathAndQuery.includes(keyword)).length;
-  const keywordScore = Math.min(14, keywordMatches * 4);
+  const keywordScore = Math.min(45, keywordMatches * 10);
   addSignal(signals, signalsUsed, 'suspiciousKeywords', keywordScore, `keywords:${keywordMatches}`);
 
   const encodedCount = (parsed.href.match(/%[0-9a-f]{2}/gi) || []).length;
@@ -156,7 +173,7 @@ export function computeHeuristics(rawUrl: string, intel: DomainIntelligence, enr
   addSignal(signals, signalsUsed, 'domainEntropy', domainEntropyScore, 'high_domain_entropy');
 
   const domainAgeDays = enrichment?.domainAgeDays ?? estimateDomainAgeDays(hostname, intel);
-  const domainAgeScore = domainAgeDays < 30 ? 18 : domainAgeDays < 120 ? 10 : 0;
+  const domainAgeScore = domainAgeDays < 30 ? 35 : domainAgeDays < 120 ? 18 : 0;
   addSignal(signals, signalsUsed, 'domainAge', domainAgeScore, 'newly_registered_domain');
   if (domainAgeScore > 0) warnings.push('Newly registered domain');
 
@@ -170,12 +187,46 @@ export function computeHeuristics(rawUrl: string, intel: DomainIntelligence, enr
           : 0;
   addSignal(signals, signalsUsed, 'sslRisk', sslRiskScore, `ssl_${enrichment?.sslStatus ?? 'unknown'}`);
 
-  const hostingRiskScore = enrichment?.asnReputation === 'cheap_hosting' ? 10 : 0;
+  const hostingRiskScore = enrichment?.asnReputation === 'cheap_hosting' ? 35 : 0;
   addSignal(signals, signalsUsed, 'hostingRisk', hostingRiskScore, 'cheap_hosting_provider');
 
-  addSignal(signals, signalsUsed, 'subdomainSpoofing', intel.hasSubdomainSpoofing ? 26 : 0, 'subdomain_spoofing');
-  addSignal(signals, signalsUsed, 'brandImpersonation', intel.impersonatedBrand ? 22 : 0, `brand_impersonation:${intel.impersonatedBrand ?? 'unknown'}`);
-  addSignal(signals, signalsUsed, 'homoglyphRisk', intel.homoglyph.score, intel.homoglyph.hasPunycode ? 'punycode_domain' : 'homoglyph_attack');
+  addSignal(signals, signalsUsed, 'subdomainSpoofing', intel.hasSubdomainSpoofing ? 45 : 0, 'subdomain_spoofing');
+  addSignal(signals, signalsUsed, 'brandImpersonation', intel.impersonatedBrand ? 50 : 0, `brand_impersonation:${intel.impersonatedBrand ?? 'unknown'}`);
+  addSignal(signals, signalsUsed, 'homoglyphRisk', intel.homoglyph.score >= 30 ? 40 : intel.homoglyph.score, intel.homoglyph.hasPunycode ? 'punycode_domain' : 'homoglyph_attack');
+
+  // CRITICAL PATTERN: Base64 encoded parameters (common phishing redirect obfuscation)
+  const base64ParamScore = /[\?&][a-z0-9_]+=[A-Za-z0-9+/]{20,}={0,2}/i.test(parsed.search) ? 40 : 0;
+  addSignal(signals, signalsUsed, 'base64Params', base64ParamScore, 'base64_encoded_params');
+
+  // CRITICAL PATTERN: Crypto-related keywords in domain or path (high-value phishing targets)
+  const cryptoKeywordsInDomain = PHISHING_KEYWORDS.slice(7).filter((keyword) =>
+    normalizedRegisteredLabel.includes(keyword.replace(/[^a-z0-9]/g, '')) ||
+    pathAndQuery.includes(keyword)
+  ).length;
+  const cryptoKeywordScore = cryptoKeywordsInDomain > 0 ? 45 : 0;
+  addSignal(signals, signalsUsed, 'cryptoKeywords', cryptoKeywordScore, `crypto_keywords:${cryptoKeywordsInDomain}`);
+
+  // CRITICAL PATTERN: Free hosting provider (pages.dev, herokuapp.com, etc.)
+  const freeHostingScore = FREE_HOSTING_DOMAINS.some((host) => hostname.includes(host)) ? 35 : 0;
+  addSignal(signals, signalsUsed, 'freeHosting', freeHostingScore, 'free_hosting_provider');
+
+  // CRITICAL PATTERN: Suspicious PHP file names (login.php, class.php, etc.)
+  const hasPhpFile = SUSPICIOUS_PHP_FILES.some((filename) => pathAndQuery.includes(filename));
+  const phpFileScore = hasPhpFile ? 35 : 0;
+  addSignal(signals, signalsUsed, 'suspiciousPhpFile', phpFileScore, 'suspicious_php_file');
+
+  // CRITICAL PATTERN: Random subdomain (high entropy subdomain like sknanbkyc.digital)
+  const subdomainParts = hostname.split('.');
+  let randomSubdomainScore = 0;
+  if (subdomainParts.length >= 3) {
+    const firstSubdomain = subdomainParts[0] || '';
+    // High entropy + doesn't match known patterns = likely random
+    const subdomainEntropy = shannonEntropy(firstSubdomain);
+    if (subdomainEntropy > 3.8 && firstSubdomain.length > 8 && !intel.hasSubdomainSpoofing) {
+      randomSubdomainScore = 40;
+      addSignal(signals, signalsUsed, 'randomSubdomain', randomSubdomainScore, 'random_subdomain');
+    }
+  }
 
   const weightedScore =
     (signals.typosquatScore ?? 0) * 1.0 +
@@ -194,7 +245,12 @@ export function computeHeuristics(rawUrl: string, intel: DomainIntelligence, enr
     (signals.hostingRisk ?? 0) * 0.8 +
     (signals.subdomainSpoofing ?? 0) * 1.0 +
     (signals.brandImpersonation ?? 0) * 1.0 +
-    (signals.homoglyphRisk ?? 0) * 1.0;
+    (signals.homoglyphRisk ?? 0) * 1.0 +
+    (signals.base64Params ?? 0) * 1.0 +
+    (signals.cryptoKeywords ?? 0) * 1.0 +
+    (signals.freeHosting ?? 0) * 0.9 +
+    (signals.suspiciousPhpFile ?? 0) * 0.9 +
+    (signals.randomSubdomain ?? 0) * 0.95;
 
   const trustReduction = Math.round(intel.trustScore * 0.22);
   const finalScore = Math.min(100, Math.max(0, Math.round(weightedScore - trustReduction)));

@@ -3,10 +3,10 @@ import { cacheGetJSON, cacheSetJSON } from './cache.service';
 import { logger } from '../utils/logger';
 
 export interface ThreatIntelProviderResult {
-  provider: 'google_safe_browsing' | 'virustotal' | 'phishtank';
+  provider: 'google_safe_browsing' | 'virustotal' | 'phishtank' | 'openphish';
   isMalicious: boolean;
   threatTypes: string[];
-  source: 'google_safe_browsing' | 'virustotal' | 'phishtank';
+  source: 'google_safe_browsing' | 'virustotal' | 'phishtank' | 'openphish';
   confidenceLevel: 'high' | 'medium' | 'low';
 }
 
@@ -82,7 +82,13 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 }
 
 async function callGoogleSafeBrowsing(url: string): Promise<ThreatIntelProviderResult> {
-  if (!env.SAFE_BROWSING_API_KEY || isCircuitOpen('google_safe_browsing')) {
+  if (!env.SAFE_BROWSING_API_KEY) {
+    logger.warn({ url }, 'Google Safe Browsing API key not configured - skipping GSB check');
+    return DEFAULT_RESULT;
+  }
+
+  if (isCircuitOpen('google_safe_browsing')) {
+    logger.warn({ url }, 'Google Safe Browsing circuit breaker open - too many recent failures');
     return DEFAULT_RESULT;
   }
 

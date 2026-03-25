@@ -3,7 +3,9 @@ import { DatabaseError } from '../errors';
 import { parseAndNormalizeUrl } from '../detection/urlParser';
 import { cacheKeys, cacheService } from './cache.service';
 import { hashIp } from '../utils/ip';
+import { hashUrlForStorage } from '../utils/crypto';
 import { invalidateDomainCaches, recalculateDomainScore } from './domain.service';
+import { resolveFinalUrl } from './urlResolver.service';
 
 export const createThreatReport = async (input: {
   url: string;
@@ -14,14 +16,16 @@ export const createThreatReport = async (input: {
   ip: string;
   userAgent?: string;
 }) => {
-  const parsed = parseAndNormalizeUrl(input.url);
+  const finalUrl = resolveFinalUrl(input.url).finalUrl;
+  const parsed = parseAndNormalizeUrl(finalUrl);
+  const hashedUrl = hashUrlForStorage(finalUrl);
   const ipHash = hashIp(input.ip);
   const persistedCategory = input.category === 'piracy' ? 'other' : input.category;
 
   try {
     const existing = await prisma.threatReport.findFirst({
       where: {
-        url: input.url,
+        url: hashedUrl,
         ipHash,
         createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
       }
@@ -36,7 +40,7 @@ export const createThreatReport = async (input: {
 
     const report = await prisma.threatReport.create({
       data: {
-        url: input.url,
+        url: hashedUrl,
         domain: parsed.domain,
         category: persistedCategory,
         description: input.description,

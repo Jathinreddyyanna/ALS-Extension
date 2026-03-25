@@ -144,6 +144,8 @@ export interface AiAssessment {
 
 export interface UrlScanResult {
   url: string;
+  finalUrl?: string;
+  redirectChain?: string[];
   domain: string;
   riskScore: number;
   riskLevel: RiskLevel;
@@ -183,6 +185,7 @@ export interface UrlScanResult {
   interactionRisk?: number;
   warningsEnhanced?: string[];
   allowlisted?: boolean;
+  trustedDomain?: boolean;
   reputationStatus?: 'known_safe' | 'known_threat' | 'unknown' | 'community_flagged';
   decisionBasis?: string;
   skip?: boolean;
@@ -191,6 +194,8 @@ export interface UrlScanResult {
 
 export const UrlScanResponseSchema = z.object({
   url: z.string(),
+  finalUrl: z.string().optional(),
+  redirectChain: z.array(z.string()).optional(),
   domain: z.string(),
   riskScore: z.number().min(0).max(100),
   riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),

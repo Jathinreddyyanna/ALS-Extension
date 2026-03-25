@@ -67,7 +67,7 @@ export function computeBehaviorRisk(input: {
     behaviorRisk += 10;
   }
   if (input.contentCategory === 'unknown') {
-    warnings.push('Limited data available - proceed with caution');
+    warnings.push('Limited page context available, but current signals do not indicate active abuse');
   }
 
   return {

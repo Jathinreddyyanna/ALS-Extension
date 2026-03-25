@@ -12,6 +12,7 @@ import healthRoutes from './routes/health.routes';
 import aiRoutes from './routes/ai.routes';
 import securityRoutes from './routes/security.routes';
 import adminRoutes from './routes/admin.routes';
+import feedbackRoutes from './routes/feedback';
 import { statsController } from './controllers/health.controller';
 import { createRateLimiter } from './middleware/rateLimiter';
 import { AppError } from './errors';
@@ -82,6 +83,7 @@ export const createApp = () => {
   app.use('/api/v1/ai', aiRoutes);
   app.use('/api/v1/security', securityRoutes);
   app.use('/api/v1/admin', adminRoutes);
+  app.use('/api/v1/feedback', feedbackRoutes);
   app.get('/api/v1/stats', createRateLimiter({ endpoint: 'stats_root_ip', limit: 100, windowMs: 60_000 }), statsController);
 
   app.use((req, _res, next) => {

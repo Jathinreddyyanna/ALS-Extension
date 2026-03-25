@@ -46,7 +46,7 @@
       "isWhitelisted": true,
       "firstSeen": "2026-03-18T05:50:16.724Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-19T06:40:12.185Z",
+      "lastUpdated": "2026-03-25T04:18:38.626Z",
       "scanCount": 0
     },
     "example.com": {
@@ -590,7 +590,7 @@
       "isWhitelisted": false,
       "firstSeen": "2026-03-18T17:10:11.272Z",
       "lastReportAt": null,
-      "lastUpdated": "2026-03-19T06:40:12.106Z",
+      "lastUpdated": "2026-03-25T04:18:33.039Z",
       "scanCount": 0
     },
     "flickystream.ru": {
@@ -726,6 +726,96 @@
       "firstSeen": "2026-03-24T08:15:06.336Z",
       "lastReportAt": null,
       "lastUpdated": "2026-03-24T08:15:06.336Z",
+      "scanCount": 0
+    },
+    "wixsite.com": {
+      "id": "3bc0eb32-27f3-4146-bdf4-be4674f90177",
+      "domain": "wixsite.com",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-24T23:41:48.642Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-24T23:41:48.642Z",
+      "scanCount": 0
+    },
+    "rovno.xyz": {
+      "id": "79290158-24d6-4238-bf19-200aacd85e80",
+      "domain": "rovno.xyz",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-25T04:18:34.191Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-25T04:18:34.191Z",
+      "scanCount": 0
+    },
+    "widget.intercom.io": {
+      "id": "4cc8a4dd-ec6f-4ab1-a829-c827abfc152c",
+      "domain": "widget.intercom.io",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-25T04:18:39.778Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-25T04:18:39.778Z",
+      "scanCount": 0
+    },
+    "www.lunargrovefx.com": {
+      "id": "4c98a537-4625-4a91-945b-aa2969ff7377",
+      "domain": "www.lunargrovefx.com",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-25T04:19:00.649Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-25T04:19:00.649Z",
+      "scanCount": 0
+    },
+    "carbikebhp.com": {
+      "id": "9c822322-6635-46cd-b25f-68b34f3e0694",
+      "domain": "carbikebhp.com",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-25T04:19:02.478Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-25T04:19:02.478Z",
+      "scanCount": 0
+    },
+    "bank.in": {
+      "id": "455fd1d3-1012-423f-9b19-fcdcec79d363",
+      "domain": "bank.in",
+      "riskScore": 0,
+      "reportCount": 0,
+      "trustScore": 50,
+      "categories": [],
+      "categoryCounts": {},
+      "isConfirmed": false,
+      "isWhitelisted": false,
+      "firstSeen": "2026-03-25T04:19:05.313Z",
+      "lastReportAt": null,
+      "lastUpdated": "2026-03-25T04:19:05.313Z",
       "scanCount": 0
     }
   },
@@ -1524,6 +1614,65 @@
       },
       "createdAt": "2026-03-19T06:40:45.352Z",
       "id": "e2e0a0a1-fe52-4609-8e14-68e78d11242f"
+    },
+    {
+      "eventType": "url_threat",
+      "domain": "virustotal.com",
+      "url": "hash:1064acf12f4c9583323103be396cfeecd30c372fb66ae843d318798bdf33034d",
+      "riskScore": 12,
+      "riskLevel": "LOW",
+      "signals": {
+        "typosquatScore": 0,
+        "suspiciousTLD": 0,
+        "ipAsHostname": 0,
+        "longSubdomains": 0,
+        "suspiciousKeywords": 0,
+        "encodedChars": 0,
+        "pathEntropy": 0,
+        "portAnomaly": 0,
+        "keywordStuffing": 0,
+        "domainEntropy": 0,
+        "domainAge": 0,
+        "dnsInstability": 0,
+        "sslRisk": 0,
+        "hostingRisk": 0,
+        "subdomainSpoofing": 0,
+        "brandImpersonation": 0,
+        "homoglyphRisk": 0,
+        "signalsUsed": [],
+        "decisionBasis": "trusted_domain_override",
+        "reputationStatus": "unknown",
+        "requestSignals": {
+          "typosquatScore": 0,
+          "suspiciousTLD": 0,
+          "ipAsHostname": 0,
+          "longSubdomains": 0,
+          "suspiciousKeywords": 5,
+          "encodedChars": 0,
+          "pathEntropy": 0,
+          "portAnomaly": 0,
+          "hiddenIframes": 2
+        }
+      },
+      "aiExplanation": "This domain shows strong trust signals and the current page behavior is consistent with normal operation.",
+      "ipHash": "56cecc2817e163f85ec7c16445af05b9bfb066b6f7e2a099430e8af78050ec0f",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "id": "c5203423-ac08-47cb-afd7-a1ad19fd1c05",
+      "createdAt": "2026-03-24T21:01:17.116Z"
+    },
+    {
+      "eventType": "ad_block",
+      "domain": "www.google-analytics.com",
+      "url": "hash:f81d4c26afadd15dadbcd618376be2028d254ea7805155716a22cf2e1903f489",
+      "riskScore": 35,
+      "riskLevel": "MEDIUM",
+      "aiExplanation": "Blocked tracker request on www.virustotal.com. Saved approximately 4800 bytes.",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "signals": {
+        "persistedBy": "extension"
+      },
+      "createdAt": "2026-03-24T21:01:08.629Z",
+      "id": "e0922c6c-8616-4d37-bbce-d32c0a785626"
     }
   ]
 }

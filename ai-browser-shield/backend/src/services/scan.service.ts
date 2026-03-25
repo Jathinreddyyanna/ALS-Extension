@@ -4,6 +4,7 @@ import { resolveAllowlist } from './allowlist.service';
 import { cacheGetJSON, cacheKeys, cacheService, cacheSetJSON } from './cache.service';
 import { analyzeDomain } from './domainIntelligence.service';
 import { enrichDomainSignals } from './domainEnrichment.service';
+import type { DomainEnrichment } from './domainEnrichment.service';
 import { computeHeuristics, type HeuristicResult } from './scoring.service';
 import { getReputation, type ReputationResult } from './reputation.service';
 import { makeDecision } from './decision.service';
@@ -13,14 +14,12 @@ import { aggregateThreatIntel } from './threatIntel.service';
 import type { ThreatIntelAggregateResult } from './threatIntel.service';
 import { classifyContentCategory, computeBehaviorRisk, computeRuntimeRisk } from './behaviorRisk.service';
 import { computeDomRisk, computeInteractionRisk } from './pageInteraction.service';
+import { isTrustedDomain } from './trustEngine.service';
+import { analyzeResolvedUrl, resolveUrlDeep, isUrlShortener, extractRootDomain } from './urlResolver.service';
 import { hashIp } from '../utils/ip';
+import { hashUrlForStorage } from '../utils/crypto';
 import { logger } from '../utils/logger';
 import type { Category, RiskLevel, UrlScanResult } from '../types/scan.types';
-
-const VERIFIED_SAFE_DOMAINS = new Set([
-  'google.com', 'github.com', 'stackoverflow.com', 'youtube.com',
-  'microsoft.com', 'apple.com', 'amazon.com', 'linkedin.com', 'wikipedia.org'
-]);
 
 const PIRACY_KEYWORDS = [
   'filmyzilla', 'movierulz', 'tamilrockers', 'torrent', 'piracy',
@@ -80,11 +79,6 @@ const verdictFromRiskLevel = (riskLevel: RiskLevel): 'safe' | 'suspicious' | 'ma
       : 'safe'
 );
 
-const isVerifiedSafeDomain = (hostname: string): boolean => {
-  const clean = hostname.replace(/^www\./, '').toLowerCase();
-  return VERIFIED_SAFE_DOMAINS.has(clean);
-};
-
 const getCacheTtl = (riskLevel: RiskLevel): number => (
   riskLevel === 'LOW' ? 60 * 60 * 24
     : riskLevel === 'MEDIUM' ? 60 * 30
@@ -93,7 +87,7 @@ const getCacheTtl = (riskLevel: RiskLevel): number => (
 );
 
 const buildHeuristicExplanationFallback = () => ({
-  explanation: 'AI analysis temporarily unavailable. Risk assessed using pattern matching and domain intelligence.',
+  explanation: 'AI analysis is temporarily unavailable, so this page was assessed using domain trust and observed behavior signals.',
   aiExplanation: 'Heuristic fallback — Gemini quota reached or all models exhausted.',
   riskLevel: 'LOW' as const,
   recommendedAction: 'allow' as const,
@@ -139,7 +133,7 @@ const applyThreatBoosters = (
   const hasBrandImpersonation = PHISHING_BRANDS.some((brand) => hostname.includes(brand)) &&
     PHISHING_ACTIONS.some((action) => urlLower.includes(action));
 
-  if (hasBrandImpersonation && !isVerifiedSafeDomain(hostname)) {
+  if (hasBrandImpersonation && !isTrustedDomain(hostname)) {
     boostedScore += 50;
     boostedSignals.brandImpersonation = Math.max(boostedSignals.brandImpersonation ?? 0, 50);
     boostedSignalsUsed.push('brand_impersonation_pattern');
@@ -194,7 +188,7 @@ const computeThreatSignals = (
 
   const hasBrandName = PHISHING_BRANDS.some((brand) => hostLower.includes(brand));
   const hasActionWord = PHISHING_ACTIONS.some((action) => urlLower.includes(action));
-  if (hasBrandName && hasActionWord && !isVerifiedSafeDomain(hostname)) {
+  if (hasBrandName && hasActionWord && !isTrustedDomain(hostname)) {
     boost += 55;
     detectedPatterns.push('brand_impersonation_phishing');
   }
@@ -210,7 +204,7 @@ const computeThreatSignals = (
   }
 
   if ((signals.overlayTrap ?? 0) > 0) detectedPatterns.push('overlay_trap');
-  if ((signals.hiddenIframes ?? 0) > 0) detectedPatterns.push('hidden_iframes');
+  if ((signals.hiddenIframes ?? 0) > 5) detectedPatterns.push('hidden_iframes');
   if ((signals.clickInterception ?? 0) > 0) detectedPatterns.push('click_interception');
   if ((signals.suspiciousFormCount ?? 0) > 0) detectedPatterns.push('suspicious_form_count');
   if ((signals.popupFrequency ?? 0) > 0) detectedPatterns.push('popup_abuse');
@@ -234,14 +228,110 @@ const deriveCategory = (
   return 'unknown';
 };
 
+const filterTrustOverrideWarnings = (warnings: string[]): string[] =>
+  warnings.filter((warning) => {
+    const lower = warning.toLowerCase();
+    return !(
+      lower.includes('possible impersonation') ||
+      lower.includes('proceed with caution') ||
+      lower.includes('hidden iframe') ||
+      lower.includes('limited page context')
+    );
+  });
+
+const filterTrustOverrideIndicators = (indicators: string[]): string[] =>
+  indicators.filter((indicator) => {
+    const lower = indicator.toLowerCase();
+    return !(
+      lower.includes('impersonation') ||
+      lower.includes('hidden_iframes') ||
+      lower.includes('suspicious_form_count')
+    );
+  });
+
+const shouldApplyTrustedDomainOverride = (input: {
+  intel: ReturnType<typeof analyzeDomain>;
+  enrichment: DomainEnrichment;
+  reputation: ReputationResult;
+  threatIntel: ThreatIntelAggregateResult;
+  heuristic: HeuristicResult;
+  runtimeRisk: number;
+  domRisk: number;
+  interactionRisk: number;
+  detectedPatterns: string[];
+  signalContext: Record<string, number>;
+  response: UrlScanResult;
+}): boolean => {
+  const hasStrongRiskSignals =
+    input.threatIntel.isMalicious ||
+    input.response.riskLevel === 'HIGH' ||
+    input.response.riskLevel === 'CRITICAL' ||
+    input.runtimeRisk >= 25 ||
+    input.domRisk >= 25 ||
+    input.interactionRisk >= 25 ||
+    Number(input.signalContext.overlayTrap ?? 0) > 0 ||
+    Number(input.signalContext.clickInterception ?? 0) > 0 ||
+    Number(input.signalContext.suspiciousFormCount ?? 0) > 0 ||
+    Number(input.signalContext.hiddenIframes ?? 0) > 5 ||
+    input.detectedPatterns.some((pattern) =>
+      [
+        'brand_impersonation_phishing',
+        'malicious_script_injection',
+        'overlay_trap',
+        'click_interception',
+        'suspicious_form_count',
+        'redirect_chain'
+      ].includes(pattern)
+    );
+
+  if (hasStrongRiskSignals) return false;
+
+  const trustedReputation = input.reputation.reputationStatus === 'known_safe';
+  const strongTrustSignals =
+    input.intel.trustScore >= 55 &&
+    input.enrichment.sslTrusted &&
+    (input.enrichment.domainAgeDays === null || input.enrichment.domainAgeDays >= 365) &&
+    !input.intel.hasSubdomainSpoofing &&
+    !input.intel.impersonatedBrand &&
+    !input.intel.homoglyph.hasHomoglyphRisk &&
+    input.heuristic.score <= 18;
+
+  return trustedReputation || strongTrustSignals;
+};
+
+const applyTrustedDomainOverride = (response: UrlScanResult): UrlScanResult => ({
+  ...response,
+  riskScore: Math.min(response.riskScore, 12),
+  riskLevel: 'LOW',
+  explanation: 'This domain shows strong trust signals and the current page behavior is consistent with normal operation.',
+  aiExplanation: 'Trusted domain override applied. Reputation, TLS trust, and low-risk runtime behavior outweigh weak heuristic noise for this page.',
+  keyIndicators: Array.from(new Set(['Trusted domain reputation', ...filterTrustOverrideIndicators(response.keyIndicators)])),
+  positives: Array.from(new Set([...(response.positives ?? []), 'Domain matches official service', 'No malicious behavior detected'])),
+  warnings: filterTrustOverrideWarnings(response.warnings ?? []),
+  warningsEnhanced: filterTrustOverrideWarnings(response.warningsEnhanced ?? []),
+  recommendedAction: 'allow',
+  confidence: Math.max(response.confidence, 0.95),
+  category: 'clean',
+  trustedDomain: true,
+  categories: response.categories?.includes('verified_safe_domain')
+    ? response.categories
+    : Array.from(new Set(['verified_safe_domain', ...(response.categories ?? [])])),
+  verdict: 'safe',
+  decisionBasis: 'trusted_domain_override'
+});
+
 const buildLocalResult = (
   inputUrl: string,
+  finalUrl: string,
+  redirectChain: string[],
   domain: string,
   urlType: UrlScanResult['urlType'],
   explanation: string,
   started: number
 ): UrlScanResult => ({
   url: inputUrl,
+  finalUrl,
+  redirectChain,
   domain,
   riskScore: 0,
   riskLevel: 'LOW',
@@ -273,6 +363,7 @@ const buildLocalResult = (
   safeBrowsingThreatTypes: [],
   signalsUsed: [],
   trustSignals: [],
+  trustedDomain: false,
   contentCategory: 'unknown',
   behaviorRisk: 0,
   runtimeRisk: 0,
@@ -297,11 +388,37 @@ export const performUrlScan = async (input: {
   userGeminiKey?: string;
 }): Promise<UrlScanResult> => {
   const started = Date.now();
-  const parsed = parseAndNormalizeUrl(input.url);
+
+  // Check if URL is a shortener - use deep HTTP resolution
+  let resolved: { rawUrl: string; finalUrl: string; domain: string; redirectChain: string[]; redirector: boolean };
+  try {
+    const hostname = new URL(input.url).hostname.toLowerCase();
+    if (isUrlShortener(hostname)) {
+      // URL shortener detected - resolve via HTTP HEAD
+      const deepResolved = await resolveUrlDeep(input.url);
+      resolved = {
+        rawUrl: input.url,
+        finalUrl: deepResolved.finalUrl,
+        domain: extractRootDomain(deepResolved.finalUrl),
+        redirectChain: deepResolved.chain,
+        redirector: true
+      };
+      logger.info({ shortUrl: input.url, finalUrl: deepResolved.finalUrl, chain: deepResolved.chain }, 'URL shortener resolved');
+    } else {
+      resolved = analyzeResolvedUrl(input.url);
+    }
+  } catch {
+    // Invalid URL - use standard resolution
+    resolved = analyzeResolvedUrl(input.url);
+  }
+
+  const parsed = parseAndNormalizeUrl(resolved.finalUrl);
 
   if (parsed.skip) {
     return {
       url: input.url,
+      finalUrl: resolved.finalUrl,
+      redirectChain: resolved.redirectChain,
       domain: parsed.domain,
       riskScore: 0,
       riskLevel: 'LOW',
@@ -333,6 +450,7 @@ export const performUrlScan = async (input: {
       safeBrowsingThreatTypes: [],
       signalsUsed: [],
       trustSignals: [],
+      trustedDomain: false,
       contentCategory: 'unknown',
       behaviorRisk: 0,
       runtimeRisk: 0,
@@ -348,6 +466,8 @@ export const performUrlScan = async (input: {
   if (['localhost', 'private_ip', 'file', 'data', 'internal', 'blob'].includes(parsed.urlType)) {
     return buildLocalResult(
       input.url,
+      resolved.finalUrl,
+      resolved.redirectChain,
       parsed.domain,
       parsed.urlType,
       parsed.urlType === 'file'
@@ -408,9 +528,19 @@ export const performUrlScan = async (input: {
         matchedProviders: []
       };
     });
+    if (threatIntel.isMalicious) {
+      logger.warn({
+        url: parsed.normalizedUrl,
+        sources: threatIntel.sources,
+        threatTypes: threatIntel.threatTypes,
+        confidenceLevel: threatIntel.confidenceLevel
+      }, '[THREAT_INTEL] THREAT DETECTED');
+    }
     if (threatIntel.isMalicious && threatIntel.threatSource === 'google') {
       const response: UrlScanResult = {
         url: input.url,
+        finalUrl: resolved.finalUrl,
+        redirectChain: resolved.redirectChain,
         domain: intel.registeredDomain,
         riskScore: 100,
         riskLevel: 'CRITICAL',
@@ -442,6 +572,7 @@ export const performUrlScan = async (input: {
         safeBrowsingThreatTypes: threatIntel.threatTypes,
         signalsUsed: ['google_safe_browsing'],
         trustSignals: [],
+        trustedDomain: false,
         contentCategory: 'unknown',
         behaviorRisk: 0,
         runtimeRisk: 0,
@@ -456,11 +587,12 @@ export const performUrlScan = async (input: {
       await cacheSetJSON(cacheKey, response, 600);
 
       const ipHash = hashIp(input.ip ?? '0.0.0.0');
+      const hashedUrl = hashUrlForStorage(resolved.finalUrl);
       void prisma.detectionEvent.create({
         data: {
           eventType: 'url_threat',
           domain: intel.registeredDomain,
-          url: input.url,
+          url: hashedUrl,
           riskScore: response.riskScore,
           riskLevel: response.riskLevel,
           signals: {
@@ -478,7 +610,7 @@ export const performUrlScan = async (input: {
       }).catch(() => localPersistence.createDetectionEvent({
         eventType: 'url_threat',
         domain: intel.registeredDomain,
-        url: input.url,
+        url: hashedUrl,
         riskScore: response.riskScore,
         riskLevel: response.riskLevel,
         signals: {
@@ -500,7 +632,6 @@ export const performUrlScan = async (input: {
     }
 
     const [allowlist, reputation, enrichment] = await Promise.all([allowlistPromise, reputationPromise, enrichmentPromise]);
-    const trustSignals = Array.from(new Set([...intel.positives, ...enrichment.positives]));
     const runtime = computeRuntimeRisk({ signals: input.signals, requestContext: input.requestContext });
     const domInspection = computeDomRisk(input.signals);
     const interaction = computeInteractionRisk(input.signals);
@@ -511,12 +642,22 @@ export const performUrlScan = async (input: {
       cheapHosting: enrichment.asnReputation === 'cheap_hosting',
       suspiciousKeywordScore: Number(input.signals?.suspiciousKeywords ?? 0)
     });
-    const verifiedSafeDomain = isVerifiedSafeDomain(intel.hostname);
+    const verifiedSafeDomain = isTrustedDomain(intel.hostname);
+    const trustSignals = Array.from(new Set([
+      ...intel.positives,
+      ...enrichment.positives,
+      ...(enrichment.domainAgeDays !== null && enrichment.domainAgeDays >= 365 * 5 ? ['Registered 5+ years ago'] : []),
+      ...(reputation.reportCount === 0 ? ['No reported phishing'] : []),
+      ...(verifiedSafeDomain ? ['Official domain match'] : []),
+      ...(resolved.redirectChain.length > 1 ? ['Final destination resolved through redirect chain'] : [])
+    ]));
 
     if (allowlist.matched) {
       const explanation = 'This domain matches the verified trust registry and its structural trust signals are consistent with a legitimate service.';
       const response: UrlScanResult = {
         url: input.url,
+        finalUrl: resolved.finalUrl,
+        redirectChain: resolved.redirectChain,
         domain: intel.registeredDomain,
         riskScore: 0,
         riskLevel: 'LOW',
@@ -548,6 +689,7 @@ export const performUrlScan = async (input: {
         safeBrowsingThreatTypes: [],
         signalsUsed: ['verified_domain_registry'],
         trustSignals,
+        trustedDomain: true,
         contentCategory,
         behaviorRisk: 0,
         runtimeRisk: runtime.runtimeRisk,
@@ -568,6 +710,22 @@ export const performUrlScan = async (input: {
       intel.hostname,
       computeHeuristics(parsed.normalizedUrl, intel, enrichment)
     );
+
+    // Log signal breakdown for debugging
+    const signalBreakdown = Object.entries(heuristic.signals)
+      .filter(([, value]) => value > 0)
+      .sort(([, a], [, b]) => b - a);
+    if (signalBreakdown.length > 0) {
+      logger.debug({
+        url: parsed.normalizedUrl,
+        hostname: intel.hostname,
+        heuristicScore: heuristic.score,
+        signalBreakdown: Object.fromEntries(signalBreakdown),
+        signalsUsed: heuristic.signalsUsed,
+        positives: heuristic.positives,
+        warnings: heuristic.warnings
+      }, '[SCORING] Heuristic signal breakdown');
+    }
     const signalContext: Record<string, number> = {
       ...heuristic.signals,
       ...(input.signals ?? {}),
@@ -605,6 +763,8 @@ export const performUrlScan = async (input: {
       const explanation = 'This page is on a verified, well-known domain with no significant risk signals detected in the current interaction.';
       const response: UrlScanResult = {
         url: input.url,
+        finalUrl: resolved.finalUrl,
+        redirectChain: resolved.redirectChain,
         domain: intel.registeredDomain,
         riskScore: 5,
         riskLevel: 'LOW',
@@ -636,6 +796,7 @@ export const performUrlScan = async (input: {
         safeBrowsingThreatTypes: [],
         signalsUsed: ['verified_safe_domain'],
         trustSignals: Array.from(new Set([...trustSignals, 'Verified safe domain'])),
+        trustedDomain: true,
         contentCategory,
         behaviorRisk: 0,
         runtimeRisk: runtime.runtimeRisk,
@@ -723,8 +884,8 @@ export const performUrlScan = async (input: {
 
     let calibratedRiskLevel: RiskLevel =
       calibratedScore >= 75 ? 'CRITICAL'
-        : calibratedScore >= 55 ? 'HIGH'
-          : calibratedScore >= 35 ? 'MEDIUM'
+        : calibratedScore >= 50 ? 'HIGH'
+          : calibratedScore >= 30 ? 'MEDIUM'
             : 'LOW';
 
     if (
@@ -804,6 +965,8 @@ export const performUrlScan = async (input: {
 
     const response: UrlScanResult = {
       url: input.url,
+      finalUrl: resolved.finalUrl,
+      redirectChain: resolved.redirectChain,
       domain: intel.registeredDomain,
       riskScore: finalDecision.riskScore,
       riskLevel: finalDecision.riskLevel,
@@ -835,6 +998,7 @@ export const performUrlScan = async (input: {
       safeBrowsingThreatTypes: threatIntel.sources.includes('google_safe_browsing') ? threatIntel.threatTypes : [],
       signalsUsed: finalDecision.signalsUsed,
       trustSignals,
+      trustedDomain: verifiedSafeDomain,
       contentCategory,
       behaviorRisk: behavior.behaviorRisk,
       runtimeRisk: runtime.runtimeRisk,
@@ -846,25 +1010,42 @@ export const performUrlScan = async (input: {
       decisionBasis: finalDecision.decisionBasis
     };
 
-    await cacheSetJSON(cacheKey, response, getCacheTtl(response.riskLevel));
+    const finalResponse = shouldApplyTrustedDomainOverride({
+      intel,
+      enrichment,
+      reputation,
+      threatIntel,
+      heuristic,
+      runtimeRisk: runtime.runtimeRisk,
+      domRisk: domInspection.domRisk,
+      interactionRisk: interaction.interactionRisk,
+      detectedPatterns,
+      signalContext,
+      response
+    })
+      ? applyTrustedDomainOverride(response)
+      : response;
+
+    await cacheSetJSON(cacheKey, finalResponse, getCacheTtl(finalResponse.riskLevel));
 
     const ipHash = hashIp(input.ip ?? '0.0.0.0');
+    const hashedUrl = hashUrlForStorage(resolved.finalUrl);
     void prisma.detectionEvent.create({
       data: {
         eventType: 'url_threat',
         domain: intel.registeredDomain,
-        url: input.url,
-        riskScore: finalDecision.riskScore,
-        riskLevel: finalDecision.riskLevel,
+        url: hashedUrl,
+        riskScore: finalResponse.riskScore,
+        riskLevel: finalResponse.riskLevel,
         signals: {
           ...heuristic.signals,
           signalsUsed: heuristic.signalsUsed,
-          decisionBasis: finalDecision.decisionBasis,
+          decisionBasis: finalResponse.decisionBasis,
           reputationStatus: reputation.reputationStatus,
           requestSignals: input.signals ?? {},
           tabId: input.tabId
         },
-        aiExplanation: finalExplanationContent.explanation,
+        aiExplanation: finalResponse.explanation,
         ipHash,
         userAgent: input.userAgent,
         sessionId: input.sessionId
@@ -872,18 +1053,18 @@ export const performUrlScan = async (input: {
     }).catch(() => localPersistence.createDetectionEvent({
       eventType: 'url_threat',
       domain: intel.registeredDomain,
-      url: input.url,
-      riskScore: finalDecision.riskScore,
-      riskLevel: finalDecision.riskLevel,
+      url: hashedUrl,
+      riskScore: finalResponse.riskScore,
+      riskLevel: finalResponse.riskLevel,
       signals: {
         ...heuristic.signals,
         signalsUsed: heuristic.signalsUsed,
-        decisionBasis: finalDecision.decisionBasis,
+        decisionBasis: finalResponse.decisionBasis,
         reputationStatus: reputation.reputationStatus,
         requestSignals: input.signals ?? {},
         tabId: input.tabId
       },
-      aiExplanation: finalExplanationContent.explanation,
+      aiExplanation: finalResponse.explanation,
       ipHash,
       userAgent: input.userAgent,
       sessionId: input.sessionId,
@@ -891,7 +1072,7 @@ export const performUrlScan = async (input: {
       fileScanId: undefined
     })).catch(() => undefined);
 
-    return response;
+    return finalResponse;
   } finally {
     if (lockAcquired) {
       await cacheService.releaseLock(lockKey);

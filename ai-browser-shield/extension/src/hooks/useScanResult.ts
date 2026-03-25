@@ -1,8 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { appendThreatHistory } from '@/lib/chrome';
 import { useExtensionStore } from '@/store/useExtensionStore';
 import { scoreUrl } from '@/detection/urlScorer';
 import type { ThreatEvent, UrlScanResult } from '@/types/index';
+
+// Debounce time to prevent rapid state updates causing UI flicker
+const SCAN_UPDATE_DEBOUNCE_MS = 100;
 
 export const useScanResult = () => {
   const {
@@ -15,6 +18,37 @@ export const useScanResult = () => {
     setIsScanning
   } = useExtensionStore();
 
+  // Track last update time to debounce rapid updates
+  const lastUpdateRef = useRef(0);
+  const pendingUpdateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousUrlRef = useRef<string>('');
+
+  // Debounced scan result update to prevent flicker
+  const debouncedSetScanResult = useCallback((result: UrlScanResult) => {
+    const now = Date.now();
+    const timeSinceLastUpdate = now - lastUpdateRef.current;
+
+    if (pendingUpdateRef.current) {
+      clearTimeout(pendingUpdateRef.current);
+    }
+
+    if (timeSinceLastUpdate < SCAN_UPDATE_DEBOUNCE_MS) {
+      // Debounce: wait before updating
+      pendingUpdateRef.current = setTimeout(() => {
+        lastUpdateRef.current = Date.now();
+        setScanResult(result);
+        setIsScanning(false);
+        setScanError(null);
+      }, SCAN_UPDATE_DEBOUNCE_MS - timeSinceLastUpdate);
+    } else {
+      // Enough time has passed, update immediately
+      lastUpdateRef.current = now;
+      setScanResult(result);
+      setIsScanning(false);
+      setScanError(null);
+    }
+  }, [setScanResult, setIsScanning, setScanError]);
+
   useEffect(() => {
     if (!currentUrl) return;
     if (
@@ -25,11 +59,21 @@ export const useScanResult = () => {
     ) {
       return;
     }
+
+    // Check if URL actually changed
+    const urlChanged = currentUrl !== previousUrlRef.current;
+    previousUrlRef.current = currentUrl;
+
     let mounted = true;
-    setIsScanning(true);
-    setScanError(null);
-    setScanResult(null);
-    setScanStage(0);
+
+    // Only show loading state if URL actually changed
+    if (urlChanged) {
+      setIsScanning(true);
+      setScanError(null);
+      // Don't reset scanResult to null - keep previous result visible
+      // This prevents the "flash" to empty state
+      setScanStage(0);
+    }
 
     const timerA = window.setTimeout(() => mounted && setScanStage(1), 400);
     const timerB = window.setTimeout(() => mounted && setScanStage(2), 800);
@@ -84,9 +128,7 @@ export const useScanResult = () => {
 
     const applyResult = async (result: UrlScanResult | null) => {
       const finalResult = result ?? fallbackResult;
-      setScanResult(finalResult);
-      setIsScanning(false);
-      setScanError(result ? null : 'Protection system temporarily offline - heuristic analysis only');
+      debouncedSetScanResult(finalResult);
       await persistThreatEvent(finalResult);
     };
 
@@ -95,9 +137,8 @@ export const useScanResult = () => {
       if (typeof currentTabId === 'number' && message.tabId !== currentTabId) return;
 
       if (message.type === 'SCAN_UPDATED' && message.payload) {
-        setScanResult(message.payload);
-        setIsScanning(false);
-        setScanError(null);
+        // Use debounced update to prevent flicker from rapid messages
+        debouncedSetScanResult(message.payload);
         return;
       }
 
@@ -133,7 +174,10 @@ export const useScanResult = () => {
       mounted = false;
       window.clearTimeout(timerA);
       window.clearTimeout(timerB);
+      if (pendingUpdateRef.current) {
+        clearTimeout(pendingUpdateRef.current);
+      }
       chrome.runtime.onMessage.removeListener(messageListener);
     };
-  }, [currentTabId, currentUrl, sessionId, setIsScanning, setScanError, setScanResult, setScanStage]);
+  }, [currentTabId, currentUrl, sessionId, setIsScanning, setScanError, setScanResult, setScanStage, debouncedSetScanResult]);
 };

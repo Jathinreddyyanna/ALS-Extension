@@ -25,6 +25,7 @@ import {
   setupVaultSessionAlarm,
 } from './vaultWorker'
 import type { VaultCommand } from '../types/vault'
+import { computeFinalVerdict, toNamedRiskLevel, toNumericRiskLevel } from '../lib/verdictEngine'
 
 const pendingDownloads = new Map<number, {
   suggest: (result?: chrome.downloads.DownloadFilenameSuggestion) => void
@@ -62,6 +63,137 @@ const EMPTY_SIGNALS: SignalMap = {
 const pageLoadTimes = new Map<number, { url: string; ts: number }>()
 const redirectMap = new Map<number, number>()
 const domSignalsByTab = new Map<number, Record<string, number>>()
+
+// REDIRECT CHAIN TRACKING - Tracks full redirect sequences to prevent double-scan
+const redirectChainByTab = new Map<number, { urls: string[]; startTime: number }>()
+const scanInProgress = new Set<number>()
+const scanDebounceTimers = new Map<number, ReturnType<typeof setTimeout>>()
+const SCAN_DEBOUNCE_MS = 300
+const REDIRECT_CHAIN_TIMEOUT_MS = 10000 // Max time to track a redirect chain
+
+// TRUSTED REDIRECT WHITELIST - These domains are allowed to redirect without triggering warnings
+const TRUSTED_REDIRECT_ORIGINS = new Set([
+  // Search engines
+  'google.com', 'www.google.com', 'google.co.in', 'www.google.co.in',
+  'bing.com', 'www.bing.com',
+  'duckduckgo.com', 'www.duckduckgo.com',
+  'yahoo.com', 'www.yahoo.com', 'search.yahoo.com',
+  // Social media
+  'facebook.com', 'www.facebook.com', 'l.facebook.com', 'lm.facebook.com',
+  'twitter.com', 'www.twitter.com', 't.co',
+  'linkedin.com', 'www.linkedin.com', 'lnkd.in',
+  'instagram.com', 'www.instagram.com', 'l.instagram.com',
+  'youtube.com', 'www.youtube.com', 'youtu.be',
+  'reddit.com', 'www.reddit.com', 'out.reddit.com',
+  // URL shorteners (track but don't warn)
+  'bit.ly', 'bitly.com',
+  'tinyurl.com',
+  'goo.gl',
+  't.me',
+  'tiny.cc',
+  'ow.ly',
+  'is.gd',
+  'buff.ly',
+  'adf.ly',
+  'shorte.st',
+  // Email providers
+  'mail.google.com', 'outlook.live.com', 'outlook.office.com',
+  // Shopping
+  'amazon.com', 'www.amazon.com', 'amazon.in', 'www.amazon.in',
+  'ebay.com', 'www.ebay.com',
+  // Payment
+  'paypal.com', 'www.paypal.com',
+  // Microsoft
+  'microsoft.com', 'www.microsoft.com', 'login.microsoftonline.com',
+  // GitHub
+  'github.com', 'www.github.com',
+])
+
+/**
+ * Check if a domain is in the trusted redirect whitelist.
+ * Returns true if redirects from this domain should NOT trigger warnings.
+ */
+function isTrustedRedirectOrigin(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase()
+    // Direct match
+    if (TRUSTED_REDIRECT_ORIGINS.has(hostname)) return true
+    // Check if it's a subdomain of a trusted origin
+    for (const trusted of TRUSTED_REDIRECT_ORIGINS) {
+      if (hostname.endsWith(`.${trusted}`)) return true
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
+// Debounced scan trigger - prevents rapid-fire duplicate scans
+function debouncedAnalyzeUrl(tabId: number, url: string): void {
+  // Cancel existing debounce timer for this tab
+  const existingTimer = scanDebounceTimers.get(tabId)
+  if (existingTimer) {
+    clearTimeout(existingTimer)
+  }
+
+  // Don't start a new scan if one is already in progress
+  if (scanInProgress.has(tabId)) {
+    return
+  }
+
+  // Set new debounce timer
+  const timer = setTimeout(() => {
+    scanDebounceTimers.delete(tabId)
+    scanInProgress.add(tabId)
+    analyzeUrl(tabId, url).finally(() => {
+      scanInProgress.delete(tabId)
+    })
+  }, SCAN_DEBOUNCE_MS)
+
+  scanDebounceTimers.set(tabId, timer)
+}
+
+/**
+ * Initialize or reset redirect chain for a tab when starting fresh navigation.
+ */
+function initRedirectChain(tabId: number, url: string): void {
+  redirectChainByTab.set(tabId, { urls: [url], startTime: Date.now() })
+}
+
+/**
+ * Add a URL to the redirect chain for a tab.
+ * Returns the current chain info.
+ */
+function addToRedirectChain(tabId: number, url: string): { urls: string[]; count: number; fromTrusted: boolean } {
+  const chain = redirectChainByTab.get(tabId)
+  if (!chain) {
+    initRedirectChain(tabId, url)
+    return { urls: [url], count: 1, fromTrusted: false }
+  }
+
+  // Check if chain has timed out
+  if (Date.now() - chain.startTime > REDIRECT_CHAIN_TIMEOUT_MS) {
+    initRedirectChain(tabId, url)
+    return { urls: [url], count: 1, fromTrusted: false }
+  }
+
+  // Don't add duplicate URLs
+  if (chain.urls[chain.urls.length - 1] !== url) {
+    chain.urls.push(url)
+  }
+
+  // Check if the first URL in the chain is from a trusted origin
+  const fromTrusted = chain.urls.length > 0 && isTrustedRedirectOrigin(chain.urls[0])
+
+  return { urls: chain.urls, count: chain.urls.length, fromTrusted }
+}
+
+/**
+ * Clear redirect chain for a tab.
+ */
+function clearRedirectChain(tabId: number): void {
+  redirectChainByTab.delete(tabId)
+}
 // PHASE 3: keep the latest runtime telemetry per tab for rescans and popup access
 const runtimeSignalsByTab = new Map<number, {
   url: string
@@ -352,6 +484,7 @@ function toDashboardResult(tabId: number, fallbackUrl = ''): UrlScanResult {
   const stored = scanResultByTab.get(tabId)
   const siteRisk = siteRiskByTab.get(tabId)
   const url = stored?.url || siteRisk?.url || runtimeSignalsByTab.get(tabId)?.url || fallbackUrl
+  const finalUrl = stored?.finalUrl ?? url
   const domain = stored?.domain || siteRisk?.domain || (() => {
     try {
       return url ? new URL(url).hostname : ''
@@ -373,12 +506,39 @@ function toDashboardResult(tabId: number, fallbackUrl = ''): UrlScanResult {
     stored?.allowlisted ?? false,
     bypassedTabs.has(tabId)
   )
+  const authoritativeVerdict = computeFinalVerdict({
+    preclick: {
+      level: toNumericRiskLevel(siteRisk?.riskLevel),
+      score: siteRisk?.riskScore,
+      hostname: finalUrl ? (() => { try { return new URL(finalUrl).hostname } catch { return domain } })() : domain,
+      source: 'preclick',
+    },
+    backend: {
+      level: toNumericRiskLevel(stored?.riskLevel),
+      score: stored?.riskScore,
+      hostname: finalUrl ? (() => { try { return new URL(finalUrl).hostname } catch { return domain } })() : domain,
+      source: 'backend',
+    },
+    runtime: {
+      level: toNumericRiskLevel(runtimeSignalsByTab.get(tabId)?.riskLevel),
+      score: Math.max(
+        runtimeSignalsByTab.get(tabId)?.runtimeScore ?? 0,
+        stored?.runtimeRisk ?? 0,
+        stored?.domRisk ?? 0,
+        stored?.interactionRisk ?? 0
+      ),
+      hostname: finalUrl ? (() => { try { return new URL(finalUrl).hostname } catch { return domain } })() : domain,
+      source: 'runtime',
+    },
+  })
 
   return {
     url,
+    finalUrl,
+    redirectChain: stored?.redirectChain ?? [stored?.finalUrl ?? url].filter(Boolean),
     domain,
-    riskScore: stored?.riskScore ?? siteRisk?.riskScore ?? 0,
-    riskLevel: stored?.riskLevel ?? siteRisk?.riskLevel ?? 'LOW',
+    riskScore: Math.max(stored?.riskScore ?? 0, siteRisk?.riskScore ?? 0, authoritativeVerdict.score),
+    riskLevel: toNamedRiskLevel(authoritativeVerdict.level),
     explanation: stored?.explanation ?? siteRisk?.explanation ?? 'Scan in progress.',
     aiExplanation: stored?.aiExplanation ?? stored?.explanation ?? siteRisk?.explanation ?? '',
     keyIndicators: stored?.keyIndicators ?? [],
@@ -409,6 +569,7 @@ function toDashboardResult(tabId: number, fallbackUrl = ''): UrlScanResult {
     interactionRisk: stored?.interactionRisk ?? Math.min(100, signals.popupCount * 15 + signals.redirectCount * 15 + signals.suspiciousFormCount * 20),
     warningsEnhanced: stored?.warningsEnhanced,
     allowlisted: stored?.allowlisted ?? false,
+    trustedDomain: stored?.trustedDomain ?? false,
     reputationStatus: stored?.reputationStatus,
     decisionBasis: stored?.decisionBasis,
     skip: stored?.skip,
@@ -515,11 +676,18 @@ async function ensureAdblockRulesetEnabled() {
       })
     }
   } catch (err) {
-    console.warn('[Adblock] Failed to verify static ruleset:', err)
+    void err
   }
 }
 
 async function safeSendMessage(tabId: number, message: any) {
+  // Context validation to prevent "Extension context invalidated" errors
+  try {
+    if (!chrome.runtime?.id) return
+  } catch {
+    return
+  }
+
   try {
     chrome.tabs.get(tabId, (tab) => {
       if (chrome.runtime.lastError || !tab) return
@@ -1163,46 +1331,49 @@ function getFallbackExplanation(score: number): string {
 // ── Navigation Listeners ──────────────────────────────────────────────────────
 chrome.webNavigation.onBeforeNavigate.addListener(({ tabId, url, frameId }) => {
   if (frameId !== 0) return
+
+  // Check for clickjacking attempt (rapid redirect after page load)
   const lastLoad = pageLoadTimes.get(tabId)
   if (lastLoad) {
     const timeSinceLoad = Date.now() - lastLoad.ts
     const isDifferentUrl = lastLoad.url !== url
 
-    if (isDifferentUrl && timeSinceLoad < RETURN_REDIRECT_WINDOW) {
+    // Skip clickjack warning if redirect originates from trusted domain
+    const fromTrusted = isTrustedRedirectOrigin(lastLoad.url)
+
+    if (isDifferentUrl && timeSinceLoad < RETURN_REDIRECT_WINDOW && !fromTrusted) {
       const { score } = scoreUrl(url)
 
-      if (!(score >= 60 && isSpamPattern(url))) {
+      if (score >= 60 && isSpamPattern(url)) {
+        safeSendMessage(tabId, {
+          type: 'CLICKJACK_WARNING',
+          payload: {
+            blockedUrl: url,
+            score,
+            riskLevel: 'HIGH',
+            reason: `This site tried to redirect you to ${(() => { try { return new URL(url).hostname } catch { return url } })()} immediately after loading.`,
+          },
+        })
+
+        saveThreatEvent({
+          id: crypto.randomUUID(),
+          eventType: 'redirect_chain',
+          domain: (() => { try { return new URL(url).hostname } catch { return url } })(),
+          url,
+          riskScore: 75,
+          riskLevel: 'HIGH',
+          aiExplanation: `Suspicious rapid redirect detected to ${url}`,
+          timestamp: Date.now(),
+        }).catch(() => {})
+
         pageLoadTimes.delete(tabId)
         return
       }
-
-      safeSendMessage(tabId, {
-        type: 'CLICKJACK_WARNING',
-        payload: {
-          blockedUrl: url,
-          score,
-          riskLevel: 'HIGH',
-          reason: `This site tried to redirect you to ${(() => { try { return new URL(url).hostname } catch { return url } })()} immediately after loading.`,
-        },
-      })
-
-      saveThreatEvent({
-        id: crypto.randomUUID(),
-        eventType: 'redirect_chain',
-        domain: (() => { try { return new URL(url).hostname } catch { return url } })(),
-        url,
-        riskScore: 75,
-        riskLevel: 'HIGH',
-        aiExplanation: `Suspicious rapid redirect detected to ${url}`,
-        timestamp: Date.now(),
-      }).catch(() => {})
-
-      pageLoadTimes.delete(tabId)
-      return
     }
     pageLoadTimes.delete(tabId)
   }
 
+  // Reset all state for new navigation
   blockedCounts[tabId] = { ads: 0, trackers: 0, cryptominers: 0 }
   chrome.storage.local.set({ [`blocked:${tabId}`]: blockedCounts[tabId] })
   redirectMap.delete(tabId)
@@ -1213,30 +1384,44 @@ chrome.webNavigation.onBeforeNavigate.addListener(({ tabId, url, frameId }) => {
   void resetTabCounter(tabId)
   resetTab(tabId)
   resetPopupRedirectTracker(tabId)
-  analyzeUrl(tabId, url)
+
+  // Initialize redirect chain tracking for this navigation
+  initRedirectChain(tabId, url)
+
+  // Use debounced scan to avoid double-scanning during redirect chains
+  debouncedAnalyzeUrl(tabId, url)
 })
 
 chrome.webNavigation.onCommitted.addListener(({ tabId, url, frameId, transitionQualifiers }) => {
   if (frameId !== 0) return
-  if (transitionQualifiers.includes('server_redirect') || transitionQualifiers.includes('client_redirect')) {
-    const redirectCount = (redirectMap.get(tabId) ?? 0) + 1
-    redirectMap.set(tabId, redirectCount)
-    if (redirectCount >= 2) {
-      safeSendMessage(tabId, {
-        type: 'REDIRECT_WARNING',
-        payload: { count: redirectCount },
-      })
-    }
 
+  const isRedirect = transitionQualifiers.includes('server_redirect') || transitionQualifiers.includes('client_redirect')
+
+  if (isRedirect) {
+    // Add to redirect chain
+    const chainInfo = addToRedirectChain(tabId, url)
+    const redirectCount = chainInfo.count
+
+    // Update redirect map for legacy compatibility
+    redirectMap.set(tabId, redirectCount - 1)
+
+    // Track with existing redirect tracker
     const redirectState = trackRedirect(tabId, url)
-    if (redirectState.exceeded) {
-      safeSendMessage(tabId, { type: 'REDIRECT_WARNING', payload: { count: redirectState.count, urls: redirectState.urls, url } })
-      appendActivity(tabId, 'redirect_detected', `Redirect chain detected (${redirectState.count} hops)`)
+
+    // Only show warnings if NOT from a trusted redirect origin and chain is suspicious
+    if (!chainInfo.fromTrusted && redirectCount >= 3) {
+      if (redirectState.exceeded) {
+        safeSendMessage(tabId, {
+          type: 'REDIRECT_WARNING',
+          payload: { count: redirectCount, urls: chainInfo.urls, url }
+        })
+        appendActivity(tabId, 'redirect_detected', `Redirect chain detected (${redirectCount} hops)`)
+      }
     }
 
     const previousUrl = lastUrlByTab.get(tabId) || url
     const tracker = getPopupRedirectTracker(tabId)
-    const { blocked, reason } = tracker.trackRedirect({
+    const { blocked } = tracker.trackRedirect({
       from: previousUrl,
       to: url,
       method: 'header',
@@ -1244,7 +1429,7 @@ chrome.webNavigation.onCommitted.addListener(({ tabId, url, frameId, transitionQ
     })
     lastUrlByTab.set(tabId, url)
 
-    if (blocked) {
+    if (blocked && !chainInfo.fromTrusted) {
       const hostname = (() => {
         try {
           return new URL(previousUrl).hostname
@@ -1263,8 +1448,18 @@ chrome.webNavigation.onCommitted.addListener(({ tabId, url, frameId, transitionQ
         })
         appendActivity(tabId, 'redirect_detected', `Redirect chain detected (${primaryChain.totalRedirects} hops)`)
       }
-
     }
+
+    // Use debounced scan for redirect destination (will replace pending scan)
+    debouncedAnalyzeUrl(tabId, url)
+  } else {
+    // Not a redirect - this is the final destination
+    // Clear redirect chain and trigger final scan
+    clearRedirectChain(tabId)
+    lastUrlByTab.set(tabId, url)
+
+    // Use debounced scan for final URL
+    debouncedAnalyzeUrl(tabId, url)
   }
 })
 
@@ -1641,6 +1836,74 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false
   }
 
+  if (message.type === 'EARLY_REDIRECT_ATTEMPT') {
+    const tabId = sender.tab?.id
+    if (typeof tabId !== 'number') {
+      return false
+    }
+
+    const payload = message.payload && typeof message.payload === 'object'
+      ? message.payload as { url?: string; timestamp?: number; method?: string }
+      : {}
+
+    const current = runtimeSignalsByTab.get(tabId)
+    const nextSignals = {
+      ...(current?.signals ?? {}),
+      redirectCount: Number(current?.signals.redirectCount ?? current?.signals.redirectChains ?? 0) + 1,
+      redirectChains: Number(current?.signals.redirectChains ?? current?.signals.redirectCount ?? 0) + 1,
+    }
+
+    runtimeSignalsByTab.set(tabId, {
+      url: typeof payload.url === 'string' ? payload.url : sender.url ?? current?.url ?? '',
+      runtimeScore: Math.max(current?.runtimeScore ?? 0, 35),
+      riskLevel: (current?.riskLevel === 'HIGH' || current?.riskLevel === 'CRITICAL') ? current.riskLevel : 'MEDIUM',
+      signals: nextSignals,
+    })
+
+    appendActivity(tabId, 'redirect_detected', `Early redirect attempt intercepted (${payload.method ?? 'unknown'})`)
+    void emitScanUpdated(tabId, typeof payload.url === 'string' ? payload.url : sender.url ?? '')
+    return false
+  }
+
+  if (message.type === 'DANGEROUS_API_CALL') {
+    const tabId = sender.tab?.id
+    if (typeof tabId !== 'number') {
+      return false
+    }
+
+    const payload = message.payload && typeof message.payload === 'object'
+      ? message.payload as { kind?: string; target?: string; url?: string }
+      : {}
+
+    const current = runtimeSignalsByTab.get(tabId)
+    const nextSignals = {
+      ...(current?.signals ?? {}),
+      jsRedirectCount: Number(current?.signals.jsRedirectCount ?? 0) + (payload.kind?.includes('redirect') ? 1 : 0),
+      popupCount: Number(current?.signals.popupCount ?? current?.signals.popupFrequency ?? 0) + (payload.kind === 'window_open' ? 1 : 0),
+      popupFrequency: Number(current?.signals.popupFrequency ?? current?.signals.popupCount ?? 0) + (payload.kind === 'window_open' ? 1 : 0),
+    }
+
+    runtimeSignalsByTab.set(tabId, {
+      url: typeof payload.url === 'string' ? payload.url : sender.url ?? current?.url ?? '',
+      runtimeScore: Math.max(current?.runtimeScore ?? 0, payload.kind === 'window_open' ? 20 : 40),
+      riskLevel: payload.kind === 'window_open'
+        ? ((current?.riskLevel === 'HIGH' || current?.riskLevel === 'CRITICAL') ? current.riskLevel : 'MEDIUM')
+        : ((current?.riskLevel === 'CRITICAL') ? 'CRITICAL' : 'HIGH'),
+      signals: nextSignals,
+    })
+
+    appendActivity(
+      tabId,
+      payload.kind === 'window_open' ? 'popup_intercepted' : 'script_injected',
+      payload.kind === 'window_open'
+        ? 'Page attempted to open a new window through script'
+        : 'Page attempted script-driven navigation'
+    )
+
+    void emitScanUpdated(tabId, typeof payload.url === 'string' ? payload.url : sender.url ?? '')
+    return false
+  }
+
   if (message.type === 'PRECLICK_RISK_EVALUATED') {
     const payload = message.payload ?? {}
     const href = typeof payload.href === 'string' ? payload.href : sender.url ?? ''
@@ -1995,14 +2258,215 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   activityLogByTab.delete(tabId)
   riskHistoryByTab.delete(tabId)
   bypassedTabs.delete(tabId)
+  // Clean up redirect chain tracking
+  redirectChainByTab.delete(tabId)
+  scanInProgress.delete(tabId)
+  const timer = scanDebounceTimers.get(tabId)
+  if (timer) {
+    clearTimeout(timer)
+    scanDebounceTimers.delete(tabId)
+  }
+  lastUrlByTab.delete(tabId)
   delete blockedCounts[tabId]
   chrome.storage.local.remove(`blocked:${tabId}`)
   chrome.storage.local.remove(getCounterKey(tabId))
   void persistBypassedTabs()
 })
 
-void ensureAdblockRulesetEnabled()
-void loadPhase4SessionState()
-initTrackerBlocking()
-void initVaultWorker()
-setupVaultSessionAlarm()
+// ══════════════════════════════════════════════════════════════════════════════
+// PRODUCTION STABILITY & ERROR HARDENING
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Timestamp tracking for memory cleanup
+const entryTimestamps = new Map<string, number>()
+const MAP_ENTRY_TTL_MS = 30 * 60 * 1000 // 30 minutes
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
+
+// Context validation helper - prevents "Extension context invalidated" errors
+function isExtensionContextValid(): boolean {
+  try {
+    return typeof chrome !== 'undefined' && !!chrome.runtime?.id
+  } catch {
+    return false
+  }
+}
+
+// Track entry timestamps for Maps that need TTL cleanup
+function trackMapEntry(mapName: string, key: string | number): void {
+  entryTimestamps.set(`${mapName}:${key}`, Date.now())
+}
+
+// Clean up stale Map entries (older than 30 minutes)
+function cleanupStaleMaps(): void {
+  if (!isExtensionContextValid()) return
+
+  const now = Date.now()
+  const staleKeys: string[] = []
+
+  for (const [compositeKey, timestamp] of entryTimestamps.entries()) {
+    if (now - timestamp > MAP_ENTRY_TTL_MS) {
+      staleKeys.push(compositeKey)
+    }
+  }
+
+  for (const compositeKey of staleKeys) {
+    const [mapName, keyStr] = compositeKey.split(':')
+    const key = /^\d+$/.test(keyStr) ? parseInt(keyStr, 10) : keyStr
+
+    entryTimestamps.delete(compositeKey)
+
+    switch (mapName) {
+      case 'pageLoadTimes':
+        if (typeof key === 'number') pageLoadTimes.delete(key)
+        break
+      case 'siteRiskByTab':
+        if (typeof key === 'number') siteRiskByTab.delete(key)
+        break
+      case 'scanResultByTab':
+        if (typeof key === 'number') scanResultByTab.delete(key)
+        break
+      case 'runtimeSignalsByTab':
+        if (typeof key === 'number') runtimeSignalsByTab.delete(key)
+        break
+      case 'domSignalsByTab':
+        if (typeof key === 'number') domSignalsByTab.delete(key)
+        break
+      case 'activityLogByTab':
+        if (typeof key === 'number') activityLogByTab.delete(key)
+        break
+      case 'riskHistoryByTab':
+        if (typeof key === 'number') riskHistoryByTab.delete(key)
+        break
+      case 'domainReputationStore':
+        if (typeof key === 'string') domainReputationStore.delete(key)
+        break
+      case 'pendingDownloads':
+        if (typeof key === 'number') pendingDownloads.delete(key)
+        break
+      case 'redirectMap':
+        if (typeof key === 'number') redirectMap.delete(key)
+        break
+      case 'redirectChainByTab':
+        if (typeof key === 'number') redirectChainByTab.delete(key)
+        break
+      case 'scanInProgress':
+        if (typeof key === 'number') scanInProgress.delete(key)
+        break
+      case 'scanDebounceTimers':
+        if (typeof key === 'number') {
+          const timer = scanDebounceTimers.get(key)
+          if (timer) clearTimeout(timer)
+          scanDebounceTimers.delete(key)
+        }
+        break
+      case 'lastUrlByTab':
+        if (typeof key === 'number') lastUrlByTab.delete(key)
+        break
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SERVICE WORKER INITIALIZATION
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Initialize service worker components
+async function initializeServiceWorker() {
+  // Ensure adblock ruleset is enabled
+  await ensureAdblockRulesetEnabled()
+
+  // Load Phase 4 session state
+  await loadPhase4SessionState()
+
+  // Initialize tracker blocking
+  initTrackerBlocking()
+
+  // Initialize vault worker
+  await initVaultWorker()
+
+  // Setup vault session alarm
+  setupVaultSessionAlarm()
+}
+
+// Setup alarm listener (must be synchronous at top level)
+if (chrome.alarms?.onAlarm) {
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === 'keepalive') {
+      chrome.storage.local.get('keepalive', () => {
+        void chrome.runtime.lastError
+      })
+    }
+  })
+}
+
+// Track if cleanup interval has been started
+let cleanupIntervalStarted = false
+
+// Initialize on extension install/update
+chrome.runtime.onInstalled.addListener(() => {
+  // Start periodic cleanup (only once)
+  if (!cleanupIntervalStarted) {
+    setInterval(cleanupStaleMaps, CLEANUP_INTERVAL_MS)
+    cleanupIntervalStarted = true
+  }
+
+  // Create keepalive alarm (only on install/update)
+  chrome.alarms?.create?.('keepalive', { periodInMinutes: 0.4 })
+
+  // Initialize service worker
+  void initializeServiceWorker().catch(() => {})
+})
+
+// Initialize on service worker startup
+chrome.runtime.onStartup.addListener(() => {
+  // Start periodic cleanup (only once)
+  if (!cleanupIntervalStarted) {
+    setInterval(cleanupStaleMaps, CLEANUP_INTERVAL_MS)
+    cleanupIntervalStarted = true
+  }
+
+  void initializeServiceWorker().catch(() => {})
+})
+
+// Global error logging for production debugging
+const MAX_ERROR_LOG_SIZE = 50
+self.addEventListener('unhandledrejection', (event) => {
+  if (!isExtensionContextValid()) return
+
+  const errorEntry = {
+    timestamp: Date.now(),
+    message: event.reason?.message || String(event.reason),
+    stack: event.reason?.stack?.slice(0, 500) || 'no stack',
+    type: 'unhandledrejection'
+  }
+
+  chrome.storage.local.get('errorLog', (result) => {
+    if (chrome.runtime.lastError) return
+    const existingLog = Array.isArray(result.errorLog) ? result.errorLog : []
+    const newLog = [errorEntry, ...existingLog].slice(0, MAX_ERROR_LOG_SIZE)
+    chrome.storage.local.set({ errorLog: newLog }, () => {
+      void chrome.runtime.lastError
+    })
+  })
+})
+
+self.addEventListener('error', (event) => {
+  if (!isExtensionContextValid()) return
+
+  const errorEntry = {
+    timestamp: Date.now(),
+    message: event.message || 'Unknown error',
+    filename: event.filename,
+    lineno: event.lineno,
+    type: 'error'
+  }
+
+  chrome.storage.local.get('errorLog', (result) => {
+    if (chrome.runtime.lastError) return
+    const existingLog = Array.isArray(result.errorLog) ? result.errorLog : []
+    const newLog = [errorEntry, ...existingLog].slice(0, MAX_ERROR_LOG_SIZE)
+    chrome.storage.local.set({ errorLog: newLog }, () => {
+      void chrome.runtime.lastError
+    })
+  })
+})

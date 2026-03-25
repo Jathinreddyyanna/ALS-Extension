@@ -6,8 +6,15 @@ import type {
   CommunityReport,
   SignalMap,
   ThreatEvent,
+  FeedbackPayload,
 } from '../types'
-import { getEffectiveApiBaseUrl, getEffectiveApiKey, getEffectiveGeminiKey } from '../config'
+import {
+  getEffectiveApiBaseUrl,
+  getEffectiveApiKey,
+  getEffectiveGeminiKey,
+  getEffectiveRequestSignatureSecret,
+} from '../config'
+import { createRequestSigningPayload, signRequestPayload } from '../lib/security'
 
 const BASE_URL =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL) ||
@@ -22,16 +29,51 @@ async function resolveBaseUrl(): Promise<string> {
   }
 }
 
-async function buildHeaders(extra: HeadersInit = {}): Promise<HeadersInit> {
+/**
+ * Returns true when the current base URL is a local development endpoint.
+ */
+function isLocalDevelopmentBaseUrl(baseUrl: string): boolean {
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/api\/v1$/i.test(baseUrl)
+}
+
+/**
+ * Builds the authenticated request headers for backend API calls.
+ */
+async function buildHeaders(
+  path: string,
+  method: 'GET' | 'POST',
+  rawBody: string,
+  baseUrl: string,
+  extra: HeadersInit = {}
+): Promise<HeadersInit> {
   const apiKey = await getEffectiveApiKey()
   const geminiKey = await getEffectiveGeminiKey()
-  return {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Extension-Version': '1.0.0',
     ...(apiKey ? { 'x-api-key': apiKey } : {}),
     ...(geminiKey ? { 'x-gemini-key': geminiKey } : {}),
-    ...extra,
   }
+  for (const [key, value] of Object.entries(new Headers(extra))) {
+    headers[key] = value
+  }
+
+  const requestSignatureSecret = await getEffectiveRequestSignatureSecret()
+  if (requestSignatureSecret) {
+    const timestamp = Date.now()
+    const signature = await signRequestPayload(
+      requestSignatureSecret,
+      createRequestSigningPayload(method, `/api/v1${path}`, timestamp, rawBody)
+    )
+    headers['x-request-timestamp'] = String(timestamp)
+    headers['x-request-signature'] = signature
+  }
+
+  if (!isLocalDevelopmentBaseUrl(baseUrl) && !/^https:\/\//i.test(baseUrl)) {
+    throw new Error('Refusing to send sensitive extension traffic over non-HTTPS transport')
+  }
+
+  return headers
 }
 
 function normalizeSignals(signals: SignalMap): SignalMap {
@@ -59,11 +101,12 @@ async function post<T>(path: string, body: unknown, init?: RequestInit): Promise
   if (body === undefined || body === null) return null
   try {
     const baseUrl = await resolveBaseUrl()
+    const rawBody = JSON.stringify(body)
     const res = await fetch(`${baseUrl}${path}`, {
       ...init,
       method: 'POST',
-      headers: await buildHeaders(init?.headers),
-      body: JSON.stringify(body),
+      headers: await buildHeaders(path, 'POST', rawBody, baseUrl, init?.headers),
+      body: rawBody,
     })
     if (!res.ok) return null
     return await res.json()
@@ -76,7 +119,7 @@ async function get<T>(path: string): Promise<T | null> {
   try {
     const baseUrl = await resolveBaseUrl()
     const res = await fetch(`${baseUrl}${path}`, {
-      headers: await buildHeaders(),
+      headers: await buildHeaders(path, 'GET', '', baseUrl),
     })
     if (!res.ok) return null
     return await res.json()
@@ -187,4 +230,12 @@ export async function storeThreatEvent(event: ThreatEvent): Promise<boolean> {
     },
   })
   return !!result
+}
+
+/**
+ * Submits anonymous user feedback for future risk-model tuning.
+ */
+export async function submitFeedback(payload: FeedbackPayload): Promise<boolean> {
+  const result = await post<{ success?: boolean }>('/feedback', payload)
+  return !!result?.success
 }

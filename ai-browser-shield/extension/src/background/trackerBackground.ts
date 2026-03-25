@@ -136,6 +136,4 @@ export function initTrackerBlocking(): void {
 
     return true
   })
-
-  console.log('[TrackerShield] Tracker blocking initialized')
 }
