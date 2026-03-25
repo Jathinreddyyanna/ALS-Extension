@@ -321,7 +321,7 @@ export function highlightLinksInEmailBody(backendLinkAnalysis?: Array<{url: stri
   }
 
   // Also style existing <a> tags in case they weren't replaced
-  const links = emailBody.querySelectorAll('a:not([style*="link-highlight"])');
+  const links = emailBody.querySelectorAll('a:not([style*="link-highlight"])') as NodeListOf<HTMLElement>;
   links.forEach(link => {
     const href = link.getAttribute('href') || '';
     const backendRisk = backendRiskMap.get(href.toLowerCase());
