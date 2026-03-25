@@ -118,11 +118,11 @@ function canCallGemini(): boolean {
 
 export function buildHeuristicFallback(_input: ScanInput): GeminiAnalysis {
   return {
-    explanation: 'AI analysis temporarily unavailable. Risk assessed using pattern matching and domain intelligence.',
-    aiExplanation: 'Heuristic fallback — Gemini quota reached or all models exhausted.',
+    explanation: 'This explanation was generated from domain structure, trust signals, and live page behavior because the AI explainer was unavailable.',
+    aiExplanation: 'Built-in threat reasoning used. The result still reflects domain trust, runtime behavior, and phishing patterns observed by the scanner.',
     riskLevel: 'LOW',
     recommendedAction: 'allow',
-    confidence: 0.6,
+    confidence: 0.65,
     keyIndicators: [],
     aiSource: 'heuristic',
     riskScore: 10,

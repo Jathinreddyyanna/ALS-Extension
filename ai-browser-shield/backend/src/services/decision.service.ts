@@ -29,8 +29,8 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 const toRiskLevel = (score: number): DecisionResult['riskLevel'] => (
   score >= 76 ? 'CRITICAL'
-    : score >= 56 ? 'HIGH'
-      : score >= 36 ? 'MEDIUM'
+    : score >= 51 ? 'HIGH'
+      : score >= 26 ? 'MEDIUM'
         : 'LOW'
 );
 
@@ -64,7 +64,7 @@ function calculateBaseConfidence(
     (reputationCertainty * 0.4) +
     (signalAgreement * 0.35) +
     (trustComponent * 0.25),
-    0.2,
+    0.25,
     0.98
   );
 }
@@ -276,8 +276,8 @@ export function makeDecision(
     const capped = clamp(Math.max(weightedScore, baselineScore, unknownSuspiciousFloor, unknownDomainFloor, runtimeFloor, domFloor), 0, 100);
     const riskLevel = toRiskLevel(capped);
     const recommendedAction =
-      capped >= 56 ? 'block'
-        : capped >= 36 ? 'warn'
+      capped >= 76 ? 'block'
+        : capped >= 26 ? 'warn'
           : 'allow';
 
     return {
@@ -338,8 +338,8 @@ export function makeDecision(
   const capped = clamp(riskScore, 0, 100);
   const riskLevel = toRiskLevel(capped);
   const recommendedAction =
-    capped >= 60 ? 'block'
-      : capped >= 30 ? 'warn'
+    capped >= 76 ? 'block'
+      : capped >= 26 ? 'warn'
         : 'allow';
 
   return {

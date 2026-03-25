@@ -2,6 +2,7 @@ import type {
   ThreatReport,
   UrlScanResult,
   FileScanResult,
+  EmailScanResult,
   DomainScore,
   CommunityReport,
   SignalMap,
@@ -135,6 +136,18 @@ export async function scanFile(data: {
   return post<FileScanResult>('/scan/file', data)
 }
 
+export async function scanEmail(data: {
+  sender: string
+  subject: string
+  body: string
+  links: string[]
+  localSignals: string[]
+  hasAttachments?: boolean
+  attachmentNames?: string[]
+}): Promise<EmailScanResult | null> {
+  return post<EmailScanResult>('/scan/email', data)
+}
+
 export async function submitReport(report: ThreatReport): Promise<{ status: string } | null> {
   if (!report?.url) return null
   return post<{ status: string }>('/reports', report)
@@ -188,3 +201,4 @@ export async function storeThreatEvent(event: ThreatEvent): Promise<boolean> {
   })
   return !!result
 }
+

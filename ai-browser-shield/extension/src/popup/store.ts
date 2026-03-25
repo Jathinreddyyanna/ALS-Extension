@@ -1,209 +1,221 @@
 import { create } from 'zustand'
-import type { ThreatEvent, CommunityReport, TrackerSessionStats, TrackerTabStats } from '../types'
-import { getRecentFeed, submitReport, getThreatEvents, getDomainScore, scanUrl } from '../api/client'
-import { getSessionStats, getTabStats } from '../detection/trackerEngine'
 import { scoreUrl } from '../detection/urlScorer'
+import type { EmailAnalysisState, UrlScanResult } from '../types'
 
-async function readHistory(): Promise<ThreatEvent[]> {
-  return new Promise(resolve => {
-    chrome.storage.local.get('threatHistory', (r) => resolve(r.threatHistory || []))
-  })
-}
-
-async function wipeHistory(): Promise<void> {
-  return new Promise(resolve => chrome.storage.local.remove('threatHistory', resolve))
-}
-
-interface StoreState {
-  history: ThreatEvent[]
-  feed: CommunityReport[]
-  currentScore: number | null
-  currentRiskLevel: string
-  reportCount: number
-  blockedCounts: { ads: number; trackers: number; cryptominers: number }
+interface PopupStoreState {
+  initialized: boolean
+  isLoading: boolean
+  error: string | null
+  currentUrl: string
   currentDomain: string
   currentTabId: number | null
-  currentExplanation: string | null
-  currentSource: string | null
-  currentCommunityReports24h: number
-  trackerSessionStats: TrackerSessionStats | null
-  trackerTabStats: TrackerTabStats | null
-  activeTab: 'score' | 'history' | 'feed' | 'report'
-  isLoading: boolean
-  reportSuccess: boolean
-  loadAll: () => Promise<void>
-  setTab: (tab: StoreState['activeTab']) => void
-  submitUserReport: (data: { category: string; description: string }) => Promise<void>
-  clearAll: () => Promise<void>
+  scanResult: UrlScanResult | null
+  emailState: EmailAnalysisState
+  initialize: () => Promise<void>
+  load: () => Promise<void>
+  rescan: () => Promise<void>
+  resetEmail: () => Promise<void>
 }
 
-export const useStore = create<StoreState>((set, get) => ({
-  history: [],
-  feed: [],
-  currentScore: null,
-  currentRiskLevel: 'LOW',
-  reportCount: 0,
-  blockedCounts: { ads: 0, trackers: 0, cryptominers: 0 },
+const DEFAULT_EMAIL_STATE: EmailAnalysisState = {
+  emailText: '',
+  senderEmail: '',
+  subject: '',
+  links: [],
+  attachmentNames: [],
+  hasAttachments: false,
+  riskScore: 0,
+  riskLabel: 'safe',
+  status: 'waiting',
+  explanation: '',
+  attackType: 'None',
+  confidence: 0,
+  isSpamFolder: false,
+  signals: [],
+  detectedPatterns: [],
+}
+
+function isSupportedUrl(url: string): boolean {
+  return Boolean(url) &&
+    !url.startsWith('chrome://') &&
+    !url.startsWith('chrome-extension://') &&
+    !url.startsWith('about:') &&
+    !url.startsWith('devtools://')
+}
+
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return ''
+  }
+}
+
+function createFallbackResult(url: string): UrlScanResult {
+  const local = scoreUrl(url)
+  const confidence = Math.max(0.35, Math.min(0.82, 0.45 + (local.indicators.length * 0.08)))
+  return {
+    url,
+    domain: extractDomain(url),
+    riskScore: local.score,
+    riskLevel: local.riskLevel,
+    explanation: local.score <= 25
+      ? 'This page looks low risk based on local domain and page checks.'
+      : 'This page triggered local browser checks, so treat it with caution until a live scan completes.',
+    aiExplanation: 'Built-in browser checks provided this explanation while the live backend scan was unavailable.',
+    keyIndicators: local.indicators,
+    positives: local.score <= 25 ? ['No major phishing indicators detected'] : [],
+    warnings: local.score > 25 ? local.indicators : [],
+    recommendedAction: local.score >= 76 ? 'block' : local.score >= 26 ? 'warn' : 'allow',
+    confidence,
+    category: 'unknown',
+    categories: [],
+    verdict: local.score >= 76 ? 'malicious' : local.score >= 26 ? 'suspicious' : 'safe',
+    heuristic: local.score,
+    dbRiskScore: 0,
+    dbReportCount: 0,
+    cached: false,
+    aiDegraded: true,
+    aiSource: 'heuristic',
+    aiUsed: false,
+    processedMs: 0,
+    urlType: 'website',
+    source: 'heuristic',
+    activityLog: [],
+  }
+}
+
+async function getActiveTab(): Promise<chrome.tabs.Tab | null> {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+  return tabs[0] ?? null
+}
+
+async function getStoredEmailState(): Promise<EmailAnalysisState> {
+  try {
+    const stored = await chrome.storage.local.get('emailAnalysisState')
+    return { ...DEFAULT_EMAIL_STATE, ...(stored.emailAnalysisState ?? {}) } as EmailAnalysisState
+  } catch {
+    return DEFAULT_EMAIL_STATE
+  }
+}
+
+let listenersRegistered = false
+
+export const useStore = create<PopupStoreState>((set, get) => ({
+  initialized: false,
+  isLoading: true,
+  error: null,
+  currentUrl: '',
   currentDomain: '',
   currentTabId: null,
-  currentExplanation: null,
-  currentSource: null,
-  currentCommunityReports24h: 0,
-  trackerSessionStats: null,
-  trackerTabStats: null,
-  activeTab: 'score',
-  isLoading: false,
-  reportSuccess: false,
+  scanResult: null,
+  emailState: DEFAULT_EMAIL_STATE,
 
-  loadAll: async () => {
-    set({ isLoading: true })
-    let domain = ''
-    let activeTabId: number | null = null
-    let currentScore: number | null = null
-    let currentRiskLevel = 'LOW'
-    let reportCount = 0
-    let blockedCounts = { ads: 0, trackers: 0, cryptominers: 0 }
-    let currentExplanation: string | null = null
-    let currentSource: string | null = null
-    try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
-      const url = tabs[0]?.url || ''
-      activeTabId = typeof tabs[0]?.id === 'number' ? tabs[0]!.id! : null
-      if (!url || url.startsWith('chrome://') || url.startsWith('about:') || url.startsWith('chrome-extension://')) {
+  initialize: async () => {
+    if (!listenersRegistered) {
+      chrome.runtime.onMessage.addListener((message) => {
+        if (!message || typeof message !== 'object') return
+
+        if (message.type === 'SCAN_UPDATED' && message.payload) {
+          set({ scanResult: message.payload as UrlScanResult, isLoading: false, error: null })
+        }
+
+        if (message.type === 'EMAIL_STATE_UPDATED' && message.payload) {
+          set({ emailState: { ...DEFAULT_EMAIL_STATE, ...(message.payload as Partial<EmailAnalysisState>) } })
+        }
+      })
+
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName !== 'local' || !changes.emailAnalysisState) return
         set({
-          isLoading: false,
-          currentDomain: '',
-          currentScore: null,
-          currentRiskLevel: 'LOW',
-          reportCount: 0,
-          blockedCounts,
-        })
-        return
-      }
-
-      domain = new URL(url).hostname
-      const localHistory = await readHistory()
-      const latest = localHistory.find(e => e.domain === domain && e.eventType === 'url_threat')
-
-      blockedCounts = await new Promise(resolve => {
-        chrome.runtime.sendMessage({ type: 'GET_BLOCKED_COUNTS' }, (response) => {
-          if (chrome.runtime.lastError) {
-            resolve({ ads: 0, trackers: 0, cryptominers: 0 })
-            return
-          }
-          resolve(response ?? { ads: 0, trackers: 0, cryptominers: 0 })
+          emailState: {
+            ...DEFAULT_EMAIL_STATE,
+            ...((changes.emailAnalysisState.newValue ?? {}) as Partial<EmailAnalysisState>),
+          },
         })
       })
 
-      if (latest) {
-        const cached = await new Promise<{ score: number; ts: number } | null>((resolve) => {
-          chrome.storage.local.get(`score:${domain}`, (r) => resolve(r[`score:${domain}`] || null))
-        })
-
-        currentScore = cached?.score ?? latest.riskScore
-        currentExplanation = latest.aiExplanation || null
-        currentSource = latest.source || null
-      } else {
-        let scoreData = null
-        try {
-          const cached = await new Promise<{ score: number; ts: number } | null>((resolve) => {
-            chrome.storage.local.get(`score:${domain}`, (r) => resolve(r[`score:${domain}`] || null))
-          })
-
-          if (cached && Date.now() - cached.ts < 300000) {
-            currentScore = cached.score
-            currentSource = 'backend'
-          } else {
-            scoreData = await getDomainScore(domain)
-            currentScore = scoreData?.riskScore ?? null
-            reportCount = scoreData?.reportCount ?? 0
-            currentSource = scoreData ? 'db' : null
-
-            if (currentScore === null) {
-              const local = scoreUrl(url)
-              const backendScan = await scanUrl(url, local.signals)
-              if (backendScan) {
-                currentScore = typeof backendScan.riskScore === 'number' ? backendScan.riskScore : local.score
-                currentExplanation = backendScan.explanation || null
-                currentSource = 'backend'
-                chrome.storage.local.set({
-                  [`score:${domain}`]: { score: currentScore, ts: Date.now() },
-                })
-              } else {
-                currentScore = local.score
-                currentExplanation = null
-                currentSource = 'heuristic'
-              }
-            }
-          }
-        } catch {
-          currentScore = null
-          currentSource = null
-        }
-        reportCount = scoreData?.reportCount ?? reportCount
-      }
-
-      if (currentScore !== null) {
-        currentRiskLevel =
-          currentScore >= 75 ? 'CRITICAL'
-          : currentScore >= 50 ? 'HIGH'
-          : currentScore >= 30 ? 'MEDIUM'
-          : 'LOW'
-      }
-    } catch {
-      domain = ''
-      currentScore = null
-      currentRiskLevel = 'LOW'
-      reportCount = 0
-      currentExplanation = null
-      currentSource = null
+      listenersRegistered = true
     }
-    const [localHistory, backendEvents, feed, trackerSessionStats, trackerTabStats] = await Promise.all([
-      readHistory(),
-      domain ? getThreatEvents(domain) : Promise.resolve([]),
-      getRecentFeed(),
-      getSessionStats(),
-      activeTabId != null ? getTabStats(activeTabId) : Promise.resolve(null),
-    ])
 
-    const mergedHistory = [...localHistory, ...backendEvents].sort((a, b) => b.timestamp - a.timestamp)
+    const emailState = await getStoredEmailState()
+    set({ initialized: true, emailState })
+    await get().load()
+  },
 
-    const now = Date.now()
-    const DAY_MS = 24 * 60 * 60 * 1000
-    const reportsForDomain24h = feed
-      .filter((item) => item.domain === domain && now - new Date(item.lastSeen).getTime() < DAY_MS)
-      .reduce((sum, item) => sum + (item.reports || 0), 0)
+  load: async () => {
+    set({ isLoading: true, error: null })
+    const tab = await getActiveTab()
+    const url = tab?.url ?? ''
+    const tabId = typeof tab?.id === 'number' ? tab.id : null
+    const domain = extractDomain(url)
 
-    set({
-      history: mergedHistory,
-      feed,
-      currentDomain: domain,
-      currentTabId: activeTabId,
-      currentScore,
-      currentRiskLevel,
-      reportCount,
-      blockedCounts,
-      currentExplanation,
-      currentSource,
-      currentCommunityReports24h: reportsForDomain24h,
-      trackerSessionStats,
-      trackerTabStats,
-      isLoading: false,
+    if (!isSupportedUrl(url)) {
+      set({
+        currentUrl: url,
+        currentDomain: domain,
+        currentTabId: tabId,
+        scanResult: null,
+        isLoading: false,
+        error: 'This page cannot be scanned in the popup.',
+      })
+      return
+    }
+
+    set({ currentUrl: url, currentDomain: domain, currentTabId: tabId })
+
+    try {
+      const result = await new Promise<UrlScanResult | null>((resolve) => {
+        chrome.runtime.sendMessage(
+          { type: 'GET_SCAN_DATA', tabId },
+          (response: UrlScanResult | null) => {
+            if (chrome.runtime.lastError) {
+              resolve(null)
+              return
+            }
+            resolve(response)
+          }
+        )
+      })
+
+      set({
+        scanResult: result ?? createFallbackResult(url),
+        isLoading: false,
+        error: result ? null : 'Live scan unavailable. Showing local browser analysis instead.',
+      })
+    } catch {
+      set({
+        scanResult: createFallbackResult(url),
+        isLoading: false,
+        error: 'Live scan unavailable. Showing local browser analysis instead.',
+      })
+    }
+  },
+
+  rescan: async () => {
+    const { currentTabId } = get()
+    if (currentTabId == null) {
+      await get().load()
+      return
+    }
+
+    set({ isLoading: true, error: null })
+    await new Promise<void>((resolve) => {
+      chrome.runtime.sendMessage({ type: 'RESCAN_TAB', tabId: currentTabId }, () => {
+        void chrome.runtime.lastError
+        resolve()
+      })
     })
+    await get().load()
   },
 
-  setTab: (tab) => set({ activeTab: tab }),
-
-  submitUserReport: async ({ category, description }) => {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
-    const url = tabs[0]?.url || ''
-    await submitReport({ url, category: category as any, description })
-    set({ reportSuccess: true })
-    setTimeout(() => set({ reportSuccess: false, activeTab: 'history' }), 2000)
-  },
-
-  clearAll: async () => {
-    await wipeHistory()
-    set({ history: [] })
+  resetEmail: async () => {
+    await new Promise<void>((resolve) => {
+      chrome.runtime.sendMessage({ type: 'RESET_EMAIL_STATE' }, () => {
+        void chrome.runtime.lastError
+        resolve()
+      })
+    })
+    set({ emailState: DEFAULT_EMAIL_STATE })
   },
 }))

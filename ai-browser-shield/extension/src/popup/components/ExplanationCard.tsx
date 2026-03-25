@@ -1,103 +1,58 @@
-import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle2, ChevronDown, Sparkles, TriangleAlert } from 'lucide-react';
-import { useState } from 'react';
-import { plainSignalLabels } from '@/lib/riskLabels';
+import { Bot, ListChecks } from 'lucide-react'
 
-export const ExplanationCard = ({
-  title = 'AI Analysis',
+interface ExplanationCardProps {
+  explanation: string
+  confidence?: number
+  keyIndicators?: string[]
+  sourceLabel?: string
+}
+
+export function ExplanationCard({
   explanation,
-  signals,
-  positives,
-  warnings,
   confidence,
-  reports,
-  aiUsed,
-  technicalDetails = []
-}: {
-  title?: string;
-  explanation: string;
-  signals: string[];
-  positives?: string[];
-  warnings?: string[];
-  confidence?: number;
-  reports?: number;
-  aiUsed?: boolean;
-  technicalDetails?: Array<{ label: string; value: string }>;
-}) => {
-  const [open, setOpen] = useState(false);
-  const displaySignals = signals.slice(0, 3).map((signal) => plainSignalLabels[signal] ?? signal.replace(/_/g, ' '));
-  const displayPositives = (positives ?? []).slice(0, 3);
-  const displayWarnings = (warnings ?? []).slice(0, 3);
+  keyIndicators = [],
+  sourceLabel = 'Threat explanation',
+}: ExplanationCardProps) {
+  const percent = typeof confidence === 'number'
+    ? Math.max(1, Math.min(100, Math.round(confidence * 100)))
+    : null
 
   return (
-    <div className="surface-card space-y-4 p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="caption mb-2 uppercase tracking-[0.12em]">{title}</p>
-          <p className="text-body text-[var(--text-primary)]">{explanation}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {displayPositives.map((signal) => (
-              <span key={signal} className="inline-flex items-center gap-2 rounded-full bg-[#163126] px-3 py-1 text-caption text-[#9ae6b4]">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                {signal}
-              </span>
-            ))}
-            {displayWarnings.map((signal) => (
-              <span key={signal} className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-alt)] px-3 py-1 text-caption text-[var(--text-secondary)]">
-                <TriangleAlert className="h-3.5 w-3.5" />
-                {signal}
-              </span>
-            ))}
-            {displaySignals.map((signal) => (
-              <span key={signal} className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-alt)] px-3 py-1 text-caption text-[var(--text-secondary)]">
-                <TriangleAlert className="h-3.5 w-3.5" />
-                {signal}
-              </span>
-            ))}
-            {reports && reports > 0 && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-alt)] px-3 py-1 text-caption text-[var(--text-secondary)]">
-                <Sparkles className="h-3.5 w-3.5" />
-                {reports} community report{reports === 1 ? '' : 's'}
-              </span>
-            )}
-          </div>
+    <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-4 text-slate-100">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Bot className="h-4 w-4 text-cyan-300" />
+          {sourceLabel}
         </div>
-        <span className="caption inline-flex items-center gap-1 whitespace-nowrap">
-          <Sparkles className="h-3.5 w-3.5" />
-          {aiUsed ? 'AI explanation' : 'Rule-based explanation'}
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-2 text-caption text-safe-600 dark:text-safe-dark"
-        aria-expanded={open}
-      >
-        Technical details
-        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden rounded-md bg-[var(--surface-alt)] p-3 text-caption text-[var(--text-secondary)]"
-          >
-            We compare the domain structure, trust signals, and reputation first. AI only explains the verdict after the decision has already been made.
-            {typeof confidence === 'number' && <div className="mt-2">Detection confidence: {Math.round(confidence * 100)}%</div>}
-            {technicalDetails.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {technicalDetails.map((item) => (
-                  <div key={`${item.label}-${item.value}`}>
-                    <span className="font-semibold text-[var(--text-primary)]">{item.label}:</span> {item.value}
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
+        {percent !== null && (
+          <div className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
+            Confidence {percent}%
+          </div>
         )}
-      </AnimatePresence>
-    </div>
-  );
-};
+      </div>
+      <p className="text-sm leading-6 text-slate-200">
+        {explanation || 'No explanation is available yet. Reload the page to refresh the scan.'}
+      </p>
+      <div className="mt-4">
+        <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-400">
+          <ListChecks className="h-3.5 w-3.5" />
+          Key Indicators
+        </div>
+        {keyIndicators.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {keyIndicators.slice(0, 6).map((indicator) => (
+              <span
+                key={indicator}
+                className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-xs text-slate-200"
+              >
+                {indicator}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">No major indicators were surfaced for this scan.</p>
+        )}
+      </div>
+    </section>
+  )
+}

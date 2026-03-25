@@ -9,7 +9,7 @@ declare global {
 }
 
 export const prisma = global.__ABS_PRISMA__ ?? new PrismaClient({
-  log: []
+  log: process.env.NODE_ENV === 'development' ? ['query', 'error'] : []
 });
 
 if (!global.__ABS_PRISMA__) {
@@ -23,6 +23,10 @@ if (typeof global.__ABS_DB_AVAILABLE__ !== 'boolean') {
 export const isDatabaseAvailable = (): boolean => global.__ABS_DB_AVAILABLE__ === true;
 
 export const connectDatabase = async (): Promise<boolean> => {
+  if (process.env.NO_DB === 'true') {
+    global.__ABS_DB_AVAILABLE__ = false;
+    return false;
+  }
   try {
     await prisma.$connect();
     global.__ABS_DB_AVAILABLE__ = true;

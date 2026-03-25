@@ -3,6 +3,7 @@ import { injectOverlay, showWarningOverlay, showDownloadWarning, showClickjackWa
 import { collectInteractionSignals } from './interactionDetector'
 import { initLinkInterceptor } from '../preclick/linkInterceptor'
 import { initRuntimeMonitor } from './runtimeMonitor'
+import { initEmailMlIntegration } from './mlIntegration'
 
 const SHIELD_POPUP_KEY = 'data-shield-injected'
 const TRACKING_PARAMS = [
@@ -108,20 +109,21 @@ function stripTrackingParams() {
 initHoverPreview()
 injectOverlay()
 initLinkInterceptor()
+initEmailMlIntegration()
 stripTrackingParams()
 
 // Listen for messages from background SW
 // Note: overlayInjector sends OPEN_REPORT_FORM and CANCEL_DOWNLOAD directly to background
 // via chrome.runtime.sendMessage; no relay needed here
 chrome.runtime.onMessage.addListener((message) => {
-  if (message.type === 'SHOW_OVERLAY') {
-    showWarningOverlay(message.payload)
+  if (message.type === "SHOW_OVERLAY") {
+    showWarningOverlay(message.payload);
   }
   if (message.type === 'REDIRECT_WARNING') {
     showShieldRedirectWarning(message.payload?.count ?? 2)
   }
-  if (message.type === 'DOWNLOAD_WARNING') {
-    showDownloadWarning(message.payload)
+  if (message.type === "DOWNLOAD_WARNING") {
+    showDownloadWarning(message.payload);
   }
   if (message.type === 'CLICKJACK_WARNING') {
     showClickjackWarning(message.payload)
@@ -406,3 +408,4 @@ if (document.readyState === 'loading') {
 } else {
   initRuntimeMonitor()
 }
+

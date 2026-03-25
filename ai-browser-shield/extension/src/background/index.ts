@@ -1,10 +1,12 @@
 import { scoreUrl } from '../detection/urlScorer'
+import { scoreEmail } from '../detection/emailScorer'
 import { checkDownload } from '../detection/downloadChecker'
 import { trackRedirect, resetTab, trackNewTab, getNewTabInfo, clearNewTabInfo, NEW_TAB_SPAM_WINDOW, RETURN_REDIRECT_WINDOW } from '../detection/redirectTracker'
 import { saveThreatEvent } from './storage'
-import { getDomainScore, scanFile, scanUrl } from '../api/client'
+import { getDomainScore, scanEmail, scanFile, scanUrl } from '../api/client'
 import { PopupAndRedirectTracker, type PopupAndRedirectAnalysis } from '../detection/popupRedirectTracker'
 import { initTrackerBlocking } from './trackerBackground'
+import { logWarn } from '../common/logger'
 import type {
   ThreatEvent,
   RiskLevel,
@@ -16,6 +18,7 @@ import type {
   DomainReputation,
   PatternFlags,
   SensitiveDataRisk,
+  EmailAnalysisState,
 } from '../types'
 import {
   initVaultWorker,
@@ -81,6 +84,8 @@ const riskHistoryByTab = new Map<number, RiskHistorySnapshot[]>()
 const domainReputationStore = new Map<string, DomainReputation>()
 const PHASE4_BYPASS_STORAGE_KEY = 'phase4:bypassedTabs'
 const PHASE4_ALLOWLIST_STORAGE_KEY = 'allowlist'
+const EMAIL_ANALYSIS_STORAGE_KEY = 'emailAnalysisState'
+const MAX_EMAIL_STATE_TEXT_CHARS = 12000
 const ADAPTIVE_WEIGHTS = {
   popup: 10,
   redirect: 15,
@@ -93,6 +98,206 @@ const ADAPTIVE_WEIGHTS = {
   creditCardField: 20,
   earlyUnload: 18,
 } as const
+
+const DEFAULT_EMAIL_STATE: EmailAnalysisState = {
+  emailText: '',
+  senderEmail: '',
+  subject: '',
+  links: [],
+  attachmentNames: [],
+  hasAttachments: false,
+  riskScore: 0,
+  riskLabel: 'safe',
+  status: 'waiting',
+  explanation: '',
+  attackType: 'None',
+  confidence: 0,
+  isSpamFolder: false,
+  signals: [],
+  detectedPatterns: [],
+}
+
+async function setEmailAnalysisState(
+  partial: Partial<EmailAnalysisState>,
+  tabId?: number
+): Promise<void> {
+  const nextState: EmailAnalysisState = {
+    ...DEFAULT_EMAIL_STATE,
+    ...partial,
+    signals: Array.isArray(partial.signals) ? partial.signals : (partial.signals ?? DEFAULT_EMAIL_STATE.signals),
+    detectedPatterns: Array.isArray(partial.detectedPatterns) ? partial.detectedPatterns : (partial.detectedPatterns ?? DEFAULT_EMAIL_STATE.detectedPatterns),
+    links: Array.isArray(partial.links) ? partial.links : (partial.links ?? DEFAULT_EMAIL_STATE.links),
+    attachmentNames: Array.isArray(partial.attachmentNames) ? partial.attachmentNames : (partial.attachmentNames ?? DEFAULT_EMAIL_STATE.attachmentNames),
+  }
+
+  try {
+    await chrome.storage.local.set({ [EMAIL_ANALYSIS_STORAGE_KEY]: nextState })
+  } catch {
+    // Ignore storage failures; runtime message fan-out still happens.
+  }
+
+  try {
+    chrome.runtime.sendMessage({ type: 'EMAIL_STATE_UPDATED', payload: nextState }, () => {
+      void chrome.runtime.lastError
+    })
+  } catch {
+    // Popup may be closed.
+  }
+
+  if (typeof tabId === 'number' && tabId >= 0) {
+    try {
+      chrome.tabs.sendMessage(tabId, { type: 'EMAIL_STATE_UPDATED', payload: nextState }, () => {
+        void chrome.runtime.lastError
+      })
+    } catch {
+      // Content script may not be available on the current page.
+    }
+  }
+}
+
+async function resetEmailState(tabId?: number): Promise<void> {
+  await setEmailAnalysisState({ ...DEFAULT_EMAIL_STATE }, tabId)
+}
+
+async function processEmailPayload(
+  payload: {
+    emailText?: string
+    senderEmail?: string
+    subject?: string
+    links?: unknown[]
+    attachmentNames?: unknown[]
+    hasAttachments?: boolean
+    isSpamFolder?: boolean
+  },
+  tabId?: number
+): Promise<void> {
+  const emailText = String(payload.emailText || '').trim().slice(0, MAX_EMAIL_STATE_TEXT_CHARS)
+  const senderEmail = String(payload.senderEmail || '').trim()
+  const subject = String(payload.subject || '').trim()
+  const links = Array.isArray(payload.links) ? payload.links.map((item) => String(item)).filter(Boolean).slice(0, 20) : []
+  const attachmentNames = Array.isArray(payload.attachmentNames) ? payload.attachmentNames.map((item) => String(item)).filter(Boolean).slice(0, 20) : []
+  const hasAttachments = Boolean(payload.hasAttachments) || attachmentNames.length > 0
+  const isSpamFolder = Boolean(payload.isSpamFolder)
+
+  if (!emailText || emailText.length <= 50) {
+    await resetEmailState(tabId)
+    return
+  }
+
+  await setEmailAnalysisState({
+    emailText,
+    senderEmail,
+    subject,
+    links,
+    attachmentNames,
+    hasAttachments,
+    riskScore: 12,
+    riskLabel: 'safe',
+    status: 'analyzing',
+    explanation: 'Analyzing email content and sender patterns...',
+    isSpamFolder,
+  }, tabId)
+
+  let analysis
+  try {
+    analysis = scoreEmail(emailText, senderEmail, isSpamFolder)
+  } catch (error) {
+    logWarn('EMAIL', 'Email scoring failed:', error)
+    await setEmailAnalysisState({
+      ...DEFAULT_EMAIL_STATE,
+      emailText,
+      senderEmail,
+      subject,
+      links,
+      attachmentNames,
+      hasAttachments,
+      status: 'ready',
+      explanation: 'Email analysis failed. Please retry.',
+    }, tabId)
+    return
+  }
+
+  await setEmailAnalysisState({
+    emailText,
+    senderEmail,
+    subject,
+    links,
+    attachmentNames,
+    hasAttachments,
+    riskScore: Math.max(8, analysis.riskScore),
+    riskLabel: analysis.riskLabel,
+    status: 'deep_scanning',
+    explanation: analysis.explanation || analysis.attackType || 'Checking this email against deeper phishing signals...',
+    attackType: analysis.attackType,
+    confidence: Math.max(1, analysis.confidence || 0),
+    isSpamFolder: analysis.isSpamFolder || false,
+    signals: analysis.signals || [],
+    detectedPatterns: analysis.detectedSignals || [],
+  }, tabId)
+
+  try {
+    const result = await scanEmail({
+      sender: senderEmail,
+      subject: subject || 'No Subject',
+      body: emailText,
+      links,
+      localSignals: analysis.detectedSignals || [],
+      hasAttachments,
+      attachmentNames,
+    })
+
+    if (!result) {
+      throw new Error('email_scan_unavailable')
+    }
+
+    await setEmailAnalysisState({
+      emailText,
+      senderEmail,
+      subject,
+      links,
+      attachmentNames,
+      hasAttachments,
+      riskScore: Math.max(5, Math.round(result.phishingProbability * 100)),
+      riskLabel: result.decision === 'BLOCK' ? 'dangerous' : result.decision === 'WARNING' ? 'suspicious' : 'safe',
+      status: 'ready',
+      explanation: result.explanation,
+      attackType: result.attackType,
+      confidence: Math.max(1, Math.round(result.confidence * 100)),
+      isSpamFolder,
+      signals: [
+        ...(analysis.signals || []),
+        ...result.topFeatures.slice(0, 4).map((feature) => ({
+          name: feature,
+          score: Math.max(8, Math.round((result.phishingProbability * 100) / Math.max(1, result.topFeatures.length))),
+        })),
+      ].slice(0, 8),
+      detectedPatterns: Array.from(new Set([
+        ...(analysis.detectedSignals || []),
+        ...result.topFeatures,
+        result.decision,
+      ])).slice(0, 10),
+    }, tabId)
+  } catch (error) {
+    logWarn('EMAIL', 'Deep email scan failed, falling back to local explanation:', error)
+    await setEmailAnalysisState({
+      emailText,
+      senderEmail,
+      subject,
+      links,
+      attachmentNames,
+      hasAttachments,
+      riskScore: Math.max(8, analysis.riskScore),
+      riskLabel: analysis.riskLabel,
+      status: 'ready',
+      explanation: analysis.explanation || 'Local phishing analysis completed.',
+      attackType: analysis.attackType,
+      confidence: Math.max(1, analysis.confidence || 0),
+      isSpamFolder,
+      signals: analysis.signals || [],
+      detectedPatterns: analysis.detectedSignals || [],
+    }, tabId)
+  }
+}
 
 function normalizeRuntimeSignals(tabId: number): RuntimeSignalSummary {
   const runtimeSignals = runtimeSignalsByTab.get(tabId)?.signals ?? {}
@@ -1456,6 +1661,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   const senderDomain = (() => { try { return new URL(sender.url || '').hostname } catch { return 'unknown' } })()
 
+  if (message.type === 'EMAIL_CONTENT') {
+    void processEmailPayload(message.payload ?? {}, sender.tab?.id)
+    return true
+  }
+
+  if (message.type === 'RESET_EMAIL_STATE') {
+    void resetEmailState(sender.tab?.id)
+    return true
+  }
+
+  if (message.type === 'DEEP_SCAN_EMAIL') {
+    void processEmailPayload(message.payload ?? {}, sender.tab?.id)
+    return true
+  }
+
+
   // Popup abuse reported by content script
   if (message.type === 'POPUP_ATTEMPT') {
     const tabId = sender.tab?.id
@@ -2006,3 +2227,4 @@ void loadPhase4SessionState()
 initTrackerBlocking()
 void initVaultWorker()
 setupVaultSessionAlarm()
+

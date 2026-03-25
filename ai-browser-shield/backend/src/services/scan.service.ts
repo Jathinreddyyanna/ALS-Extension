@@ -1,10 +1,11 @@
 import { prisma } from '../db/client';
+import type { EmailScanInput, FileScanInput as LegacyFileScanInput, UrlScanInput } from '../schemas';
 import { parseAndNormalizeUrl } from '../detection/urlParser';
 import { resolveAllowlist } from './allowlist.service';
 import { cacheGetJSON, cacheKeys, cacheService, cacheSetJSON } from './cache.service';
 import { analyzeDomain } from './domainIntelligence.service';
 import { enrichDomainSignals } from './domainEnrichment.service';
-import { computeHeuristics, type HeuristicResult } from './scoring.service';
+import { computeHeuristics, type HeuristicResult, isTrustedDomain, isTrustedMailDomain } from './scoring.service';
 import { getReputation, type ReputationResult } from './reputation.service';
 import { makeDecision } from './decision.service';
 import { generateExplanation } from './explanation.service';
@@ -13,14 +14,14 @@ import { aggregateThreatIntel } from './threatIntel.service';
 import type { ThreatIntelAggregateResult } from './threatIntel.service';
 import { classifyContentCategory, computeBehaviorRisk, computeRuntimeRisk } from './behaviorRisk.service';
 import { computeDomRisk, computeInteractionRisk } from './pageInteraction.service';
+import { generateEmailThreatExplanation } from './ai.service';
+import { predictEmailRisk } from './emailMl.service';
 import { hashIp } from '../utils/ip';
 import { logger } from '../utils/logger';
-import type { Category, RiskLevel, UrlScanResult } from '../types/scan.types';
+import type { Category, EmailScanResult, RiskLevel, UrlScanResult } from '../types/scan.types';
+import { scanFile as performFileScan } from './file.service';
 
-const VERIFIED_SAFE_DOMAINS = new Set([
-  'google.com', 'github.com', 'stackoverflow.com', 'youtube.com',
-  'microsoft.com', 'apple.com', 'amazon.com', 'linkedin.com', 'wikipedia.org'
-]);
+const isNoDb = () => process.env.NO_DB === 'true';
 
 const PIRACY_KEYWORDS = [
   'filmyzilla', 'movierulz', 'tamilrockers', 'torrent', 'piracy',
@@ -80,11 +81,6 @@ const verdictFromRiskLevel = (riskLevel: RiskLevel): 'safe' | 'suspicious' | 'ma
       : 'safe'
 );
 
-const isVerifiedSafeDomain = (hostname: string): boolean => {
-  const clean = hostname.replace(/^www\./, '').toLowerCase();
-  return VERIFIED_SAFE_DOMAINS.has(clean);
-};
-
 const getCacheTtl = (riskLevel: RiskLevel): number => (
   riskLevel === 'LOW' ? 60 * 60 * 24
     : riskLevel === 'MEDIUM' ? 60 * 30
@@ -93,11 +89,11 @@ const getCacheTtl = (riskLevel: RiskLevel): number => (
 );
 
 const buildHeuristicExplanationFallback = () => ({
-  explanation: 'AI analysis temporarily unavailable. Risk assessed using pattern matching and domain intelligence.',
+  explanation: 'This result was explained with built-in threat rules because the AI explainer was unavailable. The score still reflects domain reputation, structure, and live page behavior.',
   aiExplanation: 'Heuristic fallback — Gemini quota reached or all models exhausted.',
   riskLevel: 'LOW' as const,
   recommendedAction: 'allow' as const,
-  confidence: 0.6,
+  confidence: 0.65,
   keyIndicators: [] as string[],
   aiSource: 'heuristic' as const,
   riskScore: 10,
@@ -139,7 +135,7 @@ const applyThreatBoosters = (
   const hasBrandImpersonation = PHISHING_BRANDS.some((brand) => hostname.includes(brand)) &&
     PHISHING_ACTIONS.some((action) => urlLower.includes(action));
 
-  if (hasBrandImpersonation && !isVerifiedSafeDomain(hostname)) {
+  if (hasBrandImpersonation && !isTrustedDomain(hostname)) {
     boostedScore += 50;
     boostedSignals.brandImpersonation = Math.max(boostedSignals.brandImpersonation ?? 0, 50);
     boostedSignalsUsed.push('brand_impersonation_pattern');
@@ -194,7 +190,7 @@ const computeThreatSignals = (
 
   const hasBrandName = PHISHING_BRANDS.some((brand) => hostLower.includes(brand));
   const hasActionWord = PHISHING_ACTIONS.some((action) => urlLower.includes(action));
-  if (hasBrandName && hasActionWord && !isVerifiedSafeDomain(hostname)) {
+  if (hasBrandName && hasActionWord && !isTrustedDomain(hostname)) {
     boost += 55;
     detectedPatterns.push('brand_impersonation_phishing');
   }
@@ -499,10 +495,14 @@ export const performUrlScan = async (input: {
       return response;
     }
 
-    const [allowlist, reputation, enrichment] = await Promise.all([allowlistPromise, reputationPromise, enrichmentPromise]);
+    const [allowlist, reputation, enrichment] = await Promise.all([
+      allowlistPromise,
+      reputationPromise,
+      enrichmentPromise
+    ]);
     const trustSignals = Array.from(new Set([...intel.positives, ...enrichment.positives]));
     const runtime = computeRuntimeRisk({ signals: input.signals, requestContext: input.requestContext });
-    const domInspection = computeDomRisk(input.signals);
+    const domInspection = computeDomRisk(input.signals, intel.hostname);
     const interaction = computeInteractionRisk(input.signals);
     const contentCategory = classifyContentCategory(parsed.normalizedUrl, intel.hostname);
     const behavior = computeBehaviorRisk({
@@ -511,7 +511,8 @@ export const performUrlScan = async (input: {
       cheapHosting: enrichment.asnReputation === 'cheap_hosting',
       suspiciousKeywordScore: Number(input.signals?.suspiciousKeywords ?? 0)
     });
-    const verifiedSafeDomain = isVerifiedSafeDomain(intel.hostname);
+    const verifiedSafeDomain = isTrustedDomain(intel.hostname);
+    const trustedMailDomain = isTrustedMailDomain(intel.hostname);
 
     if (allowlist.matched) {
       const explanation = 'This domain matches the verified trust registry and its structural trust signals are consistent with a legitimate service.';
@@ -577,7 +578,7 @@ export const performUrlScan = async (input: {
       popupFrequency: Number(input.signals?.popupFrequency ?? input.signals?.popupCount ?? 0),
       redirectChains: Number(input.signals?.redirectChains ?? input.signals?.redirectCount ?? 0),
       overlayTrap: Number(input.signals?.overlayTrap ?? 0),
-      hiddenIframes: Number(input.signals?.hiddenIframes ?? 0),
+      hiddenIframes: trustedMailDomain ? 0 : Number(input.signals?.hiddenIframes ?? 0),
       suspiciousFormCount: Number(input.signals?.suspiciousFormCount ?? 0),
       clickInterception: Number(input.signals?.clickInterception ?? 0)
     };
@@ -598,7 +599,6 @@ export const performUrlScan = async (input: {
     if (domInspection.domRisk >= 60) {
       structuralRisk = Math.max(structuralRisk, 60);
     }
-
     const lowInteractionRisk = runtime.runtimeRisk < 20 && domInspection.domRisk < 20 && interaction.interactionRisk < 20;
 
     if (verifiedSafeDomain && structuralRisk < 25 && lowInteractionRisk) {
@@ -722,9 +722,9 @@ export const performUrlScan = async (input: {
     // FIXED: RULE 1 & 2 - Removed the arbitrary Math.max(36) inflation block
 
     let calibratedRiskLevel: RiskLevel =
-      calibratedScore >= 75 ? 'CRITICAL'
-        : calibratedScore >= 55 ? 'HIGH'
-          : calibratedScore >= 35 ? 'MEDIUM'
+      calibratedScore >= 76 ? 'CRITICAL'
+        : calibratedScore >= 51 ? 'HIGH'
+          : calibratedScore >= 26 ? 'MEDIUM'
             : 'LOW';
 
     if (
@@ -740,7 +740,7 @@ export const performUrlScan = async (input: {
 
     const calibratedRecommendedAction: UrlScanResult['recommendedAction'] =
       calibratedRiskLevel === 'CRITICAL' ? 'block'
-        : calibratedRiskLevel === 'HIGH' ? 'block'
+        : calibratedRiskLevel === 'HIGH' ? 'warn'
           : calibratedRiskLevel === 'MEDIUM' ? 'warn'
             : 'allow';
 
@@ -918,6 +918,138 @@ export const explainUrlWithAi = async (input: {
   userGeminiKey: input.userGeminiKey
 });
 
+export const scanUrl = async (data: UrlScanInput) => performUrlScan(data);
+
+export async function scanFile(data: LegacyFileScanInput) {
+  return performFileScan({
+    filename: data.filename,
+    mimeType: data.mimeType,
+    sizeBytes: data.sizeBytes,
+    sourceUrl: data.sourceUrl,
+    base64Content: data.base64Content,
+    chromeDownloadId: data.chrome_download_id,
+    sessionId: data.sessionId
+  });
+}
+
+export async function scanEmail(data: EmailScanInput) {
+  const mlResult = await predictEmailRisk({
+    subject: data.subject,
+    sender: data.sender,
+    body: data.body,
+    links: data.links,
+    hasAttachments: data.hasAttachments ?? false,
+    attachmentNames: data.attachmentNames ?? []
+  });
+
+  const localSignals = data.localSignals ?? [];
+  const localSignalCount = localSignals.length;
+  const fallbackProbability = Math.min(0.95, Math.max(0.08, 0.18 + (localSignalCount * 0.12)));
+  const phishingProbability = mlResult?.phishingProbability ?? fallbackProbability;
+  const decision = mlResult?.decision
+    ?? (phishingProbability >= 0.85 ? 'BLOCK' : phishingProbability >= 0.4 ? 'WARNING' : 'SAFE');
+  const confidence = mlResult?.confidence
+    ?? Math.min(0.96, Math.max(0.35, 0.45 + (localSignalCount * 0.08)));
+  const topFeatures = (mlResult?.topFeatures?.length ? mlResult.topFeatures : localSignals).slice(0, 5);
+  const explanation = await generateEmailThreatExplanation({
+    sender: data.sender,
+    subject: data.subject,
+    body: data.body,
+    phishingProbability,
+    decision,
+    topFeatures,
+    localSignals
+  });
+
+  const verdict: EmailScanResult['verdict'] =
+    decision === 'BLOCK' ? 'DANGEROUS'
+      : decision === 'WARNING' ? 'SUSPICIOUS'
+        : 'SAFE';
+  const result: EmailScanResult = {
+    phishingProbability,
+    decision,
+    confidence,
+    topFeatures,
+    explanation: explanation.explanation,
+    verdict,
+    attackType: explanation.attackType,
+    recommendedAction:
+      explanation.recommendedAction === 'delete' ? 'delete'
+        : explanation.recommendedAction === 'report' ? 'report'
+          : 'ignore'
+  };
+
+  if (!isNoDb() && decision !== 'SAFE') {
+    const domain = data.sender.includes('@') ? data.sender.split('@')[1] ?? data.sender : data.sender;
+    const riskScore = Math.round(phishingProbability * 100);
+    const riskLevel: RiskLevel = decision === 'BLOCK' ? 'CRITICAL' : 'MEDIUM';
+
+    await prisma.detectionEvent.create({
+      data: {
+        eventType: 'url_threat',
+        domain,
+        url: `mailto:${data.sender}`,
+        riskScore,
+        riskLevel,
+        aiExplanation: explanation.explanation,
+        signals: {
+          attackType: explanation.attackType,
+          subject: data.subject,
+          localSignals,
+          phishingProbability,
+          decision,
+          topFeatures
+        }
+      }
+    }).catch(() => undefined);
+  }
+
+  return result;
+}
+
+export async function getDomainScore(domain: string) {
+  const cacheKey = cacheKeys.domain(domain);
+  const cached = await cacheGetJSON<{
+    domain: string;
+    riskScore: number;
+    trustLevel: 'trusted' | 'caution' | 'untrusted';
+    detectionEvents: number;
+    fileScanFlags: number;
+    lastUpdated: Date;
+  }>(cacheKey);
+  if (cached) return cached;
+
+  if (isNoDb()) {
+    const result = {
+      domain,
+      riskScore: 15,
+      trustLevel: 'trusted' as const,
+      detectionEvents: 0,
+      fileScanFlags: 0,
+      lastUpdated: new Date()
+    };
+    await cacheSetJSON(cacheKey, result, 600);
+    return result;
+  }
+
+  const detectionCount = await prisma.detectionEvent.count({ where: { domain } }).catch(() => 0);
+  const fileScanCount = await prisma.fileScan.count({ where: { sourceDomain: domain } }).catch(() => 0);
+  const score = await prisma.domainScore.findUnique({ where: { domain } }).catch(() => null);
+
+  const riskScore = score?.riskScore ?? (detectionCount > 0 ? 50 : 15);
+  const trustLevel = riskScore >= 60 ? 'untrusted' : riskScore >= 30 ? 'caution' : 'trusted';
+  const result = {
+    domain,
+    riskScore,
+    trustLevel,
+    detectionEvents: detectionCount,
+    fileScanFlags: fileScanCount,
+    lastUpdated: score?.lastUpdated || new Date()
+  };
+  await cacheSetJSON(cacheKey, result, 600);
+  return result;
+}
+
 export const scoreExtractedEmailUrls = async (input: { emailBody: string; senderEmail: string; subject: string; requestId?: string }) => {
   const matches = Array.from(input.emailBody.matchAll(/https?:\/\/[^\s"'<>]+/g)).map((match) => match[0]);
   const urls = await Promise.all(matches.map((url) => performUrlScan({ url, forceAi: false, ip: '0.0.0.0', requestId: input.requestId })));
@@ -934,3 +1066,4 @@ export const scoreExtractedEmailUrls = async (input: { emailBody: string; sender
       : 'LOW';
   return { urls, senderRisk, overallRisk };
 };
+

@@ -1,0 +1,87 @@
+{
+  "model_version": "v1.0",
+  "model_type": "RandomForestClassifier",
+  "status": "production_ready",
+  "trained_date": "2026-03-14",
+  "model_file": "url_phishing_model.pkl",
+  "dataset_size": 240000,
+  "n_estimators": 100,
+  "max_depth": 20,
+  "feature_names": [
+    "url_length",
+    "num_dots",
+    "num_hyphens",
+    "num_slashes",
+    "has_ip",
+    "has_suspicious_tld",
+    "uses_https",
+    "num_subdomains"
+  ],
+  "dataset_breakdown": {
+    "total_urls_loaded": 651191,
+    "balanced_dataset_size": 240000,
+    "benign_samples": 120000,
+    "malicious_samples": 120000,
+    "balance_ratio": "50/50"
+  },
+  "training_split": {
+    "train_samples": 192000,
+    "test_samples": 48000,
+    "split_ratio": "80/20",
+    "train_benign": 96000,
+    "train_malicious": 96000,
+    "test_benign": 24000,
+    "test_malicious": 24000
+  },
+  "performance_metrics": {
+    "train_accuracy": 0.932546875,
+    "test_accuracy": 0.923375,
+    "accuracy": 0.9234,
+    "precision": 0.9316,
+    "recall": 0.9139,
+    "f1_score": 0.9226,
+    "roc_auc": 0.9778,
+    "auc_score": 0.9777667769097224,
+    "false_positive_rate": 0.067125,
+    "false_negative_rate": 0.086125
+  },
+  "confusion_matrix": {
+    "true_negatives": 22389,
+    "true_positives": 21933,
+    "false_positives": 1611,
+    "false_negatives": 2067
+  },
+  "feature_importance": {
+    "num_subdomains": 0.3826,
+    "num_slashes": 0.2251,
+    "num_dots": 0.1780,
+    "url_length": 0.1449,
+    "num_hyphens": 0.0483,
+    "uses_https": 0.0135,
+    "has_suspicious_tld": 0.0045,
+    "has_ip": 0.0032
+  },
+  "feature_insights": {
+    "num_subdomains": "⭐ STRONGEST SIGNAL (38.26%) - Phishing heavily exploits subdomain abuse and hierarchy confusion. Examples: bank.attacker.com, login.amazon-verify.attacker.com",
+    "num_slashes": "2nd strongest (22.51%) - Complex URL paths indicate obfuscation, phishing redirects, and hidden parameters",
+    "num_dots": "3rd strongest (17.80%) - Deeper subdomain hierarchy correlates with phishing attacks",
+    "url_length": "4th strongest (14.49%) - Benign URLs avg 20-40 chars, phishing URLs avg 50-100+ chars",
+    "num_hyphens": "5th (4.83%) - Less important than expected. Small dataset showed 32%, large dataset shows 4.8%. Typo domains less effective at scale",
+    "uses_https": "6th (1.35%) - Surprisingly low importance. Many phishing sites now use HTTPS to appear legitimate",
+    "has_suspicious_tld": "7th (0.45%) - Almost irrelevant on large dataset. Many legitimate domains use .tk/.ml",
+    "has_ip": "8th (0.32%) - Negligible impact. Many legitimate services use IP addresses"
+  },
+  "critical_discovery": "Feature importance changes DRAMATICALLY with dataset scale. Small datasets (147 URLs) showed misleading patterns (hyphens=32%, TLD=28%). Large dataset (240K URLs) revealed truth: subdomains=38%, slashes=22%. This is crucial for production reliability.",
+  "risk_thresholds": {
+    "low": {"min": 0, "max": 25, "label": "SAFE"},
+    "medium": {"min": 26, "max": 55, "label": "SUSPICIOUS"},
+    "high": {"min": 56, "max": 80, "label": "HIGH"},
+    "critical": {"min": 81, "max": 100, "label": "CRITICAL"}
+  },
+  "scoring_formula": {
+    "hybrid_score": "(heuristic_score * 0.6) + (ml_probability * 0.4)",
+    "weights": {"heuristic": 0.6, "ml_model": 0.4},
+    "description": "Hybrid approach combines proven heuristics (60%) with statistical ML signals (40%) for balanced detection and explainability"
+  },
+  "validation_notes": "Model achieves 92.34% accuracy on balanced 240K URL dataset with 93.16% precision (low false alarms) and 91.39% recall (catches 91% of threats). ROC-AUC of 0.9778 indicates excellent discrimination between benign and malicious URLs."
+}

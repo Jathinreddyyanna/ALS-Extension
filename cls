@@ -1,0 +1,22 @@
+warning: in the working copy of 'ai-browser-shield/extension/package.json', LF will be replaced by CRLF the next time Git touches it
+ai-browser-shield/backend/package-lock.json
+ai-browser-shield/backend/package.json
+ai-browser-shield/backend/src/ai/client.ts
+ai-browser-shield/backend/src/ai/prompts.ts
+ai-browser-shield/backend/src/routes/health.ts
+ai-browser-shield/backend/src/routes/scan.ts
+ai-browser-shield/extension/package-lock.json
+ai-browser-shield/extension/package.json
+ai-browser-shield/extension/src/api/client.ts
+ai-browser-shield/extension/src/background/index.ts
+ai-browser-shield/extension/src/content/hoverPreview.ts
+ai-browser-shield/extension/src/content/index.ts
+ai-browser-shield/extension/src/detection/redirectTracker.ts
+ai-browser-shield/extension/src/detection/urlScorer.test.ts
+ai-browser-shield/extension/src/detection/urlScorer.ts
+ai-browser-shield/extension/src/popup/App.tsx
+ai-browser-shield/extension/src/popup/components/TrustScore.tsx
+ai-browser-shield/extension/src/popup/store.ts
+ai-browser-shield/extension/src/types/index.ts
+ai-browser-shield/extension/src/vite-env.d.ts
+ai-browser-shield/extension/vite.config.ts

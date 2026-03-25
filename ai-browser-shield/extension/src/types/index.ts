@@ -133,6 +133,38 @@ export interface FileScanResult {
   processedMs: number;
 }
 
+export interface EmailScanResult {
+  phishingProbability: number
+  decision: 'SAFE' | 'WARNING' | 'BLOCK'
+  confidence: number
+  topFeatures: string[]
+  explanation: string
+  verdict: 'SAFE' | 'SUSPICIOUS' | 'DANGEROUS'
+  attackType: string
+  recommendedAction: 'ignore' | 'report' | 'delete'
+}
+
+export type EmailRiskLabel = 'safe' | 'suspicious' | 'dangerous';
+export type EmailStatus = 'waiting' | 'analyzing' | 'deep_scanning' | 'ready';
+
+export interface EmailAnalysisState {
+  emailText: string;
+  senderEmail: string;
+  subject: string;
+  links: string[];
+  attachmentNames: string[];
+  hasAttachments: boolean;
+  riskScore: number;
+  riskLabel: EmailRiskLabel;
+  status: EmailStatus;
+  explanation: string;
+  attackType: string;
+  confidence: number;
+  isSpamFolder: boolean;
+  signals: Array<{ name: string; score: number }>;
+  detectedPatterns: string[];
+}
+
 export interface ThreatReport {
   url: string;
   category: 'phishing' | 'scam' | 'malware' | 'redirect' | 'popup_abuse' | 'ad_abuse' | 'data_exfil' | 'crypto_mining' | 'piracy' | 'other';
@@ -254,3 +286,4 @@ export interface ChromeMessage {
 }
 
 export * from './vault';
+

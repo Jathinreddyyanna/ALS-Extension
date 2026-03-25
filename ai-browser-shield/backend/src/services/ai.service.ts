@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../config';
 import { cacheKeys, cacheService } from './cache.service';
 import { logger } from '../utils/logger';
+import { buildEmailThreatExplanationPrompt } from '../ai/prompts';
 import type { AiAssessment, AiVerdict, AnalyzeWithGeminiInput, Category, RiskLevel, UrlScanResult } from '../types/scan.types';
 
 declare global {
@@ -157,6 +158,13 @@ type GeminiFileResponse = {
     suspiciousBehaviors?: string[];
     knownMalwareFamily?: string | null;
   };
+};
+
+type EmailExplanationResult = {
+  explanation: string;
+  attackType: string;
+  recommendedAction: 'ignore' | 'report' | 'delete';
+  source: 'gemini' | 'rule-based';
 };
 
 const normalizeGeminiAssessment = (content: string, input: AnalyzeWithGeminiInput): AiAssessment | null => {
@@ -381,6 +389,94 @@ const generateContentOnce = async (input: AnalyzeWithGeminiInput) => {
     isFileScan ? FILE_SYSTEM_PROMPT : URL_SYSTEM_PROMPT,
     input.requestId
   );
+};
+
+const buildRuleBasedEmailExplanation = (input: {
+  phishingProbability: number;
+  decision: 'SAFE' | 'WARNING' | 'BLOCK';
+  topFeatures: string[];
+  sender: string;
+  localSignals: string[];
+}): EmailExplanationResult => {
+  const riskPercent = Math.round(input.phishingProbability * 100);
+  const senderText = input.sender || 'this sender';
+  const indicators = Array.from(new Set([...input.topFeatures, ...input.localSignals])).slice(0, 3);
+  const indicatorText = indicators.length > 0 ? indicators.join(', ') : 'the overall sender and content pattern';
+
+  if (input.decision === 'BLOCK') {
+    return {
+      explanation: `This email looks highly suspicious (${riskPercent}% phishing probability). The strongest warning signs came from ${indicatorText}, so you should avoid clicking links or opening attachments from ${senderText}.`,
+      attackType: input.topFeatures.some((item) => /attachment|malware/i.test(item)) ? 'Malware' : 'Phishing',
+      recommendedAction: 'delete',
+      source: 'rule-based'
+    };
+  }
+
+  if (input.decision === 'WARNING') {
+    return {
+      explanation: `This email shows caution-level phishing indicators (${riskPercent}% phishing probability). Review ${indicatorText} carefully before trusting ${senderText} or interacting with any links.`,
+      attackType: input.topFeatures.some((item) => /brand|sender/i.test(item)) ? 'Brand Impersonation' : 'Scam',
+      recommendedAction: 'report',
+      source: 'rule-based'
+    };
+  }
+
+  return {
+    explanation: `This email appears low risk (${riskPercent}% phishing probability). No strong phishing indicators were confirmed beyond ${indicatorText}, but it is still worth verifying unexpected requests from ${senderText}.`,
+    attackType: 'None',
+    recommendedAction: 'ignore',
+    source: 'rule-based'
+  };
+};
+
+/**
+ * Generate a user-facing explanation for an email phishing verdict.
+ */
+export const generateEmailThreatExplanation = async (input: {
+  sender: string;
+  subject: string;
+  body: string;
+  phishingProbability: number;
+  decision: 'SAFE' | 'WARNING' | 'BLOCK';
+  topFeatures: string[];
+  localSignals: string[];
+  userGeminiKey?: string;
+}): Promise<EmailExplanationResult> => {
+  const client = createGenAiClient(input.userGeminiKey);
+  if (!client) {
+    return buildRuleBasedEmailExplanation(input);
+  }
+
+  try {
+    const response = await generateWithFallback(
+      client,
+      buildEmailThreatExplanationPrompt(input),
+      'Return only valid JSON for email threat explanations.',
+      undefined
+    );
+    const parsed = parseJson<{
+      explanation?: string;
+      attackType?: string;
+      recommendedAction?: string;
+    }>(response.text);
+    if (!parsed || typeof parsed.explanation !== 'string') {
+      return buildRuleBasedEmailExplanation(input);
+    }
+
+    const recommendedAction = parsed.recommendedAction === 'delete' || parsed.recommendedAction === 'report' || parsed.recommendedAction === 'ignore'
+      ? parsed.recommendedAction
+      : buildRuleBasedEmailExplanation(input).recommendedAction;
+
+    return {
+      explanation: parsed.explanation.trim(),
+      attackType: typeof parsed.attackType === 'string' && parsed.attackType.trim() ? parsed.attackType.trim() : 'Phishing',
+      recommendedAction,
+      source: 'gemini'
+    };
+  } catch (error) {
+    logger.warn({ err: error, sender: input.sender }, 'email explanation generation failed');
+    return buildRuleBasedEmailExplanation(input);
+  }
 };
 
 export const analyzeWithGemini = async (input: AnalyzeWithGeminiInput): Promise<AiAssessment> => {

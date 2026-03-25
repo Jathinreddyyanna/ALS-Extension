@@ -9,6 +9,38 @@ export interface HeuristicResult {
   warnings: string[];
 }
 
+export const TRUSTED_DOMAIN_ALLOWLIST = [
+  'google.com',
+  'mail.google.com',
+  'outlook.com',
+  'office.com',
+  'microsoft.com',
+  'yahoo.com',
+  'mail.yahoo.com',
+  'protonmail.com',
+  'icloud.com',
+  'apple.com',
+  'github.com',
+  'linkedin.com',
+  'twitter.com',
+  'x.com',
+  'facebook.com',
+  'amazon.com',
+  'cloudflare.com',
+  'fastly.com'
+] as const;
+
+export const TRUSTED_MAIL_DOMAIN_ALLOWLIST = [
+  'mail.google.com',
+  'outlook.com',
+  'office.com',
+  'microsoft.com',
+  'yahoo.com',
+  'mail.yahoo.com',
+  'protonmail.com',
+  'icloud.com'
+] as const;
+
 const SUSPICIOUS_TLDS = [
   '.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top',
   '.click', '.loan', '.rest', '.cam', '.icu', '.sbs',
@@ -77,11 +109,26 @@ const addSignal = (
   }
 };
 
+const normalizeHostname = (hostname: string): string => hostname.toLowerCase().replace(/^www\./, '');
+
+const matchesTrustedDomain = (hostname: string, allowlist: readonly string[]): boolean => {
+  const normalized = normalizeHostname(hostname);
+  return allowlist.some((trusted) => normalized === trusted || normalized.endsWith(`.${trusted}`));
+};
+
+export const isTrustedDomain = (hostname: string): boolean =>
+  matchesTrustedDomain(hostname, TRUSTED_DOMAIN_ALLOWLIST);
+
+export const isTrustedMailDomain = (hostname: string): boolean =>
+  matchesTrustedDomain(hostname, TRUSTED_MAIL_DOMAIN_ALLOWLIST);
+
 export function computeHeuristics(rawUrl: string, intel: DomainIntelligence, enrichment?: DomainEnrichment): HeuristicResult {
   const signals: Record<string, number> = {};
   const signalsUsed: string[] = [];
   const positives = [...intel.positives];
   const warnings = [...intel.warnings];
+
+  const trustedDomain = isTrustedDomain(intel.hostname);
 
   if (intel.isOfficialTLD && !intel.hasSubdomainSpoofing && !intel.homoglyph.hasHomoglyphRisk) {
     return {
@@ -89,6 +136,22 @@ export function computeHeuristics(rawUrl: string, intel: DomainIntelligence, enr
       signals: {},
       signalsUsed: ['official_tld_bypass'],
       positives,
+      warnings
+    };
+  }
+
+  if (
+    trustedDomain &&
+    !intel.hasSubdomainSpoofing &&
+    !intel.homoglyph.hasHomoglyphRisk &&
+    !intel.hasIPHostname &&
+    !intel.impersonatedBrand
+  ) {
+    return {
+      score: 2,
+      signals: {},
+      signalsUsed: ['trusted_domain_allowlist'],
+      positives: Array.from(new Set([...positives, 'Trusted service allowlist'])),
       warnings
     };
   }

@@ -71,3 +71,23 @@ export const adminConfirmSchema = z.object({
   notes: z.string().optional(),
   overrideRiskScore: z.number().min(0).max(100).optional()
 }).strip();
+
+export const UrlScanSchema = scanUrlSchema;
+export const FileScanSchema = scanFileJsonSchema.extend({
+  extension: z.string().optional()
+});
+export const ReportSchema = reportSchema;
+export const EmailScanSchema = z.object({
+  sender: z.string().max(255),
+  subject: z.string().max(255),
+  body: z.string().max(10000),
+  links: z.array(z.string()).optional().default([]),
+  localSignals: z.array(z.string()).optional().default([]),
+  hasAttachments: z.boolean().optional().default(false),
+  attachmentNames: z.array(z.string()).optional().default([])
+}).strip();
+
+export type ReportInput = z.infer<typeof ReportSchema>;
+export type UrlScanInput = z.infer<typeof UrlScanSchema>;
+export type FileScanInput = z.infer<typeof FileScanSchema>;
+export type EmailScanInput = z.infer<typeof EmailScanSchema>;

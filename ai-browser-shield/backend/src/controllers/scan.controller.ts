@@ -5,10 +5,10 @@ import { prisma } from '../db/client';
 import { getDomainInsight, getDomainScoreRecord } from '../services/domain.service';
 import { scanFile } from '../services/file.service';
 import { localPersistence } from '../services/localPersistence.service';
-import { performUrlScan } from '../services/scan.service';
+import { performUrlScan, scanEmail } from '../services/scan.service';
 import { NotFoundError } from '../errors';
 import { logger } from '../utils/logger';
-import { FileScanResponseSchema, UrlScanResponseSchema } from '../types/scan.types';
+import { EmailScanResponseSchema, FileScanResponseSchema, UrlScanResponseSchema } from '../types/scan.types';
 
 const domainInsightSchema = z.object({
   score: z.any(),
@@ -73,6 +73,17 @@ export const scanFileController = async (req: Request, res: Response): Promise<v
   const parsed = FileScanResponseSchema.safeParse(result);
   if (!parsed.success) {
     logger.error({ requestId: req.requestId, issues: parsed.error.issues }, 'invalid file scan response schema');
+    res.status(500).json({ error: 'internal_schema_error' });
+    return;
+  }
+  res.json(parsed.data);
+};
+
+export const scanEmailController = async (req: Request, res: Response): Promise<void> => {
+  const result = await scanEmail(req.body);
+  const parsed = EmailScanResponseSchema.safeParse(result);
+  if (!parsed.success) {
+    logger.error({ requestId: req.requestId, issues: parsed.error.issues }, 'invalid email scan response schema');
     res.status(500).json({ error: 'internal_schema_error' });
     return;
   }

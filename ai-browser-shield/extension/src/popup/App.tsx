@@ -1,132 +1,193 @@
-import { AnimatePresence, motion } from 'framer-motion';
-import { Clock3, Flag, KeyRound, LockKeyhole, Settings, Shield, ShieldCheck } from 'lucide-react';
-import { useEffect } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useCurrentTab } from '@/hooks/useCurrentTab';
-import { useScanResult } from '@/hooks/useScanResult';
-import { ThemeProvider } from '@/hooks/useTheme';
-import { formatDomainDisplay } from '@/lib/formatters';
-import { useExtensionStore } from '@/store/useExtensionStore';
-import { DownloadWarningOverlay } from './components/DownloadWarningOverlay';
-import { ThemeToggle } from './components/ThemeToggle';
-import { HistoryTab } from './tabs/HistoryTab';
-import { ReportTab } from './tabs/ReportTab';
-import { SettingsTab } from './tabs/SettingsTab';
-import { ShieldTab } from './tabs/ShieldTab';
-import { UnlockTab } from './tabs/UnlockTab';
-import { VaultTab } from './tabs/VaultTab';
-import { GeneratorTab } from './tabs/GeneratorTab';
-import { VaultDashboardTab } from './tabs/VaultDashboardTab';
-import { useVaultStore } from '../store/useVaultStore';
-import '@/styles/globals.css';
+import { useEffect } from 'react'
+import { Activity, AlertTriangle, Globe, Mail, RefreshCcw, ShieldCheck, Siren } from 'lucide-react'
+import { ExplanationCard } from './components/ExplanationCard'
+import { RiskMeter } from './components/RiskMeter'
+import { SignalCard } from './components/SignalCard'
+import { useStore } from './store'
 
-const queryClient = new QueryClient();
-
-const tabs = [
-  { id: 'shield', label: 'Shield', icon: Shield },
-  { id: 'history', label: 'History', icon: Clock3 },
-  { id: 'report', label: 'Report', icon: Flag },
-  { id: 'vault', label: 'Vault', icon: LockKeyhole },
-  { id: 'generator', label: 'Generate', icon: KeyRound },
-  { id: 'security', label: 'Security', icon: ShieldCheck },
-  { id: 'settings', label: 'Settings', icon: Settings }
-] as const;
-
-const PopupShell = () => {
-  const { data: tab } = useCurrentTab();
-  const {
-    currentTab,
-    direction,
-    setCurrentTab,
-    setCurrentLocation,
-    currentDomain,
-    downloadOverlay,
-    setDownloadOverlay
-  } = useExtensionStore();
-  const { unlocked, syncState } = useVaultStore();
-
-  useEffect(() => {
-    if (!tab?.url) return;
-    setCurrentLocation(tab.url, formatDomainDisplay(tab.url), tab.id ?? null);
-  }, [setCurrentLocation, tab]);
-
-  useEffect(() => {
-    void syncState();
-    const timer = window.setInterval(() => void syncState(), 30_000);
-    return () => window.clearInterval(timer);
-  }, [syncState]);
-
-  useScanResult();
-
-  return (
-    <div className="app-shell flex min-h-[520px] w-[380px] flex-col bg-[radial-gradient(circle_at_top,rgba(13,155,106,0.12),transparent_38%)] p-4 dark:bg-[radial-gradient(circle_at_top,rgba(16,201,125,0.12),transparent_32%)]">
-      <header className="mb-5 flex items-center justify-between">
-        <div>
-          <p className="headline text-lg">AI Browser Shield</p>
-          <p className="caption">Calm protection for everyday browsing</p>
-        </div>
-        <ThemeToggle />
-      </header>
-
-      <main className="min-h-0 flex-1 overflow-y-auto pb-4">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={currentTab}
-            initial={{ x: direction > 0 ? 18 : -18, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: direction > 0 ? -18 : 18, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-          >
-            {currentTab === 'shield' && <ShieldTab />}
-            {currentTab === 'history' && <HistoryTab />}
-            {currentTab === 'report' && <ReportTab />}
-            {currentTab === 'vault' && (unlocked ? <VaultTab /> : <UnlockTab />)}
-            {currentTab === 'generator' && <GeneratorTab />}
-            {currentTab === 'security' && (unlocked ? <VaultDashboardTab /> : <UnlockTab />)}
-            {currentTab === 'settings' && <SettingsTab />}
-          </motion.div>
-        </AnimatePresence>
-      </main>
-
-      <nav className="mt-auto grid grid-cols-7 gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2">
-        {tabs.map((item) => {
-          const Icon = item.icon;
-          const active = currentTab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setCurrentTab(item.id)}
-              className={`flex min-h-11 flex-col items-center justify-center rounded-lg px-2 py-2 text-caption transition-colors ${active ? 'bg-[var(--surface-alt)] text-safe-600 dark:text-safe-dark' : 'text-[var(--text-secondary)]'}`}
-              aria-current={active ? 'page' : undefined}
-            >
-              <Icon className="mb-1 h-4 w-4" />
-              {item.label}
-            </button>
-          );
-        })}
-      </nav>
-
-      <DownloadWarningOverlay
-        open={downloadOverlay.open}
-        result={downloadOverlay.result}
-        fileName={downloadOverlay.fileName}
-        fileSize={downloadOverlay.fileSize}
-        onClose={() => setDownloadOverlay({ open: false, result: null })}
-      />
-
-      <div className="pointer-events-none absolute inset-0 rounded-[22px] ring-1 ring-black/5 dark:ring-white/5" />
-      <div className="sr-only">{currentDomain}</div>
-    </div>
-  );
-};
+function formatActivity(detail: string): string {
+  return detail
+    .replace(/_/g, ' ')
+    .replace(/\burl threat\b/i, 'page threat')
+    .replace(/\bpopup abuse\b/i, 'popup abuse')
+    .replace(/\bredirect chain\b/i, 'redirect chain')
+}
 
 export default function App() {
+  const {
+    initialize,
+    rescan,
+    resetEmail,
+    isLoading,
+    error,
+    currentDomain,
+    scanResult,
+    emailState,
+  } = useStore()
+
+  useEffect(() => {
+    void initialize()
+  }, [initialize])
+
+  const activity = scanResult?.activityLog?.slice(0, 6) ?? []
+  const confidence = scanResult?.confidence ?? 0.45
+  const warnings = scanResult?.warnings ?? []
+  const positives = scanResult?.positives ?? []
+  const emailTopSignals = emailState.detectedPatterns.slice(0, 4)
+
   return (
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <PopupShell />
-      </QueryClientProvider>
-    </ThemeProvider>
-  );
+    <div className="min-h-[560px] w-[390px] bg-slate-950 p-4 text-slate-100">
+      <header className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <div className="text-lg font-semibold">AI Browser Shield</div>
+          <div className="mt-1 text-sm text-slate-400">
+            {currentDomain || 'Waiting for an active page'}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => void rescan()}
+          className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
+        >
+          <RefreshCcw className="h-4 w-4" />
+        </button>
+      </header>
+
+      {error && (
+        <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+          {error}
+        </div>
+      )}
+
+      {scanResult ? (
+        <div className="space-y-4">
+          <RiskMeter score={scanResult.riskScore} riskLevel={scanResult.riskLevel} />
+
+          <div className="grid grid-cols-2 gap-3">
+            <SignalCard
+              title="Confidence"
+              value={`${Math.max(1, Math.round(confidence * 100))}%`}
+              detail={scanResult.aiDegraded ? 'Using built-in reasoning for explanation.' : 'Gemini explanation is active for this scan.'}
+              tone={scanResult.riskScore >= 76 ? 'danger' : scanResult.riskScore >= 26 ? 'caution' : 'safe'}
+              icon={ShieldCheck}
+              loading={isLoading}
+            />
+            <SignalCard
+              title="Signals"
+              value={scanResult.keyIndicators.length}
+              detail={scanResult.keyIndicators[0] || 'No major phishing indicators were surfaced.'}
+              tone={scanResult.keyIndicators.length >= 3 ? 'danger' : scanResult.keyIndicators.length > 0 ? 'caution' : 'safe'}
+              icon={Siren}
+              loading={isLoading}
+            />
+            <SignalCard
+              title="Warnings"
+              value={warnings.length}
+              detail={warnings[0] || 'No notable runtime warnings were recorded.'}
+              tone={warnings.length > 1 ? 'danger' : warnings.length === 1 ? 'caution' : 'safe'}
+              icon={AlertTriangle}
+              loading={isLoading}
+            />
+            <SignalCard
+              title="Trust"
+              value={positives.length}
+              detail={positives[0] || 'No strong trust signals were recorded.'}
+              tone={positives.length > 0 && scanResult.riskScore <= 25 ? 'safe' : scanResult.riskScore >= 51 ? 'danger' : 'caution'}
+              icon={Globe}
+              loading={isLoading}
+            />
+          </div>
+
+          <ExplanationCard
+            explanation={scanResult.explanation || scanResult.aiExplanation || 'No explanation is available for this page yet.'}
+            confidence={confidence}
+            keyIndicators={scanResult.keyIndicators}
+            sourceLabel={scanResult.aiDegraded ? 'Built-in threat explanation' : 'AI threat explanation'}
+          />
+
+          <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Mail className="h-4 w-4 text-cyan-300" />
+                Email Risk
+              </div>
+              <button
+                type="button"
+                onClick={() => void resetEmail()}
+                className="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
+              >
+                Clear
+              </button>
+            </div>
+
+            {emailState.status === 'waiting' && !emailState.emailText ? (
+              <p className="text-sm text-slate-400">
+                Open any webmail message and the extension will extract and analyze it automatically.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <div className="text-3xl font-semibold text-white">{emailState.riskScore}</div>
+                    <div className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                      {emailState.riskLabel}
+                    </div>
+                  </div>
+                  <div className="text-right text-sm text-slate-300">
+                    <div>Confidence {Math.max(1, Math.round(emailState.confidence))}%</div>
+                    <div className="text-xs text-slate-500">{emailState.status.replace(/_/g, ' ')}</div>
+                  </div>
+                </div>
+
+                <p className="text-sm leading-6 text-slate-200">
+                  {emailState.explanation || 'Email extraction is active, but a message body has not been analyzed yet.'}
+                </p>
+
+                <div className="grid gap-2 text-sm text-slate-300">
+                  <div><span className="text-slate-500">Sender:</span> {emailState.senderEmail || 'Unknown sender'}</div>
+                  <div><span className="text-slate-500">Subject:</span> {emailState.subject || 'No subject detected'}</div>
+                  <div><span className="text-slate-500">Attachments:</span> {emailState.hasAttachments ? emailState.attachmentNames.join(', ') || 'Detected' : 'None detected'}</div>
+                </div>
+
+                {emailTopSignals.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {emailTopSignals.map((signal) => (
+                      <span key={signal} className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-xs text-slate-200">
+                        {signal}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <Activity className="h-4 w-4 text-cyan-300" />
+              Activity Feed
+            </div>
+            {activity.length > 0 ? (
+              <div className="space-y-2">
+                {activity.map((item) => (
+                  <div key={`${item.type}-${item.timestamp}-${item.detail}`} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div className="text-sm text-slate-200">{formatActivity(item.detail)}</div>
+                    <div className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                      {new Date(item.timestamp).toLocaleTimeString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">No recent page activity has been recorded yet.</p>
+            )}
+          </section>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-5 text-sm text-slate-400">
+          {isLoading ? 'Loading the latest page scan...' : 'Open a web page to start protection analysis.'}
+        </div>
+      )}
+    </div>
+  )
 }

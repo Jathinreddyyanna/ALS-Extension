@@ -1,3 +1,5 @@
+import { isTrustedMailDomain } from './scoring.service';
+
 export interface DomInspectionResult {
   domRisk: number;
   warnings: string[];
@@ -16,17 +18,22 @@ export interface ClickInteractionResult {
 const getSignal = (signals: Record<string, number>, keys: string[]): number =>
   keys.reduce((max, key) => Math.max(max, Number(signals[key] ?? 0)), 0);
 
-export function computeDomRisk(signals?: Record<string, number>): DomInspectionResult {
+export function computeDomRisk(signals?: Record<string, number>, hostname?: string): DomInspectionResult {
   const normalized = signals ?? {};
   let domRisk = 0;
   const warnings: string[] = [];
   const signalsUsed: string[] = [];
+  const trustedMailDomain = hostname ? isTrustedMailDomain(hostname) : false;
 
   const hiddenIframes = getSignal(normalized, ['hiddenIframes', 'hiddenIframeChains']);
   if (hiddenIframes > 0) {
-    domRisk += Math.min(30, hiddenIframes * 12);
-    warnings.push('Hidden iframe chains detected');
-    signalsUsed.push('hidden_iframe_chain');
+    if (!trustedMailDomain) {
+      domRisk += Math.min(30, hiddenIframes * 12);
+      warnings.push('Hidden iframe chains detected');
+      signalsUsed.push('hidden_iframe_chain');
+    } else {
+      signalsUsed.push('trusted_mail_hidden_iframe_ignored');
+    }
   }
 
   const injectedScripts = getSignal(normalized, ['scriptInjection', 'maliciousScriptInjection', 'injectedScripts']);

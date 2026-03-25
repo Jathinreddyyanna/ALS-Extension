@@ -112,3 +112,4 @@ export function initHoverPreview() {
   document.addEventListener('click', removeTooltip)
   document.addEventListener('scroll', removeTooltip, { passive: true })
 }
+

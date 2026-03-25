@@ -189,6 +189,17 @@ export interface UrlScanResult {
   reason?: string;
 }
 
+export interface EmailScanResult {
+  phishingProbability: number;
+  decision: 'SAFE' | 'WARNING' | 'BLOCK';
+  confidence: number;
+  topFeatures: string[];
+  explanation: string;
+  verdict: 'SAFE' | 'SUSPICIOUS' | 'DANGEROUS';
+  attackType: string;
+  recommendedAction: 'ignore' | 'report' | 'delete';
+}
+
 export const UrlScanResponseSchema = z.object({
   url: z.string(),
   domain: z.string(),
@@ -244,4 +255,15 @@ export const FileScanResponseSchema = z.object({
   recommended_action: z.string(),
   fileScanId: z.string().optional(),
   processedMs: z.number()
+});
+
+export const EmailScanResponseSchema = z.object({
+  phishingProbability: z.number().min(0).max(1),
+  decision: z.enum(['SAFE', 'WARNING', 'BLOCK']),
+  confidence: z.number().min(0).max(1),
+  topFeatures: z.array(z.string()),
+  explanation: z.string(),
+  verdict: z.enum(['SAFE', 'SUSPICIOUS', 'DANGEROUS']),
+  attackType: z.string(),
+  recommendedAction: z.enum(['ignore', 'report', 'delete'])
 });

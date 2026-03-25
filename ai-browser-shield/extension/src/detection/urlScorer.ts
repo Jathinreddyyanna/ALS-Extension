@@ -59,7 +59,10 @@ function checkTLD(hostname: string): number {
   return SUSPICIOUS_TLDS.some((tld) => hostname.endsWith(tld)) ? 15 : 0
 }
 
-function checkKeywords(url: string): number {
+/**
+ * Check for suspicious keywords in URL
+ */
+function hasSuspiciousKeywords(url: string): number {
   const lower = url.toLowerCase()
   const matches = PHISHING_KEYWORDS.filter((keyword) => lower.includes(keyword)).length
   return Math.min(15, matches * 5)
@@ -75,6 +78,62 @@ export interface ScoreResult {
   score: number
   signals: SignalMap
   riskLevel: RiskLevel
+  heuristic_score?: number
+  ml_probability?: number
+  combined_score?: number
+  triggeredSignals?: string[]
+}
+
+function countKeywordMatches(text: string, keywords: string[]): number {
+  let count = 0
+  for (const keyword of keywords) {
+    if (text.includes(keyword)) count++
+  }
+  return count
+}
+
+function getPathDepth(pathname: string): number {
+  return pathname.split('/').filter(Boolean).length
+}
+
+/**
+ * Performance optimization: Cache scored URLs to avoid rescoring
+ * Especially important for extension running on every page navigation
+ * Maps URL → ScoreResult for instant lookups
+ */
+const scoreCache = new Map<string, ScoreResult>()
+
+/**
+ * Cached version of scoreUrl
+ * Checks cache before computing, stores result for future lookups
+ * @param rawUrl - URL to score
+ * @returns Cached ScoreResult if exists, otherwise computed and cached
+ */
+export function scoreUrlCached(rawUrl: string): ScoreResult {
+  // Return cached result if available
+  if (scoreCache.has(rawUrl)) {
+    return scoreCache.get(rawUrl)!
+  }
+
+  // Compute score and cache it
+  const result = scoreUrl(rawUrl)
+  scoreCache.set(rawUrl, result)
+
+  return result
+}
+
+/**
+ * Clear the scoring cache (useful for testing or memory management)
+ */
+export function clearScoreCache(): void {
+  scoreCache.clear()
+}
+
+/**
+ * Get cache statistics (size, can be useful for debugging)
+ */
+export function getScoreCacheStats(): { size: number } {
+  return { size: scoreCache.size }
 }
 
 const EMPTY_SIGNALS: SignalMap = {
@@ -123,3 +182,4 @@ export function scoreUrl(rawUrl: string): ScoreResult {
     }
   }
 }
+

@@ -87,6 +87,7 @@ export function TrustScore({ score, domain, isLoading, reportCount = 0, onReport
   const R = 58
   const circumference = 2 * Math.PI * R
   const offset = circumference - (animatedScore / 100) * circumference
+  const triggeredSignals = getTriggeredSignals(signals)
 
   useEffect(() => {
     if (score === null) {
@@ -328,3 +329,4 @@ export function TrustScore({ score, domain, isLoading, reportCount = 0, onReport
     </div>
   )
 }
+

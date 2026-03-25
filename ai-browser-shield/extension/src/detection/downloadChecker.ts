@@ -19,6 +19,12 @@ export interface DownloadRisk {
   reason: string
 }
 
+export interface DownloadScoreResult {
+  riskScore: number
+  riskLabel: 'safe' | 'suspicious' | 'dangerous'
+  reason: string
+}
+
 export function checkDownload(filename: string, mimeType: string, sourceUrl: string): DownloadRisk {
   if (!filename || typeof filename !== 'string' || filename.trim() === '') {
     return { level: 'safe', reason: 'No filename provided' }
@@ -56,4 +62,18 @@ export function checkDownload(filename: string, mimeType: string, sourceUrl: str
   }
 
   return { level: 'safe', reason: 'No obvious threats detected' }
+}
+
+export function scoreDownload(filename: string, mimeType: string, sourceUrl: string): DownloadScoreResult {
+  const risk = checkDownload(filename, mimeType, sourceUrl)
+
+  if (risk.level === 'high') {
+    return { riskScore: 85, riskLabel: 'dangerous', reason: risk.reason }
+  }
+
+  if (risk.level === 'medium') {
+    return { riskScore: 50, riskLabel: 'suspicious', reason: risk.reason }
+  }
+
+  return { riskScore: 5, riskLabel: 'safe', reason: risk.reason }
 }

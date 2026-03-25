@@ -18,6 +18,8 @@ export const env = cleanEnv(process.env, {
   DAILY_SALT_SECRET: str(),
   GEMINI_MODEL: str({ default: 'gemini-flash-lite-latest' }),
   GEMINI_TIMEOUT_MS: num({ default: 12000 }),
+  FASTAPI_BACKEND_URL: str({ default: 'http://127.0.0.1:8000' }),
+  FASTAPI_TIMEOUT_MS: num({ default: 3000 }),
   PROVIDER_TIMEOUT_MS: num({ default: 1500 }),
   MAX_URL_LENGTH: num({ default: 2048 }),
   ENABLE_FILE_SCAN: bool({ default: true }),

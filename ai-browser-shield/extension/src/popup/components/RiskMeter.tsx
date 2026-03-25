@@ -1,46 +1,57 @@
-import { motion, useReducedMotion } from 'framer-motion';
-import { useMemo } from 'react';
-import type { RiskLevel } from '@/types/index';
-import { riskLabels } from '@/lib/riskLabels';
+import type { RiskLevel } from '../../types'
 
-const describeRisk = (riskLevel: RiskLevel) => riskLabels[riskLevel].label;
+const riskMeta: Record<RiskLevel, { label: string; stroke: string; note: string }> = {
+  LOW: { label: 'SAFE', stroke: '#10b981', note: '0-25: low risk' },
+  MEDIUM: { label: 'CAUTION', stroke: '#f59e0b', note: '26-50: slow down and verify' },
+  HIGH: { label: 'WARNING', stroke: '#f97316', note: '51-75: likely threat' },
+  CRITICAL: { label: 'BLOCK', stroke: '#ef4444', note: '76-100: avoid this page' },
+}
 
-export const RiskMeter = ({ score, riskLevel, animated = true }: { score: number; riskLevel: RiskLevel; animated?: boolean }) => {
-  const reduceMotion = useReducedMotion();
-  const normalized = Math.max(0, Math.min(100, score));
-  const radius = 58;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference - (normalized / 100) * circumference * 0.75;
-  const stroke = riskLevel === 'LOW' ? 'var(--safe)' : riskLevel === 'MEDIUM' ? 'var(--caution)' : riskLevel === 'HIGH' ? 'var(--danger)' : 'var(--critical)';
-  const scoreText = useMemo(() => normalized, [normalized]);
+interface RiskMeterProps {
+  score: number
+  riskLevel: RiskLevel
+}
+
+export function RiskMeter({ score, riskLevel }: RiskMeterProps) {
+  const normalized = Math.max(0, Math.min(100, Math.round(score)))
+  const radius = 58
+  const circumference = Math.PI * radius
+  const dashOffset = circumference - (normalized / 100) * circumference
+  const meta = riskMeta[riskLevel]
 
   return (
-    <div className="relative flex flex-col items-center gap-2" title="This score combines URL analysis, AI assessment, and community reports">
-      <svg width="170" height="130" viewBox="0 0 170 130" className="overflow-visible" aria-hidden="true">
-        <path d="M25 105 A60 60 0 1 1 145 105" fill="none" stroke="rgba(148,163,184,0.18)" strokeWidth="12" strokeLinecap="round" />
-        <motion.path
-          d="M25 105 A60 60 0 1 1 145 105"
-          fill="none"
-          stroke={stroke}
-          strokeWidth="12"
-          strokeLinecap="round"
-          strokeDasharray={`${circumference * 0.75} ${circumference}`}
-          initial={reduceMotion || !animated ? false : { strokeDashoffset: circumference * 0.75 }}
-          animate={{ strokeDashoffset: dashOffset }}
-          transition={{ duration: 0.7, ease: 'easeOut' }}
-        />
-      </svg>
-      <div className="-mt-20 flex flex-col items-center">
-        <span className="caption">Risk score</span>
-        <motion.span
-          className="font-mono text-score"
-          initial={reduceMotion || !animated ? false : { opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          {scoreText}
-        </motion.span>
-        <span className="subheading">{describeRisk(riskLevel)}</span>
+    <section className="rounded-3xl border border-slate-700 bg-slate-950/80 p-5 text-center text-slate-100">
+      <div className="mx-auto mb-4 w-fit rounded-full border border-slate-800 bg-slate-900 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-400">
+        Page Risk
       </div>
-    </div>
-  );
-};
+      <div className="relative mx-auto h-[140px] w-[180px]">
+        <svg viewBox="0 0 180 120" className="h-full w-full">
+          <path
+            d="M30 100 A60 60 0 0 1 150 100"
+            fill="none"
+            stroke="rgba(148,163,184,0.22)"
+            strokeWidth="12"
+            strokeLinecap="round"
+          />
+          <path
+            d="M30 100 A60 60 0 0 1 150 100"
+            fill="none"
+            stroke={meta.stroke}
+            strokeWidth="12"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            style={{ transition: 'stroke-dashoffset 300ms ease-out' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pt-8">
+          <div className="text-4xl font-semibold text-white">{normalized}</div>
+          <div className="mt-1 text-sm font-medium tracking-[0.16em]" style={{ color: meta.stroke }}>
+            {meta.label}
+          </div>
+          <div className="mt-2 text-xs text-slate-400">{meta.note}</div>
+        </div>
+      </div>
+    </section>
+  )
+}
