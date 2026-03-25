@@ -221,9 +221,11 @@ async function analyzeCurrentEmail(): Promise<void> {
     displayRiskBadge(result.risk_score, result.risk_level);
     lastBannerDisplayTime = Date.now(); // Prevent race condition
 
-    // Highlight links in the email body based on analysis
+    // Highlight links in the email body based on analysis (with slight delay for DOM stability)
     console.log('[ML Integration] 🔗 Highlighting links in email body...');
-    highlightLinksInEmailBody(result.link_analysis);
+    setTimeout(() => {
+      highlightLinksInEmailBody(result.link_analysis);
+    }, 100);
 
     // Display banner only if suspicious/dangerous, or when analysis is unavailable.
     if (result.label === 'unknown' || result.risk_level === 'UNKNOWN') {

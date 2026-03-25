@@ -230,12 +230,15 @@ export function highlightLinksInEmailBody(backendLinkAnalysis?: Array<{url: stri
     return;
   }
 
+  console.log('[Link Highlighter] Found email body, starting highlight process');
+
   // Inject CSS styles if not already present
   if (!document.getElementById('link-highlight-styles')) {
     const styleEl = document.createElement('style');
     styleEl.id = 'link-highlight-styles';
     styleEl.textContent = getLinkHighlightStyles();
     document.head.appendChild(styleEl);
+    console.log('[Link Highlighter] CSS styles injected');
   }
 
   // Build backend risk map
@@ -244,81 +247,90 @@ export function highlightLinksInEmailBody(backendLinkAnalysis?: Array<{url: stri
     backendLinkAnalysis.forEach(item => {
       backendRiskMap.set(item.url.toLowerCase(), item.risk.toLowerCase());
     });
+    console.log('[Link Highlighter] Backend risk map built with', backendLinkAnalysis.length, 'links');
   }
 
-  // Process all text nodes and anchor tags to find and highlight URLs
-  const walker = document.createTreeWalker(
-    emailBody,
-    NodeFilter.SHOW_TEXT,
-    null,
-    false
-  );
+  // Strategy: Replace email body HTML content with highlighted version
+  const originalHtml = emailBody.innerHTML;
+  let highlightedHtml = originalHtml;
 
-  const nodesToReplace: { node: Node; parent: HTMLElement; html: string }[] = [];
-  let textNode: Node | null;
+  // Find all URLs in the HTML content using regex
+  const urlMatches = originalHtml.match(URL_REGEX);
+  if (!urlMatches || urlMatches.length === 0) {
+    console.log('[Link Highlighter] No URLs found in email body');
 
-  while ((textNode = walker.nextNode())) {
-    const text = textNode.textContent;
-    if (!text) continue;
+    // Still process <a> tags even if no plain text URLs found
+    const links = emailBody.querySelectorAll('a');
+    console.log('[Link Highlighter] Found', links.length, '<a> tags to process');
 
-    // Find URLs in this text node
-    const urlMatches = text.match(URL_REGEX);
-    if (urlMatches && urlMatches.length > 0) {
-      // We found URLs, prepare to replace this text node with highlighted HTML
-      const uniqueUrls = [...new Set(urlMatches)];
-      let highlightedText = escapeHtml(text);
+    links.forEach(link => {
+      const href = link.getAttribute('href') || '';
+      const backendRisk = backendRiskMap.get(href.toLowerCase());
 
-      // Replace each URL with highlighted version
-      for (const url of uniqueUrls) {
-        const backendRisk = backendRiskMap.get(url.toLowerCase());
-        const linkRisk = classifyLinkRisk(url, backendRisk);
-        const riskStyle = getLinkRiskStyle(linkRisk.risk);
-        const emoji = getLinkRiskEmoji(linkRisk.risk);
+      if (href) {
+        const linkRisk = classifyLinkRisk(href, backendRisk);
+        link.style.cssText = getLinkRiskStyle(linkRisk.risk);
+        link.title = linkRisk.reason;
+        link.className = `link-highlight-${linkRisk.risk}`;
 
-        // Create highlighted link HTML
-        const highlightedLink = `<span class="link-highlight-${linkRisk.risk}" style="${riskStyle}" title="${linkRisk.reason}">${emoji} ${escapeHtml(url)}</span>`;
-
-        // Replace URL with highlighted version
-        const urlEscaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        highlightedText = highlightedText.replace(new RegExp(urlEscaped, 'g'), highlightedLink);
+        // Don't add emoji to <a> tags, they're already rendered as links
+        console.log('[Link Highlighter] Styled <a> tag:', href, 'as', linkRisk.risk);
       }
+    });
+    return;
+  }
 
-      // Store for later replacement (to avoid modifying DOM while iterating)
-      const parent = textNode.parentElement;
-      if (parent) {
-        nodesToReplace.push({
-          node: textNode,
-          parent: parent,
-          html: highlightedText
-        });
-      }
+  console.log('[Link Highlighter] Found', urlMatches.length, 'URLs in email body');
+
+  // Deduplicate URLs and process each one
+  const uniqueUrls = [...new Set(urlMatches)];
+  let urlsHighlighted = 0;
+
+  for (const url of uniqueUrls) {
+    // Skip if URL is inside an HTML tag (like inside href="...")
+    const beforeUrl = highlightedHtml.split(url)[0];
+    const lastOpenTag = beforeUrl.lastIndexOf('<');
+    const lastCloseTag = beforeUrl.lastIndexOf('>');
+
+    // If URL is inside an HTML tag, skip it (it's part of an attribute)
+    if (lastOpenTag > lastCloseTag) {
+      console.log('[Link Highlighter] Skipping URL inside HTML tag:', url);
+      continue;
     }
+
+    const backendRisk = backendRiskMap.get(url.toLowerCase());
+    const linkRisk = classifyLinkRisk(url, backendRisk);
+    const riskStyle = getLinkRiskStyle(linkRisk.risk);
+    const emoji = getLinkRiskEmoji(linkRisk.risk);
+
+    // Create highlighted link HTML - wrap plain text URL in a styled span
+    const highlightedLink = `<span class="link-highlight-${linkRisk.risk}" style="${riskStyle}" title="${linkRisk.reason}">${emoji} <a href="${escapeHtml(url)}" style="color: inherit; text-decoration: inherit;">${escapeHtml(url)}</a></span>`;
+
+    // Replace URL with highlighted version (only first occurrence to avoid issues)
+    const urlEscaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    highlightedHtml = highlightedHtml.replace(new RegExp(urlEscaped), highlightedLink);
+    urlsHighlighted++;
+
+    console.log('[Link Highlighter] Highlighted URL:', url, 'as', linkRisk.risk);
   }
 
-  // Now replace text nodes with highlighted HTML
-  nodesToReplace.forEach(({ node, parent, html }) => {
-    const span = document.createElement('span');
-    span.innerHTML = html;
-    parent.replaceChild(span, node);
-  });
+  // Update email body with highlighted HTML
+  if (urlsHighlighted > 0) {
+    emailBody.innerHTML = highlightedHtml;
+    console.log('[Link Highlighter] HTML updated with', urlsHighlighted, 'highlighted URLs');
+  }
 
-  // Also handle existing <a> tags
-  const links = emailBody.querySelectorAll('a');
+  // Also style existing <a> tags in case they weren't replaced
+  const links = emailBody.querySelectorAll('a:not([style*="link-highlight"])');
   links.forEach(link => {
     const href = link.getAttribute('href') || '';
     const backendRisk = backendRiskMap.get(href.toLowerCase());
 
-    if (href && (backendRisk || href.includes('http'))) {
+    if (href && href.startsWith('http')) {
       const linkRisk = classifyLinkRisk(href, backendRisk);
-      link.className = `link-highlight-${linkRisk.risk}`;
       link.style.cssText = getLinkRiskStyle(linkRisk.risk);
       link.title = linkRisk.reason;
-
-      // Add emoji prefix if not already there
-      if (!link.textContent?.includes(getLinkRiskEmoji(linkRisk.risk))) {
-        const emoji = document.createTextNode(getLinkRiskEmoji(linkRisk.risk) + ' ');
-        link.insertBefore(emoji, link.firstChild);
-      }
+      link.className = `link-highlight-${linkRisk.risk}`;
     }
   });
 
