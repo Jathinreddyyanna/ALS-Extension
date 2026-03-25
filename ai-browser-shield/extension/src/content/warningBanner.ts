@@ -220,7 +220,7 @@ export function analyzeEmailLinks(content: string): LinkRisk[] {
 
 /**
  * Highlight links directly in the Gmail email body DOM
- * Finds and styles both plain text URLs and <a> tag hrefs
+ * Styles all <a> tags with risk-based colors
  */
 export function highlightLinksInEmailBody(backendLinkAnalysis?: Array<{url: string; risk: string}>): void {
   // Find Gmail email body
@@ -250,91 +250,42 @@ export function highlightLinksInEmailBody(backendLinkAnalysis?: Array<{url: stri
     console.log('[Link Highlighter] Backend risk map built with', backendLinkAnalysis.length, 'links');
   }
 
-  // Strategy: Replace email body HTML content with highlighted version
-  const originalHtml = emailBody.innerHTML;
-  let highlightedHtml = originalHtml;
+  // Find and style all <a> tags in email body
+  const links = emailBody.querySelectorAll('a') as NodeListOf<HTMLElement>;
+  console.log('[Link Highlighter] Found', links.length, '<a> tags to style');
 
-  // Find all URLs in the HTML content using regex
-  const urlMatches = originalHtml.match(URL_REGEX);
-  if (!urlMatches || urlMatches.length === 0) {
-    console.log('[Link Highlighter] No URLs found in email body');
-
-    // Still process <a> tags even if no plain text URLs found
-    const links = emailBody.querySelectorAll('a');
-    console.log('[Link Highlighter] Found', links.length, '<a> tags to process');
-
-    links.forEach(link => {
-      const href = link.getAttribute('href') || '';
-      const backendRisk = backendRiskMap.get(href.toLowerCase());
-
-      if (href) {
-        const linkRisk = classifyLinkRisk(href, backendRisk);
-        link.style.cssText = getLinkRiskStyle(linkRisk.risk);
-        link.title = linkRisk.reason;
-        link.className = `link-highlight-${linkRisk.risk}`;
-
-        // Don't add emoji to <a> tags, they're already rendered as links
-        console.log('[Link Highlighter] Styled <a> tag:', href, 'as', linkRisk.risk);
-      }
-    });
-    return;
-  }
-
-  console.log('[Link Highlighter] Found', urlMatches.length, 'URLs in email body');
-
-  // Deduplicate URLs and process each one
-  const uniqueUrls = [...new Set(urlMatches)];
-  let urlsHighlighted = 0;
-
-  for (const url of uniqueUrls) {
-    // Skip if URL is inside an HTML tag (like inside href="...")
-    const beforeUrl = highlightedHtml.split(url)[0];
-    const lastOpenTag = beforeUrl.lastIndexOf('<');
-    const lastCloseTag = beforeUrl.lastIndexOf('>');
-
-    // If URL is inside an HTML tag, skip it (it's part of an attribute)
-    if (lastOpenTag > lastCloseTag) {
-      console.log('[Link Highlighter] Skipping URL inside HTML tag:', url);
-      continue;
-    }
-
-    const backendRisk = backendRiskMap.get(url.toLowerCase());
-    const linkRisk = classifyLinkRisk(url, backendRisk);
-    const riskStyle = getLinkRiskStyle(linkRisk.risk);
-    const emoji = getLinkRiskEmoji(linkRisk.risk);
-
-    // Create highlighted link HTML - wrap plain text URL in a styled span
-    const highlightedLink = `<span class="link-highlight-${linkRisk.risk}" style="${riskStyle}" title="${linkRisk.reason}">${emoji} <a href="${escapeHtml(url)}" style="color: inherit; text-decoration: inherit;">${escapeHtml(url)}</a></span>`;
-
-    // Replace URL with highlighted version (only first occurrence to avoid issues)
-    const urlEscaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    highlightedHtml = highlightedHtml.replace(new RegExp(urlEscaped), highlightedLink);
-    urlsHighlighted++;
-
-    console.log('[Link Highlighter] Highlighted URL:', url, 'as', linkRisk.risk);
-  }
-
-  // Update email body with highlighted HTML
-  if (urlsHighlighted > 0) {
-    emailBody.innerHTML = highlightedHtml;
-    console.log('[Link Highlighter] HTML updated with', urlsHighlighted, 'highlighted URLs');
-  }
-
-  // Also style existing <a> tags in case they weren't replaced
-  const links = emailBody.querySelectorAll('a:not([style*="link-highlight"])') as NodeListOf<HTMLElement>;
-  links.forEach(link => {
+  let styledCount = 0;
+  links.forEach((link) => {
     const href = link.getAttribute('href') || '';
-    const backendRisk = backendRiskMap.get(href.toLowerCase());
+    if (!href) return;
 
-    if (href && href.startsWith('http')) {
-      const linkRisk = classifyLinkRisk(href, backendRisk);
-      link.style.cssText = getLinkRiskStyle(linkRisk.risk);
-      link.title = linkRisk.reason;
-      link.className = `link-highlight-${linkRisk.risk}`;
+    // Extract actual URL - Gmail wraps URLs in redirect links
+    let actualUrl = href;
+
+    // Handle Gmail redirect format: https://www.google.com/url?q=ACTUAL_URL&...
+    const googleUrlMatch = href.match(/[?&]q=([^&]+)/);
+    if (googleUrlMatch) {
+      try {
+        actualUrl = decodeURIComponent(googleUrlMatch[1]);
+      } catch (e) {
+        actualUrl = href;
+      }
     }
+
+    // Get risk level from backend or classify locally
+    const backendRisk = backendRiskMap.get(actualUrl.toLowerCase());
+    const linkRisk = classifyLinkRisk(actualUrl, backendRisk);
+
+    // Apply styling
+    link.style.cssText = getLinkRiskStyle(linkRisk.risk);
+    link.title = linkRisk.reason;
+    link.className = `link-highlight-${linkRisk.risk}`;
+
+    console.log('[Link Highlighter] Styled link:', actualUrl.substring(0, 50) + '...', '→', linkRisk.risk);
+    styledCount++;
   });
 
-  console.log('[Link Highlighter] Email body links highlighted successfully');
+  console.log('[Link Highlighter] Successfully styled', styledCount, 'links');
 }
 
 /**
