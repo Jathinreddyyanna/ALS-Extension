@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PhishGuard - AI Email Security</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Syne', sans-serif;
+      background: #0a0a0f;
+      color: #f0f0ff;
+      min-height: 100vh;
+      padding: 24px 20px 40px;
+      background-image: radial-gradient(rgba(124, 92, 252, 0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .header-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      filter: drop-shadow(0 4px 24px rgba(124, 92, 252, 0.4));
+    }
+
+    .header h1 {
+      font-weight: 800;
+      font-size: 1.75rem;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .header p {
+      color: #8888aa;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    /* Cards */
+    .card {
+      background: #12121a;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Input Section */
+    .input-group {
+      margin-bottom: 16px;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 0.8rem;
+      color: #8888aa;
+      margin-bottom: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      background: #1a1a26;
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 14px 16px;
+      color: #f0f0ff;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.95rem;
+      resize: vertical;
+      transition: border-color 0.2s;
+      line-height: 1.5;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #7c5cfc;
+    }
+
+    textarea::placeholder {
+      color: #555566;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      height: 52px;
+      background: #1a1a26;
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 0 16px;
+      color: #f0f0ff;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.95rem;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #7c5cfc;
+    }
+
+    input[type="text"]::placeholder {
+      color: #555566;
+    }
+
+    /* Primary Button */
+    .btn-primary {
+      width: 100%;
+      min-height: 52px;
+      background: linear-gradient(135deg, #7c5cfc 0%, #6347eb 100%);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-family: 'Syne', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: filter 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 4px 20px rgba(124, 92, 252, 0.3);
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.1);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      width: 100%;
+      min-height: 52px;
+      background: #1a1a26;
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      color: #f0f0ff;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 16px;
+    }
+
+    .btn-secondary:hover {
+      background: #222230;
+    }
+
+    /* Loading State */
+    .loading-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 20px;
+      gap: 16px;
+    }
+
+    .loading-state.active {
+      display: flex;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #1a1a26;
+      border-top-color: #7c5cfc;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-state p {
+      color: #8888aa;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    /* Error Message */
+    .error-message {
+      display: none;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid #ef4444;
+      border-radius: 12px;
+      padding: 14px 16px;
+      color: #fca5a5;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .error-message.active {
+      display: block;
+    }
+
+    /* Result Card */
+    .result-card {
+      display: none;
+    }
+
+    .result-card.active {
+      display: block;
+      animation: fadeSlideIn 0.4s ease;
+    }
+
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Risk Score Section */
+    .risk-score-section {
+      text-align: center;
+      padding: 28px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 20px;
+    }
+
+    .risk-score-number {
+      font-family: 'DM Mono', monospace;
+      font-size: 4rem;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .risk-score-number.low { color: #22d3a5; }
+    .risk-score-number.medium { color: #f59e0b; }
+    .risk-score-number.high { color: #f43f5e; }
+
+    .risk-score-label {
+      color: #8888aa;
+      font-size: 0.85rem;
+      margin-top: 8px;
+      font-weight: 500;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-low {
+      background: rgba(34, 211, 165, 0.15);
+      color: #22d3a5;
+      border: 1px solid rgba(34, 211, 165, 0.3);
+    }
+
+    .badge-medium {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-high {
+      background: rgba(244, 63, 94, 0.15);
+      color: #f43f5e;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    .badge-source {
+      background: rgba(124, 92, 252, 0.15);
+      color: #a78bfa;
+      border: 1px solid rgba(124, 92, 252, 0.3);
+      font-size: 0.7rem;
+    }
+
+    /* Result Sections */
+    .result-section {
+      margin-bottom: 20px;
+    }
+
+    .result-section-title {
+      font-size: 0.75rem;
+      color: #8888aa;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .attack-type {
+      font-size: 1.15rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .attack-type-emoji {
+      font-size: 1.4rem;
+    }
+
+    /* Reasons List */
+    .reasons-list {
+      list-style: none;
+    }
+
+    .reasons-list li {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      line-height: 1.4;
+    }
+
+    .reasons-list li:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .reasons-list li::before {
+      content: '•';
+      color: #f59e0b;
+      font-weight: 700;
+      font-size: 1.2rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    /* Email Preview */
+    .email-preview {
+      background: #1a1a26;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'DM Mono', monospace;
+      color: #ccccdd;
+    }
+
+    /* Link Highlighting */
+    .link-safe {
+      border: 2px solid #22c55e;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(34, 197, 94, 0.12);
+      word-break: break-all;
+      display: inline-block;
+    }
+
+    .link-suspicious {
+      border: 2px solid #f59e0b;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.12);
+      word-break: break-all;
+      display: inline-block;
+    }
+
+    .link-danger {
+      border: 2px solid #ef4444;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(239, 68, 68, 0.12);
+      word-break: break-all;
+      display: inline-block;
+    }
+
+    /* Source Footer */
+    .source-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      margin-top: 8px;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 24px 20px;
+      color: #555566;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-icon">🛡️</div>
+      <h1>PhishGuard</h1>
+      <p>AI-Powered Email Security for Mobile</p>
+    </header>
+
+    <!-- Input Card -->
+    <div class="card" id="inputCard">
+      <div class="error-message" id="errorMessage"></div>
+
+      <div class="input-group">
+        <label for="emailContent">Email Content</label>
+        <textarea
+          id="emailContent"
+          placeholder="Paste the suspicious email content here..."
+        ></textarea>
+      </div>
+
+      <div class="input-group">
+        <label for="senderEmail">Sender Email</label>
+        <input
+          type="text"
+          id="senderEmail"
+          placeholder="Sender email (optional)"
+        >
+      </div>
+
+      <button class="btn-primary" id="analyzeBtn" onclick="analyzeEmail()">
+        <span>🔍</span>
+        <span>Analyze Email</span>
+      </button>
+
+      <div class="loading-state" id="loadingState">
+        <div class="spinner"></div>
+        <p>Analyzing your email...</p>
+      </div>
+    </div>
+
+    <!-- Result Card -->
+    <div class="card result-card" id="resultCard">
+      <!-- Risk Score -->
+      <div class="risk-score-section">
+        <div class="risk-score-number" id="riskScoreNumber">0</div>
+        <div class="risk-score-label">Risk Score</div>
+        <div style="margin-top: 14px;">
+          <span class="badge" id="riskLevelBadge">LOW</span>
+        </div>
+      </div>
+
+      <!-- Attack Type -->
+      <div class="result-section">
+        <div class="result-section-title">Threat Type</div>
+        <div class="attack-type" id="attackType">
+          <span class="attack-type-emoji">✅</span>
+          <span>Legitimate Email</span>
+        </div>
+      </div>
+
+      <!-- Reasons -->
+      <div class="result-section">
+        <div class="result-section-title">Why Flagged:</div>
+        <ul class="reasons-list" id="reasonsList"></ul>
+      </div>
+
+      <!-- Email Preview -->
+      <div class="result-section">
+        <div class="result-section-title">Email Preview (Links Highlighted)</div>
+        <div class="email-preview" id="emailPreview"></div>
+      </div>
+
+      <!-- Analysis Source -->
+      <div class="source-footer">
+        <span class="badge badge-source" id="analysisSourceBadge">🧠 ML + AI Analysis</span>
+      </div>
+
+      <!-- Reset Button -->
+      <button class="btn-secondary" onclick="resetForm()">
+        Analyze Another Email
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      PhishGuard &copy; 2024 &bull; Stay Safe Online
+    </footer>
+  </div>
+
+  <script>
+    // ============================================
+    // API CONFIGURATION
+    // ============================================
+    const API_BASE = 'https://smellable-bloodily-bambi.ngrok-free.dev';
+
+    // ============================================
+    // DOM ELEMENTS
+    // ============================================
+    const emailContentEl = document.getElementById('emailContent');
+    const senderEmailEl = document.getElementById('senderEmail');
+    const analyzeBtnEl = document.getElementById('analyzeBtn');
+    const loadingStateEl = document.getElementById('loadingState');
+    const errorMessageEl = document.getElementById('errorMessage');
+    const inputCardEl = document.getElementById('inputCard');
+    const resultCardEl = document.getElementById('resultCard');
+    const riskScoreNumberEl = document.getElementById('riskScoreNumber');
+    const riskLevelBadgeEl = document.getElementById('riskLevelBadge');
+    const attackTypeEl = document.getElementById('attackType');
+    const reasonsListEl = document.getElementById('reasonsList');
+    const emailPreviewEl = document.getElementById('emailPreview');
+    const analysisSourceBadgeEl = document.getElementById('analysisSourceBadge');
+
+    // ============================================
+    // HTML ESCAPE FUNCTION (XSS Prevention)
+    // ============================================
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ============================================
+    // URL CLASSIFICATION
+    // ============================================
+    function classifyUrl(url) {
+      const urlLower = url.toLowerCase();
+
+      // DANGEROUS: IP address
+      if (/(\d{1,3}\.){3}\d{1,3}/.test(url)) {
+        return 'danger';
+      }
+
+      // DANGEROUS: Contains @ symbol
+      if (url.includes('@')) {
+        return 'danger';
+      }
+
+      // DANGEROUS: URL shorteners
+      if (/bit\.ly|tinyurl|t\.co|goo\.gl|ow\.ly|rb\.gy/i.test(urlLower)) {
+        return 'danger';
+      }
+
+      // DANGEROUS: 4+ hyphens in domain
+      const domainMatch = url.match(/(?:https?:\/\/)?([^\/]+)/);
+      if (domainMatch) {
+        const domain = domainMatch[1];
+        const hyphenCount = (domain.match(/-/g) || []).length;
+        if (hyphenCount >= 4) {
+          return 'danger';
+        }
+      }
+
+      // SUSPICIOUS: Contains sensitive keywords
+      if (/login|verify|update|secure|account|bank|confirm|password|payroll|credential|signin|validation/i.test(urlLower)) {
+        return 'suspicious';
+      }
+
+      // SAFE: HTTPS and none of above
+      if (urlLower.startsWith('https://')) {
+        return 'safe';
+      }
+
+      // DEFAULT: suspicious
+      return 'suspicious';
+    }
+
+    // ============================================
+    // LINK HIGHLIGHTING FUNCTION
+    // ============================================
+    function highlightLinks(text) {
+      // Step 1: Escape ALL HTML first (XSS prevention)
+      const escapedText = escapeHtml(text);
+
+      // Step 2: URL regex
+      const urlRegex = /(https?:\/\/[^\s<>"]+|www\.[^\s<>"]+)/gi;
+
+      // Step 3-4: Classify and wrap each URL
+      const highlighted = escapedText.replace(urlRegex, (url) => {
+        const classification = classifyUrl(url);
+        return `<span class="link-${classification}">${url}</span>`;
+      });
+
+      return highlighted;
+    }
+
+    // ============================================
+    // ATTACK TYPE MAPPING
+    // ============================================
+    function getAttackTypeDisplay(attackType) {
+      const types = {
+        'job_scam': { emoji: '💼', label: 'Job Scam' },
+        'Job Scam': { emoji: '💼', label: 'Job Scam' },
+        'impersonation': { emoji: '🎭', label: 'Impersonation' },
+        'Impersonation': { emoji: '🎭', label: 'Impersonation' },
+        'financial_fraud': { emoji: '💳', label: 'Financial Fraud' },
+        'Financial Fraud': { emoji: '💳', label: 'Financial Fraud' },
+        'generic_phishing': { emoji: '🎣', label: 'Phishing Attempt' },
+        'Link Phishing': { emoji: '🔗', label: 'Link Phishing' },
+        'legitimate': { emoji: '✅', label: 'Legitimate Email' },
+        'Legitimate': { emoji: '✅', label: 'Legitimate Email' },
+        'Suspicious': { emoji: '⚠️', label: 'Suspicious Activity' }
+      };
+      return types[attackType] || { emoji: '⚠️', label: attackType || 'Unknown Threat' };
+    }
+
+    // ============================================
+    // UI HELPERS
+    // ============================================
+    function showError(message) {
+      errorMessageEl.textContent = message;
+      errorMessageEl.classList.add('active');
+    }
+
+    function hideError() {
+      errorMessageEl.classList.remove('active');
+    }
+
+    function setLoading(isLoading) {
+      if (isLoading) {
+        analyzeBtnEl.disabled = true;
+        analyzeBtnEl.style.display = 'none';
+        loadingStateEl.classList.add('active');
+      } else {
+        analyzeBtnEl.disabled = false;
+        analyzeBtnEl.style.display = 'flex';
+        loadingStateEl.classList.remove('active');
+      }
+    }
+
+    // ============================================
+    // MAIN ANALYSIS FUNCTION
+    // ============================================
+    async function analyzeEmail() {
+      hideError();
+
+      const emailContent = emailContentEl.value.trim();
+      let senderEmail = senderEmailEl.value.trim();
+
+      // Validation
+      if (!emailContent) {
+        alert('Please paste the email content first');
+        return;
+      }
+
+      // Default sender if empty
+      if (!senderEmail) {
+        senderEmail = 'unknown@unknown.com';
+      }
+
+      setLoading(true);
+
+      try {
+        const response = await fetch(`${API_BASE}/analyze-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email_text: emailContent,
+            sender_email: senderEmail
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Analysis failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        displayResults(data, emailContent);
+
+      } catch (error) {
+        setLoading(false);
+        if (error.message.includes('fetch') || error.message.includes('network') || error.name === 'TypeError') {
+          showError('Cannot reach server. Make sure backend is running.');
+        } else {
+          showError(error.message);
+        }
+      }
+    }
+
+    // ============================================
+    // DISPLAY RESULTS
+    // ============================================
+    function displayResults(data, originalEmail) {
+      setLoading(false);
+
+      const riskScore = data.risk_score ?? 0;
+      const riskLevel = data.risk_level || 'MEDIUM';
+      const attackType = data.attack_type || 'Unknown';
+      const reasons = data.reasons || [];
+      const analysisSource = data.analysis_source || 'ml_only';
+
+      // Determine risk class
+      let riskClass = 'medium';
+      let badgeClass = 'badge-medium';
+      if (riskScore <= 30) {
+        riskClass = 'low';
+        badgeClass = 'badge-low';
+      } else if (riskScore >= 70) {
+        riskClass = 'high';
+        badgeClass = 'badge-high';
+      }
+
+      // Update Risk Score
+      riskScoreNumberEl.textContent = riskScore;
+      riskScoreNumberEl.className = `risk-score-number ${riskClass}`;
+
+      // Update Risk Level Badge
+      riskLevelBadgeEl.textContent = riskLevel;
+      riskLevelBadgeEl.className = `badge ${badgeClass}`;
+
+      // Update Attack Type
+      const attackDisplay = getAttackTypeDisplay(attackType);
+      attackTypeEl.innerHTML = `
+        <span class="attack-type-emoji">${attackDisplay.emoji}</span>
+        <span>${attackDisplay.label}</span>
+      `;
+
+      // Update Reasons List
+      reasonsListEl.innerHTML = '';
+      if (reasons.length > 0) {
+        reasons.slice(0, 3).forEach(reason => {
+          const li = document.createElement('li');
+          li.textContent = reason;
+          reasonsListEl.appendChild(li);
+        });
+      } else {
+        const li = document.createElement('li');
+        li.textContent = 'No specific threats identified';
+        reasonsListEl.appendChild(li);
+      }
+
+      // Update Email Preview with highlighted links (Step 5)
+      emailPreviewEl.innerHTML = highlightLinks(originalEmail);
+
+      // Update Analysis Source Badge
+      if (analysisSource === 'ml+llm') {
+        analysisSourceBadgeEl.textContent = '🧠 ML + AI Analysis';
+      } else {
+        analysisSourceBadgeEl.textContent = '⚙️ ML Only';
+      }
+
+      // Show result card, hide input card
+      inputCardEl.style.display = 'none';
+      resultCardEl.classList.add('active');
+
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ============================================
+    // RESET FORM
+    // ============================================
+    function resetForm() {
+      emailContentEl.value = '';
+      senderEmailEl.value = '';
+      hideError();
+      resultCardEl.classList.remove('active');
+      inputCardEl.style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>

@@ -4,7 +4,7 @@ Email Phishing Detection API - Hackathon Version
 Minimal Flask API for email analysis
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import sys
 import os
@@ -1165,6 +1165,13 @@ def infer_attack_type(email_text, sender_email, links, reasons, risk_score):
 # ============================================================================
 # API ENDPOINTS
 # ============================================================================
+
+@app.route('/', methods=['GET'])
+def serve_webapp():
+    """Serve the PhishGuard web app."""
+    webapp_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'webapp')
+    return send_from_directory(webapp_dir, 'index.html')
+
 
 @app.route('/health', methods=['GET'])
 def health_check():
