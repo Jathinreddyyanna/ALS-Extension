@@ -21,7 +21,8 @@ export function initPopupMonitor() {
         if (node instanceof HTMLElement) {
           const style = window.getComputedStyle(node)
           if (style.position === 'fixed' && style.zIndex && parseInt(style.zIndex) > 9000) {
-            if (!node.id?.startsWith('abs-')) {
+            const allowedId = node.id === 'risk-reopen-chip' || node.id === 'phishing-detection-banner'
+            if (!node.id?.startsWith('abs-') && !allowedId) {
               node.style.display = 'none'
               popupCount++
               showPopupBlockedBanner(popupCount)

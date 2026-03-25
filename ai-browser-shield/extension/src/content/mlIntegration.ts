@@ -4,7 +4,7 @@
  */
 
 import { analyzeEmailML, checkMLBackendHealth } from '../api/mlAnalysis';
-import { displayWarningBanner, removeWarningBanner, showSafeBadge, displayRiskBadge, removeRiskBadge } from './warningBanner';
+import { displayWarningBanner, removeWarningBanner, showSafeBadge, displayRiskBadge, removeRiskBadge, highlightLinksInEmailBody } from './warningBanner';
 
 // Tracking state
 let lastAnalyzedEmailId: string | null = null;
@@ -63,6 +63,31 @@ function extractEmailFromGmail(): {
                senderElement.textContent ||
                '';
     }
+
+    // Sanitize sender output without changing extraction logic.
+    const extracted_sender = sender;
+    sender = extracted_sender || '';
+
+    if (sender.includes('mailto:')) {
+      const match = sender.match(/mailto:([^\)\]]+)/i);
+      if (match && match[1]) {
+        sender = match[1];
+      }
+    }
+
+    // Remove markdown wrapper chars if present, then normalize to raw email.
+    sender = sender.replace(/[\[\]\(\)]/g, '').replace(/mailto:/gi, '').trim();
+    const emailMatch = sender.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/);
+    if (emailMatch) {
+      sender = emailMatch[0];
+    }
+
+    if (!sender || !sender.includes('@')) {
+      console.warn('[SENDER FALLBACK] Invalid sender detected:', sender);
+      sender = 'unknown@unknown.com';
+    }
+
+    console.log('[CLEANED SENDER]:', sender);
 
     // Extract subject
     const subject = subjectElement?.textContent || '';
@@ -177,8 +202,12 @@ async function analyzeCurrentEmail(): Promise<void> {
       risk_level: result.risk_level,
       confidence: result.confidence,
       duration: `${duration}ms`,
-      detectedFeatures: result.explanation?.reasons?.length || 0
+      reasons: result.reasons || result.explanation?.reasons || [],
+      attack_type: result.attack_type || 'None'
     });
+
+    // Debug: Log full response for troubleshooting
+    console.log('[ML Integration] Full API Response:', JSON.stringify(result, null, 2));
 
     // Cache the result
     if (emailId) {
@@ -191,6 +220,10 @@ async function analyzeCurrentEmail(): Promise<void> {
     console.log('[ML Integration] 🎨 Rendering risk badge...');
     displayRiskBadge(result.risk_score, result.risk_level);
     lastBannerDisplayTime = Date.now(); // Prevent race condition
+
+    // Highlight links in the email body based on analysis
+    console.log('[ML Integration] 🔗 Highlighting links in email body...');
+    highlightLinksInEmailBody(result.link_analysis);
 
     // Display banner only if suspicious/dangerous, or when analysis is unavailable.
     if (result.label === 'unknown' || result.risk_level === 'UNKNOWN') {
