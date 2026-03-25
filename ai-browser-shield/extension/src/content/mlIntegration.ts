@@ -217,9 +217,12 @@ async function analyzeCurrentEmail(): Promise<void> {
     // ============================================
     // DISPLAY LOGIC: Show badge for ALL emails
     // ============================================
-    console.log('[ML Integration] 🎨 Rendering risk badge...');
+    console.log('[ML Integration] 🎨 Rendering risk badge with score:', result.risk_score);
     displayRiskBadge(result.risk_score, result.risk_level);
     lastBannerDisplayTime = Date.now(); // Prevent race condition
+
+    // Remove loading banner first
+    removeWarningBanner();
 
     // Highlight links in the email body based on analysis (with slight delay for DOM stability)
     console.log('[ML Integration] 🔗 Highlighting links in email body...');
