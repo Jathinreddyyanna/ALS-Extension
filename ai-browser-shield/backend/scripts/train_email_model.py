@@ -373,7 +373,7 @@ def classify_email(text, sender, subject, is_spam=False):
         if model is None:
             print("[Model] Model is None after load_model()")
             return {'label': 'unknown', 'risk_score': 50, 'confidence': 0.0,
-                    'error': 'Model failed to load'}
+                    'reasons': ['ML model unavailable'], 'error': 'Model failed to load'}
 
         features = extract_features(text, sender, subject)
         X = features_to_array(features).reshape(1, -1)
@@ -382,105 +382,167 @@ def classify_email(text, sender, subject, is_spam=False):
         prob_legit = float(probabilities[0])
         prob_phish = float(probabilities[1])
 
-        print(f"[Model] Features: {features}")
         print(f"[Model] Probability phishing={prob_phish:.4f}, legitimate={prob_legit:.4f}")
 
         # -------------------------------
-        # 1. THRESHOLD (precision-focused)
+        # 1. DYNAMIC REASONS FROM FEATURES
         # -------------------------------
-        THRESHOLD = 0.65
-        is_phishing = prob_phish >= THRESHOLD
+        reasons = []
+        text_lower = (text or "").lower()
+        subject_lower = (subject or "").lower()
+        combined = f"{text_lower} {subject_lower}"
+
+        # Extract reasons from detected features
+        if features.get('urgency_score', 0) > 0:
+            reasons.append('Urgency language detected')
+        if features.get('money_signal', 0) > 0:
+            reasons.append('Money/reward claim detected')
+        if features.get('has_ip_url', 0) > 0:
+            reasons.append('Contains IP-based URL (suspicious)')
+        if features.get('has_shortened_url', 0) > 0:
+            reasons.append('Contains shortened URL that hides destination')
+        if features.get('suspicious_tld', 0) > 0:
+            reasons.append('Suspicious domain extension (.xyz, .tk, etc.)')
+        if features.get('url_domain_mismatch', 0) > 0:
+            reasons.append('Link text does not match actual URL')
+        if features.get('sender_display_mismatch', 0) > 0:
+            reasons.append('Sender name does not match email address')
+        if features.get('brand_mismatch', 0) > 0:
+            reasons.append('Mentions brand but sender domain does not match')
+        if features.get('sender_has_numbers', 0) > 0 and prob_phish > 0.5:
+            reasons.append('Sender address looks auto-generated')
+        if features.get('attachment_suspicious', 0) > 0:
+            reasons.append('Mentions suspicious attachment type')
+
+        # Job scam detection
+        job_scam_words = ['internship', 'training', 'selected', 'congratulations', 'shortlisted', 'registration fee']
+        if any(w in combined for w in job_scam_words):
+            reasons.append('Job scam pattern detected')
 
         # -------------------------------
-        # 2. RISK SCORE (aligned with decision)
+        # 2. RISK SCORE (direct mapping)
         # -------------------------------
-        if is_phishing:
-            risk_score = prob_phish * 100
-        else:
-            # force safe-looking output for legitimate
-            risk_score = prob_phish * 40
-
-        # dampen low confidence
-        if prob_phish < 0.6:
-            risk_score *= 0.6
-
-        risk_score = int(max(0, min(100, round(risk_score))))
+        risk_score = int(round(prob_phish * 100))
 
         # -------------------------------
-        # 3. TRUSTED DOMAIN BOOST
+        # 3. CONTEXT ADJUSTMENTS
         # -------------------------------
         sender_text = str(sender or "").lower()
         sender_domain = ""
-
         email_match = re.search(r'[\w\.-]+@([\w\.-]+\.\w+)', sender_text)
         if email_match:
             sender_domain = email_match.group(1)
 
-        trusted_keywords = [
-            "bank", "hdfc", "icici", "sbi",
-            "google", "amazon", "microsoft",
-            "gov", "edu"
-        ]
-
-        is_trusted = any(k in sender_domain for k in trusted_keywords)
-
-        if is_trusted and prob_phish < 0.7:
-            is_phishing = False
-            risk_score = min(risk_score, 25)
-
-        # -------------------------------
-        # 4. CONTEXT LAYER (no retraining)
-        # -------------------------------
-        reasons = []
-
-        # Force non-zero baseline
-        if risk_score < 10:
-            risk_score = 10
-
-        # Spam visibility boost
+        # Spam folder boost
         if bool(is_spam):
-            risk_score = max(risk_score, 60)
-            reasons.append('Email already marked as spam')
+            risk_score = max(risk_score, 65)
+            if 'Email in spam folder' not in reasons:
+                reasons.append('Email already in spam folder')
 
         # Apply context intelligence rules
         risk_score, reasons = apply_context_rules(text, sender, subject, risk_score, reasons)
 
-        # Re-evaluate label after context layer
-        is_phishing = risk_score >= 50
+        # -------------------------------
+        # 4. NORMALIZATION FOR CLEAN EMAILS
+        # -------------------------------
+        urls = re.findall(r'https?://[^\s<>"{}|\\^`\[\]]+', text_lower, re.IGNORECASE)
+        has_links = len(urls) > 0
+        urgency_words = ['urgent', 'immediately', 'suspend', 'verify', 'expire', 'hurry', 'asap']
+        has_urgency = any(w in combined for w in urgency_words)
+        job_scam_words_check = ['congratulations', 'selected', 'internship', 'training', 'shortlisted', 'registration fee']
+        has_job_scam = any(w in combined for w in job_scam_words_check)
+
+        # Only force legitimate if TRULY clean (no links, no urgency, short, low prob, NO job scam)
+        is_truly_clean = (
+            len(text_lower) < 200 and
+            not has_links and
+            not has_urgency and
+            not has_job_scam and  # Exclude job scams from clean emails
+            prob_phish < 0.5 and
+            not any(w in combined for w in ['password', 'account', 'login', 'otp', 'bank', 'payment', 'fee'])
+        )
+
+        if is_truly_clean:
+            risk_score = min(risk_score, 20)
+            if not reasons:
+                reasons = ['Email appears conversational and safe']
+
+        # Boost job scams that were detected
+        if has_job_scam and risk_score < 55:
+            risk_score = max(risk_score, 60)
+            if 'Job scam pattern detected' not in reasons:
+                reasons.append('Job scam pattern detected')
+
+        # Lower score for clearly benign conversational emails
+        benign_words = ['meeting', 'tomorrow', 'schedule', 'thanks', 'regards', 'confirming',
+                        'attached', 'please find', 'follow up', 'reminder', 'update', 'team']
+        benign_count = sum(1 for w in benign_words if w in combined)
+        if (benign_count >= 2 and
+            not has_links and
+            not has_urgency and
+            not has_job_scam and
+            risk_score > 25):
+            risk_score = min(risk_score, 20)
+            reasons = ['Benign conversational email pattern']
+
+        # Trust legitimate brand domains
+        trusted_brand_domains = {
+            'hdfcbank.com': 'hdfc', 'icicibank.com': 'icici', 'sbi.co.in': 'sbi',
+            'onlinesbi.com': 'sbi', 'google.com': 'google', 'amazon.com': 'amazon',
+            'amazon.in': 'amazon', 'microsoft.com': 'microsoft', 'apple.com': 'apple',
+            'infosys.com': 'infosys', 'tcs.com': 'tcs', 'wipro.com': 'wipro'
+        }
+        if sender_domain in trusted_brand_domains:
+            brand = trusted_brand_domains[sender_domain]
+            # Only trust if brand is mentioned in email (confirms context)
+            if brand in combined and not has_urgency and risk_score > 30:
+                risk_score = min(risk_score, 25)
+                reasons = ['Email from verified brand domain']
 
         # -------------------------------
-        # 5. FINAL OUTPUT
+        # 5. FINAL CLASSIFICATION
         # -------------------------------
-        label = "phishing" if is_phishing else "legitimate"
+        risk_score = int(max(0, min(100, round(risk_score))))
 
-        confidence = prob_phish if is_phishing else prob_legit
+        if risk_score >= 70:
+            label = "phishing"
+        elif risk_score >= 40:
+            label = "suspicious"
+        else:
+            label = "legitimate"
 
-        result = {
+        # Ensure we always have at least one reason
+        if not reasons:
+            if risk_score >= 50:
+                reasons = ['Behavioral patterns match known phishing signals']
+            else:
+                reasons = ['No strong phishing indicators detected']
+
+        print(f"[ML] Score={risk_score}, Label={label}, Reasons={reasons[:2]}")
+
+        confidence = prob_phish if label != "legitimate" else prob_legit
+
+        return {
             'label': label,
             'risk_score': risk_score,
             'confidence': float(round(confidence, 4)),
-            'reasons': reasons,
+            'reasons': reasons[:3],
             'probability': {
                 'legitimate': prob_legit,
                 'phishing': prob_phish
             }
         }
 
-        print(f"[Model] Final: {label} ({risk_score}/100)")
-
-        return result
-
     except FileNotFoundError as e:
         print(f"[Model] FileNotFoundError: {e}")
-        print(f"[Model] Model file not found. Please ensure the model is trained.")
         return {'label': 'unknown', 'risk_score': 50, 'confidence': 0.0,
-                'error': f'Model not found: {str(e)}'}
+                'reasons': ['ML model file not found'], 'error': f'Model not found: {str(e)}'}
     except Exception as e:
         print(f"[Model] Exception: {e}")
         import traceback
         traceback.print_exc()
         return {'label': 'unknown', 'risk_score': 50, 'confidence': 0.0,
-                'error': str(e)}
+                'reasons': ['ML classification error'], 'error': str(e)}
 
 
 # ============================================================================
