@@ -1323,13 +1323,14 @@ def analyze_email():
         is_from_trusted_sender = any(domain in sender_lower for domain in trusted_senders)
 
         # Force low score for truly clean emails (no links or only safe links)
-        # OR from trusted senders like GitHub
+        # OR from trusted senders like GitHub (trusted senders bypass is_risky check
+        # because they legitimately use expiration notices)
         if ((final_score >= 40 and
              (not has_links or all_links_safe) and
              not is_risky and
              is_benign and
              text_length < 500) or
-            (is_from_trusted_sender and not is_risky and (not has_links or all_links_safe))):
+            (is_from_trusted_sender and (not has_links or all_links_safe))):
             print(f"[NORMALIZE] Lowering score from {final_score} - benign pattern or trusted sender detected")
             final_score = min(final_score, 20)
             intent = 'legitimate'
