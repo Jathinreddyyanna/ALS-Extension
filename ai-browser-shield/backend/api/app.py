@@ -449,7 +449,7 @@ Return ONLY JSON.'''
 
         # 2. SUSPICIOUS LINKS
         # Skip checking if links are from trusted platforms
-        trusted_platforms = ['pinterest', 'instagram', 'facebook', 'twitter', 'youtube', 'amazon', 'linkedin']
+        trusted_platforms = ['pinterest', 'instagram', 'facebook', 'twitter', 'youtube', 'amazon', 'linkedin', 'github', 'gitlab', 'stackoverflow', 'medium', 'dev.to', 'hashnode']
         has_trusted_links = any(tp in combined for tp in trusted_platforms)
 
         if not has_trusted_links:
@@ -1190,6 +1190,7 @@ def analyze_email():
 
         email_text = str(data.get('email_text', data.get('text', '')) or '').strip()
         sender_email = str(data.get('sender_email', data.get('sender', '')) or '').strip()
+        sender_lower = sender_email.lower()
 
         if not email_text or not sender_email:
             return jsonify({
@@ -1291,9 +1292,15 @@ def analyze_email():
                          'found a', 'check it out', 'thought you', 'wanted to share',
                          'hey everyone', 'fyi', 'fyi -', 'by the way', 'btw']
 
+        # Collaboration/platform indicators (GitHub, GitLab, etc)
+        collaboration_benign = ['invited you', 'invited to', 'invited as', 'accept or decline',
+                                'pull request', 'code review', 'repository', 'repository access',
+                                'assignment', 'project invite', 'team invitation']
+
         is_formal_benign = any(marker in combined_text for marker in formal_benign)
         is_casual_benign = any(marker in combined_text for marker in casual_benign)
-        is_benign = is_formal_benign or is_casual_benign
+        is_collaboration_benign = any(marker in combined_text for marker in collaboration_benign)
+        is_benign = is_formal_benign or is_casual_benign or is_collaboration_benign
 
         # List of high risk indicators
         high_risk_markers = ['urgent', 'suspended', 'verify', 'password', 'otp',
@@ -1310,16 +1317,25 @@ def analyze_email():
                 for link in links
             )
 
+        # Check if from trusted sender domains (GitHub, GitLab, etc)
+        trusted_senders = ['noreply@github.com', 'github.com', 'gitlab.com', 'bitbucket.org',
+                          'notifications@github.com', '@github.com', '@gitlab.com']
+        is_from_trusted_sender = any(domain in sender_lower for domain in trusted_senders)
+
         # Force low score for truly clean emails (no links or only safe links)
-        if (final_score >= 40 and
-            (not has_links or all_links_safe) and
-            not is_risky and
-            is_benign and
-            text_length < 500):
-            print(f"[NORMALIZE] Lowering score from {final_score} - benign pattern detected")
-            final_score = min(final_score, 25)
+        # OR from trusted senders like GitHub
+        if ((final_score >= 40 and
+             (not has_links or all_links_safe) and
+             not is_risky and
+             is_benign and
+             text_length < 500) or
+            (is_from_trusted_sender and not is_risky and (not has_links or all_links_safe))):
+            print(f"[NORMALIZE] Lowering score from {final_score} - benign pattern or trusted sender detected")
+            final_score = min(final_score, 20)
             intent = 'legitimate'
-            if 'Benign conversational pattern' not in reasons:
+            if 'Legitimate email from trusted sender' not in reasons and is_from_trusted_sender:
+                reasons = ['Legitimate email from trusted sender'] + reasons[:2]
+            elif 'Benign conversational pattern' not in reasons:
                 reasons = ['Benign conversational pattern'] + reasons[:2]
 
         # Fallback: if no risk signals and safe links and short text, mark safe
