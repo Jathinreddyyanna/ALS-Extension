@@ -201,6 +201,8 @@ const runtimeSignalsByTab = new Map<number, {
   riskLevel: RiskLevel
   signals: Record<string, number>
 }>()
+const liveSignalReasonsByTab = new Map<number, string[]>()
+const lastOverlayRiskByTab = new Map<number, RiskLevel>()
 // PHASE 4: store the latest merged scan result snapshot per tab for popup/dashboard consumers
 const scanResultByTab = new Map<number, UrlScanResult>()
 // PHASE 4: keep a lightweight activity feed per tab for the live security dashboard
@@ -741,6 +743,214 @@ async function safeSetBadge(tabId: number, color: string, text: string) {
   }
 }
 
+function scoreToRiskLevel(score: number): RiskLevel {
+  if (score >= 75) return 'CRITICAL'
+  if (score >= 50) return 'HIGH'
+  if (score >= 30) return 'MEDIUM'
+  return 'LOW'
+}
+
+async function updateBadge(tabId: number, score: number) {
+  try {
+    const riskLevel = scoreToRiskLevel(score)
+    const text =
+      riskLevel === 'CRITICAL' ? '!'
+        : riskLevel === 'HIGH' ? '⚠'
+          : riskLevel === 'MEDIUM' ? '?'
+            : '✓'
+    const color =
+      riskLevel === 'CRITICAL' ? '#CC0000'
+        : riskLevel === 'HIGH' ? '#FF6600'
+          : riskLevel === 'MEDIUM' ? '#FFAA00'
+            : '#00AA00'
+
+    chrome.tabs.get(tabId, (tab) => {
+      if (chrome.runtime.lastError || !tab) return
+      chrome.action.setBadgeBackgroundColor({ color, tabId }, () => {
+        void chrome.runtime.lastError
+      })
+      chrome.action.setBadgeText({ text, tabId }, () => {
+        void chrome.runtime.lastError
+      })
+    })
+  } catch {
+    // Ignore badge updates for closed tabs.
+  }
+}
+
+type LiveOverlayPayload = {
+  score: number
+  riskLevel: RiskLevel
+  reasons: string[]
+  domain: string
+  url: string
+}
+
+async function injectLiveOverlay(tabId: number, payload: LiveOverlayPayload) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (overlayPayload: LiveOverlayPayload) => {
+        ;(globalThis as typeof globalThis & { __ABS_OVERLAY_PAYLOAD?: LiveOverlayPayload }).__ABS_OVERLAY_PAYLOAD = overlayPayload
+      },
+      args: [payload],
+    })
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['overlayUI.js'],
+    })
+  } catch {
+    // Ignore overlay injection failures for unsupported pages.
+  }
+}
+
+function getLiveReasons(tabId: number): string[] {
+  return liveSignalReasonsByTab.get(tabId) ?? []
+}
+
+function pushLiveReason(tabId: number, reason: string) {
+  const existing = getLiveReasons(tabId)
+  if (existing.includes(reason)) return existing
+  const next = [...existing, reason].slice(-8)
+  liveSignalReasonsByTab.set(tabId, next)
+  return next
+}
+
+function toSignalBullet(signal: string, detail: string): string {
+  const lookup: Record<string, string> = {
+    POPUP_DETECTED: 'Popup behavior detected',
+    POPUP_TRAP: 'Popup trap behavior detected',
+    REDIRECT_BURST: 'Rapid redirect burst detected',
+    CLICKJACK_IFRAME: 'Transparent iframe overlay detected',
+    POINTER_EVENTS_OVERLAY: 'Pointer-events overlay detected',
+    FAKE_LOGIN_FORM: 'Fake login form detected',
+    INSECURE_FORM_ACTION: 'Password form submits without HTTPS',
+    CRYPTO_WALLET_KEYWORDS: 'Crypto wallet lure keywords detected',
+    PERMISSION_REQUEST_WITHOUT_USER_ACTION: 'Permission request without user action',
+    HIDDEN_IFRAME: 'Hidden iframe detected',
+    SUSPICIOUS_AUTOFILL_TARGET: 'Aggressive autofill targeting detected',
+  }
+  return detail || lookup[signal] || signal
+}
+
+function isPopularTrustedDomain(hostname: string): boolean {
+  const clean = hostname.replace(/^www\./, '').toLowerCase()
+  const trustedDomains = [
+    'google.com',
+    'google.co.in',
+    'google.co.uk',
+    'amazon.com',
+    'amazon.in',
+    'amazon.co.uk',
+    'paypal.com',
+    'microsoft.com',
+    'office.com',
+    'outlook.com',
+    'apple.com',
+    'github.com',
+    'linkedin.com',
+    'facebook.com',
+    'instagram.com',
+    'youtube.com',
+    'ebay.com',
+    'stripe.com',
+    'netflix.com',
+    'openai.com',
+    'chatgpt.com',
+    'walmart.com',
+    'target.com',
+    'shopify.com',
+    'flipkart.com',
+    'sbi.co.in',
+    'hdfcbank.com',
+    'icicibank.com',
+    'axisbank.com',
+    'kotak.com',
+    'chase.com',
+    'bankofamerica.com',
+    'wellsfargo.com',
+    'citi.com',
+  ]
+
+  return trustedDomains.some((domain) => clean === domain || clean.endsWith(`.${domain}`))
+}
+
+function shouldSuppressTrustedNoise(hostname: string, signal: string): boolean {
+  if (!isPopularTrustedDomain(hostname)) return false
+
+  return [
+    'POPUP_DETECTED',
+    'POPUP_TRAP',
+    'REDIRECT_BURST',
+    'CLICKJACK_IFRAME',
+    'POINTER_EVENTS_OVERLAY',
+    'HIDDEN_IFRAME',
+  ].includes(signal)
+}
+
+async function broadcastScoreUpdated(tabId: number, url: string, newScore: number, reason: string) {
+  try {
+    chrome.runtime.sendMessage({
+      type: 'SCORE_UPDATED',
+      payload: {
+        tabId,
+        url,
+        newScore,
+        riskLevel: scoreToRiskLevel(newScore),
+        reason,
+        reasons: getLiveReasons(tabId),
+      },
+    }, () => {
+      void chrome.runtime.lastError
+    })
+  } catch {
+    // Popup may be closed.
+  }
+}
+
+function mergeLiveSignalIntoSnapshot(tabId: number, url: string, score: number, reason: string): UrlScanResult {
+  let domain = 'unknown'
+  try {
+    domain = new URL(url).hostname
+  } catch {
+    domain = scanResultByTab.get(tabId)?.domain ?? 'unknown'
+  }
+
+  const existing = scanResultByTab.get(tabId)
+  const riskLevel = scoreToRiskLevel(score)
+  const reasons = getLiveReasons(tabId)
+
+  const next: UrlScanResult = {
+    ...(existing ?? toDashboardResult(tabId, url)),
+    url,
+    domain,
+    riskScore: Math.max(existing?.riskScore ?? 0, score),
+    riskLevel,
+    explanation: riskLevel === 'CRITICAL'
+      ? 'Live monitoring identified multiple high-confidence threat signals on this page.'
+      : riskLevel === 'HIGH'
+        ? 'Live monitoring detected dangerous behavior while the page was running.'
+        : existing?.explanation ?? 'Live monitoring detected unusual behavior on this page.',
+    aiExplanation: existing?.aiExplanation ?? existing?.explanation ?? '',
+    keyIndicators: Array.from(new Set([...(existing?.keyIndicators ?? []), ...reasons])),
+    warnings: Array.from(new Set([...(existing?.warnings ?? []), reason])),
+    recommendedAction: riskLevel === 'CRITICAL' ? 'block' : riskLevel === 'HIGH' ? 'warn' : (existing?.recommendedAction ?? 'warn'),
+    signals: normalizeRuntimeSignals(tabId),
+    activityLog: getActivityLog(tabId),
+  }
+
+  scanResultByTab.set(tabId, next)
+  siteRiskByTab.set(tabId, {
+    url,
+    domain,
+    riskScore: next.riskScore,
+    riskLevel,
+    explanation: next.explanation,
+    source: 'live_monitor',
+  })
+  return next
+}
+
 function safeSuggest(
   suggest: (suggestion?: any) => void,
   filename?: string | null
@@ -1003,7 +1213,7 @@ async function analyzeUrl(tabId: number, url: string, domSignals: Record<string,
       source: 'bypass',
     })
     appendActivity(tabId, 'bypass_enabled', 'Protection paused for this tab for the current session')
-    await safeSetBadge(tabId, '#166534', '')
+    await updateBadge(tabId, 0)
     await emitScanUpdated(tabId, url)
     return
   }
@@ -1047,7 +1257,7 @@ async function analyzeUrl(tabId: number, url: string, domSignals: Record<string,
       source: 'allowlist',
     })
     appendActivity(tabId, 'allowlisted', `Domain allowlisted: ${hostname}`)
-    await safeSetBadge(tabId, '#166534', '')
+    await updateBadge(tabId, 0)
     await emitScanUpdated(tabId, url)
     return
   }
@@ -1071,7 +1281,7 @@ async function analyzeUrl(tabId: number, url: string, domSignals: Record<string,
 
   const colors: Record<string, string> = { LOW: '#166534', MEDIUM: '#B45309', HIGH: '#DC2626', CRITICAL: '#7F1D1D' }
   try {
-    await safeSetBadge(tabId, colors[local.riskLevel] ?? '#166534', local.riskLevel === 'LOW' ? '' : local.score.toString())
+    await updateBadge(tabId, local.score)
   } catch {
     // Ignore badge failures for tabs that disappeared mid-update.
   }
@@ -1162,7 +1372,7 @@ async function analyzeUrl(tabId: number, url: string, domSignals: Record<string,
     const recommendedAction = result.recommendedAction ?? 'warn'
     const source = result.aiSource || result.source || 'backend'
 
-    await safeSetBadge(tabId, colors[finalRiskLevel] ?? '#166534', finalRiskLevel === 'LOW' ? '' : String(finalScore))
+    await updateBadge(tabId, finalScore)
 
     scanResultByTab.set(tabId, {
       ...result,
@@ -1492,6 +1702,8 @@ chrome.webNavigation.onDOMContentLoaded.addListener(({ tabId, url, frameId }) =>
 // Some SPA navigations don't fire onBeforeNavigate; analyze on tab update as a backup.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'loading') {
+    liveSignalReasonsByTab.delete(tabId)
+    lastOverlayRiskByTab.delete(tabId)
     const url = changeInfo.url || tab.url
     if (!url) return
 
@@ -1813,10 +2025,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       appendActivity(tabId, 'form_suspicious', 'Suspicious form detected')
     }
 
-    if (runtimeRiskLevel === 'HIGH') {
-      void safeSetBadge(tabId, '#D97706', '!')
-    } else if (runtimeRiskLevel === 'CRITICAL') {
-      void safeSetBadge(tabId, '#DC2626', '!!')
+    if (runtimeRiskLevel === 'HIGH' || runtimeRiskLevel === 'CRITICAL') {
+      void updateBadge(tabId, typeof payload.runtimeScore === 'number' ? payload.runtimeScore : 50)
     }
 
     if (runtimeRiskLevel === 'HIGH' || runtimeRiskLevel === 'CRITICAL') {
@@ -1901,6 +2111,97 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     )
 
     void emitScanUpdated(tabId, typeof payload.url === 'string' ? payload.url : sender.url ?? '')
+    return false
+  }
+
+  if (message.type === 'LIVE_SIGNAL_DETECTED') {
+    const tabId = sender.tab?.id
+    if (typeof tabId !== 'number') {
+      return false
+    }
+
+    const payload = message.payload && typeof message.payload === 'object'
+      ? message.payload as {
+          signal?: string
+          scoreIncrease?: number
+          url?: string
+          detail?: string
+          timestamp?: number
+          acknowledged?: boolean
+        }
+      : {}
+
+    const liveUrl =
+      (typeof payload.url === 'string' && payload.url) ||
+      sender.url ||
+      lastUrlByTab.get(tabId) ||
+      ''
+    const liveHostname = (() => {
+      try {
+        return new URL(liveUrl).hostname
+      } catch {
+        return ''
+      }
+    })()
+
+    if (shouldSuppressTrustedNoise(liveHostname, payload.signal ?? '')) {
+      return false
+    }
+
+    const scoreIncrease = typeof payload.scoreIncrease === 'number' ? payload.scoreIncrease : 0
+    const currentScore = Math.max(
+      scanResultByTab.get(tabId)?.riskScore ?? 0,
+      siteRiskByTab.get(tabId)?.riskScore ?? 0,
+      runtimeSignalsByTab.get(tabId)?.runtimeScore ?? 0
+    )
+    const nextScore = Math.min(100, currentScore + scoreIncrease)
+    const nextRiskLevel = scoreToRiskLevel(nextScore)
+    const reason = toSignalBullet(payload.signal ?? 'LIVE_SIGNAL', payload.detail ?? '')
+    const reasons = pushLiveReason(tabId, reason)
+
+    const currentRuntime = runtimeSignalsByTab.get(tabId)
+    runtimeSignalsByTab.set(tabId, {
+      url: liveUrl,
+      runtimeScore: nextScore,
+      riskLevel: nextRiskLevel,
+      signals: {
+        ...(currentRuntime?.signals ?? {}),
+      },
+    })
+
+    appendActivity(tabId, 'live_signal', reason)
+
+    const snapshot = mergeLiveSignalIntoSnapshot(tabId, liveUrl, nextScore, reason)
+    void updateBadge(tabId, snapshot.riskScore)
+    void broadcastScoreUpdated(tabId, liveUrl, snapshot.riskScore, reason)
+    void emitScanUpdated(tabId, liveUrl)
+
+    const previousOverlayRisk = lastOverlayRiskByTab.get(tabId)
+    const crossedWarning = currentScore < 50 && nextScore >= 50
+    const crossedCritical = currentScore < 75 && nextScore >= 75
+    const shouldShowCritical = nextScore >= 75 && previousOverlayRisk !== 'CRITICAL'
+    const shouldShowWarning = nextScore >= 50 && nextScore < 75 && (crossedWarning || previousOverlayRisk == null)
+
+    if (shouldShowCritical || crossedCritical) {
+      lastOverlayRiskByTab.set(tabId, 'CRITICAL')
+      void injectLiveOverlay(tabId, {
+        score: nextScore,
+        riskLevel: 'CRITICAL',
+        reasons,
+        domain: snapshot.domain,
+        url: liveUrl,
+      })
+    } else if (shouldShowWarning) {
+      lastOverlayRiskByTab.set(tabId, 'HIGH')
+      void injectLiveOverlay(tabId, {
+        score: nextScore,
+        riskLevel: 'HIGH',
+        reasons,
+        domain: snapshot.domain,
+        url: liveUrl,
+      })
+    }
+
     return false
   }
 
@@ -2254,6 +2555,8 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   siteRiskByTab.delete(tabId)
   domSignalsByTab.delete(tabId)
   runtimeSignalsByTab.delete(tabId)
+  liveSignalReasonsByTab.delete(tabId)
+  lastOverlayRiskByTab.delete(tabId)
   scanResultByTab.delete(tabId)
   activityLogByTab.delete(tabId)
   riskHistoryByTab.delete(tabId)
@@ -2327,6 +2630,12 @@ function cleanupStaleMaps(): void {
         break
       case 'runtimeSignalsByTab':
         if (typeof key === 'number') runtimeSignalsByTab.delete(key)
+        break
+      case 'liveSignalReasonsByTab':
+        if (typeof key === 'number') liveSignalReasonsByTab.delete(key)
+        break
+      case 'lastOverlayRiskByTab':
+        if (typeof key === 'number') lastOverlayRiskByTab.delete(key)
         break
       case 'domSignalsByTab':
         if (typeof key === 'number') domSignalsByTab.delete(key)

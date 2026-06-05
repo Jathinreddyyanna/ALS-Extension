@@ -49,6 +49,11 @@ const PHISHING_ACTIONS = [
   'suspended', 'unusual', 'activity', 'limited', 'restore', 'unlock'
 ];
 
+const HIGH_RISK_TLDS = new Set(['digital', 'trade', 'online', 'xyz', 'tk']);
+const FREE_HOSTING_SUFFIXES = ['pages.dev', 'herokuapp.com', 'netlify.app', 'vercel.app'];
+const OFFICIAL_CRYPTO_SUFFIXES = ['trezor.io', 'ledger.com', 'metamask.io', 'coinbase.com'];
+const CRYPTO_BRANDS = ['trezor', 'ledger', 'metamask', 'coinbase'];
+
 const SIGNAL_WEIGHTS: Record<string, number> = {
   brand_impersonation_phishing: 1.0,
   piracy_with_abuse: 1.0,
@@ -101,7 +106,11 @@ const buildHeuristicExplanationFallback = () => ({
 const applyThreatBoosters = (
   url: string,
   hostname: string,
-  heuristic: HeuristicResult
+  heuristic: HeuristicResult,
+  input?: {
+    domainAgeDays: number | null;
+    suspiciousKeywordScore: number;
+  }
 ): HeuristicResult => {
   const boostedSignals = { ...heuristic.signals };
   const boostedSignalsUsed = [...heuristic.signalsUsed];
@@ -138,6 +147,97 @@ const applyThreatBoosters = (
     boostedSignals.brandImpersonation = Math.max(boostedSignals.brandImpersonation ?? 0, 50);
     boostedSignalsUsed.push('brand_impersonation_pattern');
     boostedWarnings.push('Brand impersonation pattern');
+  }
+
+  const firstLabel = hostname.split('.')[0] ?? '';
+  const hasGibberishSubdomain = firstLabel.length >= 8 &&
+    (firstLabel.match(/[aeiou]/gi)?.length ?? 0) <= 2 &&
+    /[a-z]/i.test(firstLabel) &&
+    /\d/.test(firstLabel) === false;
+  if (hasGibberishSubdomain) {
+    boostedScore += 40;
+    boostedSignalsUsed.push('gibberish_subdomain');
+    boostedWarnings.push('Random-looking subdomain');
+  }
+
+  if (HIGH_RISK_TLDS.has(tld)) {
+    boostedScore += 25;
+    boostedSignalsUsed.push('high_risk_tld');
+    boostedWarnings.push('Suspicious top-level domain');
+  }
+
+  if (/\/(?:login|class)\.php(?:[/?#]|$)/i.test(new URL(url).pathname)) {
+    boostedScore += 35;
+    boostedSignalsUsed.push('php_login_lure');
+    boostedWarnings.push('Suspicious login endpoint');
+  }
+
+  const hasBase64RedirectParam = Array.from(new URL(url).searchParams.values()).some((value) => {
+    const normalized = value.trim().replace(/-/g, '+').replace(/_/g, '/');
+    if (!/^[A-Za-z0-9+/=]+$/.test(normalized) || normalized.length < 8) return false;
+    try {
+      const decoded = Buffer.from(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='), 'base64').toString('utf8').trim();
+      return /^https?:\/\//i.test(decoded);
+    } catch {
+      return false;
+    }
+  });
+  if (hasBase64RedirectParam) {
+    boostedScore += 40;
+    boostedSignalsUsed.push('base64_redirect_param');
+    boostedWarnings.push('Encoded redirect destination');
+  }
+
+  const isOfficialCryptoDomain = OFFICIAL_CRYPTO_SUFFIXES.some((suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`));
+  if (CRYPTO_BRANDS.some((brand) => urlLower.includes(brand)) && !isOfficialCryptoDomain) {
+    boostedScore += 55;
+    boostedSignalsUsed.push('crypto_brand_impersonation');
+    boostedWarnings.push('Crypto brand referenced off official domain');
+  }
+
+  if (hostname.includes('xn--')) {
+    boostedScore += 45;
+    boostedSignalsUsed.push('punycode_domain');
+    boostedWarnings.push('Punycode hostname');
+  }
+
+  if (
+    FREE_HOSTING_SUFFIXES.some((suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)) &&
+    ((input?.suspiciousKeywordScore ?? 0) > 0 || PHISHING_ACTIONS.some((action) => urlLower.includes(action)))
+  ) {
+    boostedScore += 35;
+    boostedSignalsUsed.push('free_hosting_with_suspicious_content');
+    boostedWarnings.push('Free hosting with suspicious content');
+  }
+
+  if ((heuristic.signals.typosquatScore ?? 0) > 0) {
+    boostedScore = Math.max(boostedScore, heuristic.score + 50);
+    boostedSignalsUsed.push('typosquatting');
+    boostedWarnings.push('Typosquatting pattern');
+  }
+
+  if ((input?.domainAgeDays ?? null) !== null && (input?.domainAgeDays ?? 9999) < 30) {
+    boostedScore += 35;
+    boostedSignalsUsed.push('new_domain_registration');
+    boostedWarnings.push('Recently registered domain');
+  }
+
+  if (!urlLower.startsWith('https://')) {
+    boostedScore += 30;
+    boostedSignalsUsed.push('no_https');
+    boostedWarnings.push('Connection is not using HTTPS');
+  }
+
+  if (hostname.split('.').length >= 5) {
+    boostedScore += 30;
+    boostedSignalsUsed.push('excessive_subdomains');
+    boostedWarnings.push('Excessive subdomains');
+  }
+
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+    boostedScore += 50;
+    boostedSignalsUsed.push('ip_hostname');
+    boostedWarnings.push('IP address used as hostname');
   }
 
   return {
@@ -708,7 +808,11 @@ export const performUrlScan = async (input: {
     const heuristic = applyThreatBoosters(
       parsed.normalizedUrl,
       intel.hostname,
-      computeHeuristics(parsed.normalizedUrl, intel, enrichment)
+      computeHeuristics(parsed.normalizedUrl, intel, enrichment),
+      {
+        domainAgeDays: enrichment.domainAgeDays,
+        suspiciousKeywordScore: Number(input.signals?.suspiciousKeywords ?? 0)
+      }
     );
 
     // Log signal breakdown for debugging

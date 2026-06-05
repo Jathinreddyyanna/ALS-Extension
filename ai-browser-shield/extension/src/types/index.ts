@@ -259,7 +259,9 @@ export type MessageType =
   | 'REPORT_SITE'
   | 'SENSITIVE_DATA_RISK'
   | 'EARLY_REDIRECT_ATTEMPT'
-  | 'DANGEROUS_API_CALL';
+  | 'DANGEROUS_API_CALL'
+  | 'LIVE_SIGNAL_DETECTED'
+  | 'SCORE_UPDATED';
 
 export interface ChromeMessage {
   type: MessageType;

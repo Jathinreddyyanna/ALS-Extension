@@ -3,6 +3,7 @@ import { injectOverlay, showWarningOverlay, showDownloadWarning, showClickjackWa
 import { collectInteractionSignals } from './interactionDetector'
 import { initLinkInterceptor } from '../preclick/linkInterceptor'
 import { initRuntimeMonitor } from './runtimeMonitor'
+import { LiveBehaviorMonitor } from './content'
 
 const SHIELD_POPUP_KEY = 'data-shield-injected'
 const TRACKING_PARAMS = [
@@ -109,6 +110,7 @@ initHoverPreview()
 injectOverlay()
 initLinkInterceptor()
 stripTrackingParams()
+new LiveBehaviorMonitor().start()
 
 // Listen for messages from background SW
 // Note: overlayInjector sends OPEN_REPORT_FORM and CANCEL_DOWNLOAD directly to background

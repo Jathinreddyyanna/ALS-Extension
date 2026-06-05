@@ -68,8 +68,7 @@ Rules:
     })
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      console.error('[Shield Gemini] API error:', res.status, err?.error?.message)
+      await res.json().catch(() => ({}))
       return null
     }
 
@@ -87,8 +86,7 @@ Rules:
       threats: Array.isArray(parsed.threats) ? parsed.threats : [],
       confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.7
     }
-  } catch (err) {
-    console.error('[Shield Gemini] Error:', err)
+  } catch {
     return null
   }
 }
